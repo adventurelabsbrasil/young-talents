@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
   FileText, MapPin, ChevronRight, CheckCircle, Filter, 
   UserPlus, Trophy, Menu, X, LogOut, Lock, Loader2, Edit3, Trash2,
-  Building2, Tag, Mail, Save, AlertTriangle
+  Building2, Tag, Mail, Save, AlertTriangle, UploadCloud
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
@@ -16,7 +16,7 @@ import {
 } from "firebase/auth";
 import { 
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, 
-  onSnapshot, serverTimestamp, query, orderBy 
+  onSnapshot, serverTimestamp, query, orderBy, writeBatch 
 } from "firebase/firestore";
 
 // --- CONFIGURAÇÃO E CONSTANTES ---
@@ -165,7 +165,7 @@ const TransitionModal = ({ transition, onClose, onConfirm }) => {
 };
 
 // 2. Componente de Configuração
-const ConfigBox = ({ title, icon: Icon,qh, items, val, setVal, onAdd, onDel, placeholder = "Adicionar novo..." }) => (
+const ConfigBox = ({ title, icon: Icon, items, val, setVal, onAdd, onDel, placeholder = "Adicionar novo..." }) => (
   <div className="bg-brand-card p-6 rounded-xl border border-brand-border shadow-lg">
     <h3 className="font-bold flex items-center gap-2 mb-4 text-white"><Icon className="text-brand-cyan"/> {title}</h3>
     <div className="flex gap-2 mb-4">
@@ -189,15 +189,37 @@ const ConfigBox = ({ title, icon: Icon,qh, items, val, setVal, onAdd, onDel, pla
   </div>
 );
 
-const SettingsPage = ({ companies, onAddCompany, onDelCompany, cities, onAddCity, onDelCity, interestAreas, onAddInterest, onDelInterest, roles, onAddRole, onDelRole }) => {
+const SettingsPage = ({ companies, onAddCompany, onDelCompany, cities, onAddCity, onDelCity, interestAreas, onAddInterest, onDelInterest, roles, onAddRole, onDelRole, onImportCSV, isImporting }) => {
   const [inputs, setInputs] = useState({ company: '', city: '', interest: '', role: '' });
   const handleAdd = (key, fn) => { if (inputs[key]) { fn(inputs[key]); setInputs({ ...inputs, [key]: '' }); } };
 
   return (
     <div className="space-y-8 pb-10">
-      <h2 className="text-2xl font-bold text-white">Configurações do Sistema</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-white">Configurações do Sistema</h2>
+        
+        {/* BOTÃO DE IMPORTAR CSV */}
+        <div className="relative">
+           <input 
+             type="file" 
+             accept=".csv"
+             onChange={onImportCSV}
+             id="csvUpload"
+             className="hidden"
+             disabled={isImporting}
+           />
+           <label 
+             htmlFor="csvUpload"
+             className={`cursor-pointer bg-brand-cyan text-brand-dark font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-cyan-400 transition-colors ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+           >
+             {isImporting ? <Loader2 className="animate-spin" size={18} /> : <UploadCloud size={18} />}
+             {isImporting ? 'Importando...' : 'Importar Candidatos (CSV)'}
+           </label>
+        </div>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-6">
-        <ConfigBox title="Empresas" icon={Building2} items={companies}Zh val={inputs.company} setVal={v => setInputs({...inputs, company: v})} onAdd={() => handleAdd('company', onAddCompany)} onDel={onDelCompany} />
+        <ConfigBox title="Empresas" icon={Building2} items={companies} val={inputs.company} setVal={v => setInputs({...inputs, company: v})} onAdd={() => handleAdd('company', onAddCompany)} onDel={onDelCompany} />
         <ConfigBox title="Cidades / Locais" icon={MapPin} items={cities} val={inputs.city} setVal={v => setInputs({...inputs, city: v})} onAdd={() => handleAdd('city', onAddCity)} onDel={onDelCity} />
         <ConfigBox title="Áreas de Interesse" icon={Tag} items={interestAreas} val={inputs.interest} setVal={v => setInputs({...inputs, interest: v})} onAdd={() => handleAdd('interest', onAddInterest)} onDel={onDelInterest} placeholder="Ex: Comercial..." />
         <ConfigBox title="Cargos / Roles" icon={Briefcase} items={roles} val={inputs.role} setVal={v => setInputs({...inputs, role: v})} onAdd={() => handleAdd('role', onAddRole)} onDel={onDelRole} placeholder="Ex: Analista Jr..." />
@@ -249,6 +271,7 @@ export default function App() {
   const [editingCandidate, setEditingCandidate] = useState(null);
   const [pendingTransition, setPendingTransition] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Filtros
   const [filters, setFilters] = useState({ period: 'all', company: 'all', jobId: 'all', city: 'all', interestArea: 'all', search: '' });
@@ -275,6 +298,88 @@ export default function App() {
     ];
     return () => unsubs.forEach(u => u());
   }, [user]);
+
+  // Lógica de Importação CSV
+  const handleCSVImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const text = e.target.result;
+        // Divide por linhas e remove linhas vazias
+        const rows = text.split('\n').filter(r => r.trim() !== '');
+        
+        if (rows.length < 2) {
+          alert("CSV vazio ou sem dados.");
+          setIsImporting(false);
+          return;
+        }
+
+        // Assume primeira linha como header e limpa as aspas/espaços
+        const headers = rows[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        const batchSize = 450; // Margem de segurança abaixo de 500
+        let batch = writeBatch(db);
+        let count = 0;
+        let totalImported = 0;
+
+        for (let i = 1; i < rows.length; i++) {
+          // Lógica simples para separar por vírgula (atenção: falha se houver vírgula dentro do valor)
+          const values = rows[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+          
+          if (values.length < headers.length) continue;
+
+          const candidateData = {};
+          headers.forEach((header, index) => {
+             // Mapeamento básico: se o CSV tiver header "Nome", salva como "fullName", etc.
+             // Se o CSV já tiver os headers certos (fullName, email, city), usa direto.
+             let key = header;
+             if (header.toLowerCase().includes('nome')) key = 'fullName';
+             if (header.toLowerCase().includes('mail')) key = 'email';
+             if (header.toLowerCase().includes('cidade')) key = 'city';
+             if (header.toLowerCase().includes('telefone') || header.toLowerCase().includes('celular')) key = 'phone';
+             
+             candidateData[key] = values[index] || '';
+          });
+
+          // Dados padrão obrigatórios
+          candidateData.status = 'Inscrito';
+          candidateData.createdAt = serverTimestamp();
+          candidateData.imported = true;
+
+          const ref = doc(collection(db, "candidates"));
+          batch.set(ref, candidateData);
+          count++;
+          totalImported++;
+
+          if (count >= batchSize) {
+            await batch.commit();
+            batch = writeBatch(db);
+            count = 0;
+          }
+        }
+
+        if (count > 0) {
+          await batch.commit();
+        }
+
+        alert(`Importação concluída! ${totalImported} candidatos adicionados.`);
+        
+      } catch (error) {
+        console.error("Erro na importação:", error);
+        alert("Erro ao processar o arquivo. Verifique o formato.");
+      } finally {
+        setIsImporting(false);
+        event.target.value = ''; // Reset input
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
 
   // Lógica de Filtro
   const filteredData = useMemo(() => {
@@ -423,12 +528,19 @@ export default function App() {
             {activeTab === 'pipeline' && <Pipeline candidates={filteredData.candidates} jobs={jobs} onDragEnd={handleDragEnd} onEdit={(c) => setEditingCandidate(c)} />}
             {activeTab === 'jobs' && <JobsList jobs={filteredData.jobs} candidates={candidates} onAdd={() => setIsJobModalOpen(true)} onDelete={(id) => handleDeleteItem('jobs', id)} onFilterPipeline={(id) => { setFilters({...filters, jobId: id}); setActiveTab('pipeline'); }} />}
             {activeTab === 'candidates' && <CandidatesList candidates={filteredData.candidates} jobs={jobs} onAdd={() => setEditingCandidate({})} onEdit={(c) => setEditingCandidate(c)} onDelete={(id) => handleDeleteItem('candidates', id)} />}
-            {activeTab === 'settings' && <SettingsPage companies={companies} onAddCompany={n => handleAddAux('companies', n)} onDelCompany={id => handleDeleteItem('companies', id)} cities={cities} onAddCity={n => handleAddAux('cities', n)} onDelCity={id => handleDeleteItem('cities', id)} interestAreas={interestAreas} onAddInterest={n => handleAddAux('interest_areas', n)} onDelInterest={id => handleDeleteItem('interest_areas', id)} roles={roles} onAddRole={n => handleAddAux('roles', n)} onDelRole={id => handleDeleteItem('roles', id)} />}
+            {activeTab === 'settings' && 
+              <SettingsPage 
+                companies={companies} onAddCompany={n => handleAddAux('companies', n)} onDelCompany={id => handleDeleteItem('companies', id)} 
+                cities={cities} onAddCity={n => handleAddAux('cities', n)} onDelCity={id => handleDeleteItem('cities', id)} 
+                interestAreas={interestAreas} onAddInterest={n => handleAddAux('interest_areas', n)} onDelInterest={id => handleDeleteItem('interest_areas', id)} 
+                roles={roles} onAddRole={n => handleAddAux('roles', n)} onDelRole={id => handleDeleteItem('roles', id)} 
+                onImportCSV={handleCSVImport} isImporting={isImporting}
+              />}
           </div>
         </main>
       </div>
 
-      {isJobModalOpen && <JobModal isOpen={isJobModalOpen} onClose={() => setIsJobModalOpen(false)} onSave={handleSaveJob} companies={companies}RP cities={cities} isSaving={isSaving} />}
+      {isJobModalOpen && <JobModal isOpen={isJobModalOpen} onClose={() => setIsJobModalOpen(false)} onSave={handleSaveJob} companies={companies} cities={cities} isSaving={isSaving} />}
       {editingCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 text-white">
            <div className="bg-brand-card p-6 rounded-xl border border-brand-border w-full max-w-lg">
