@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, MapPin, Tag, Briefcase, Globe, GraduationCap, Heart, Plus, X, Layout, Database, Users } from 'lucide-react';
+import { Building2, MapPin, Tag, Briefcase, Globe, GraduationCap, Heart, Plus, X, Layout, Database, Users, Upload } from 'lucide-react';
 
 export default function SettingsPage({ 
   companies, onAddCompany, onDelCompany,
@@ -9,12 +9,13 @@ export default function SettingsPage({
   origins, onAddOrigin, onDelOrigin,
   schooling, onAddSchooling, onDelSchooling,
   marital, onAddMarital, onDelMarital,
-  onImportCSV, isImporting
+  tags, onAddTag, onDelTag,
+  onOpenCsvModal
 }) {
   const [activeTab, setActiveTab] = useState('vagas'); // vagas, candidatos, sistema
   const [inputs, setInputs] = useState({});
 
-  const handleAdd = (key, fn) => {
+  const handleAdd = (key,fn) => {
     if (inputs[key]) { fn(inputs[key]); setInputs({ ...inputs, [key]: '' }); }
   };
 
@@ -56,7 +57,8 @@ export default function SettingsPage({
 
         {activeTab === 'candidatos' && (
           <div className="grid lg:grid-cols-2 gap-6 animate-in fade-in">
-            <ConfigBox title="Áreas de Interesse" icon={Tag} items={interestAreas} val={inputs.interest} setVal={v => updateInput('interest', v)} onAdd={() => handleAdd('interest', onAddInterest)} onDel={onDelInterest} />
+            <ConfigBox title="Tags de Candidatos" icon={Tag} items={tags} val={inputs.tag} setVal={v => updateInput('tag', v)} onAdd={() => handleAdd('tag', onAddTag)} onDel={onDelTag} placeholder="Ex: Prioridade, Inglês Fluente" />
+            <ConfigBox title="Áreas de Interesse" icon={Layout} items={interestAreas} val={inputs.interest} setVal={v => updateInput('interest', v)} onAdd={() => handleAdd('interest', onAddInterest)} onDel={onDelInterest} />
             <ConfigBox title="Origens (Fontes)" icon={Globe} items={origins} val={inputs.origin} setVal={v => updateInput('origin', v)} onAdd={() => handleAdd('origin', onAddOrigin)} onDel={onDelOrigin} />
             <ConfigBox title="Nível Escolaridade" icon={GraduationCap} items={schooling} val={inputs.schooling} setVal={v => updateInput('schooling', v)} onAdd={() => handleAdd('schooling', onAddSchooling)} onDel={onDelSchooling} />
             <ConfigBox title="Estado Civil" icon={Heart} items={marital} val={inputs.marital} setVal={v => updateInput('marital', v)} onAdd={() => handleAdd('marital', onAddMarital)} onDel={onDelMarital} />
@@ -65,14 +67,15 @@ export default function SettingsPage({
 
         {activeTab === 'sistema' && (
           <div className="bg-brand-card p-6 rounded-xl border border-brand-border animate-in fade-in">
-            <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Database size={20} className="text-brand-cyan"/> Backup e Importação</h3>
-            <p className="text-sm text-slate-400 mb-6">Importe dados legados via CSV caso a integração automática falhe.</p>
-            <div className="relative inline-block">
-               <input type="file" accept=".csv" onChange={onImportCSV} id="csvUpload" className="hidden" disabled={isImporting} />
-               <label htmlFor="csvUpload" className={`cursor-pointer bg-brand-cyan text-brand-dark font-bold px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-cyan-400 transition-colors ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                 {isImporting ? 'Processando...' : 'Selecionar Arquivo CSV'}
-               </label>
-            </div>
+            <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Database size={20} className="text-brand-cyan"/> Importação de Dados</h3>
+            <p className="text-sm text-slate-400 mb-6">Utilize esta ferramenta para importar candidatos em massa através de arquivos CSV. Você poderá mapear os campos e escolher como tratar duplicidades.</p>
+            
+            <button 
+                onClick={onOpenCsvModal} 
+                className="bg-brand-cyan text-brand-dark font-bold px-6 py-4 rounded-xl flex items-center gap-3 hover:bg-cyan-400 transition-all shadow-lg hover:shadow-brand-cyan/20"
+            >
+                 <Upload size={24}/> Iniciar Importação de CSV
+            </button>
           </div>
         )}
 
@@ -98,7 +101,7 @@ const ConfigBox = ({ title, icon: Icon, items = [], val, setVal, onAdd, onDel, p
       <button onClick={onAdd} className="bg-brand-cyan text-brand-dark px-3 rounded-lg hover:bg-cyan-400 transition-colors"><Plus size={18}/></button>
     </div>
     <ul className="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-      {items.map(i => (
+      {items && items.map(i => (
         <li key={i.id} className="flex justify-between items-center bg-brand-dark/50 p-2 rounded-md text-sm text-slate-300 border border-transparent hover:border-brand-border group transition-all">
           <span className="truncate">{i.name}</span> 
           <button onClick={() => onDel(i.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><X size={14}/></button>

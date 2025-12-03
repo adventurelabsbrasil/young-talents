@@ -7,8 +7,9 @@ export const PIPELINE_STAGES = [
   'Testes', 
   'Segunda Entrevista', 
   'Selecionado', 
-  'Contratado', // Etapa de Sucesso (Won)
-  'Reprovado'   // Etapa de Perda (Lost)
+  'Contratado',       // Sucesso
+  'Reprovado',        // Perda
+  'Desistiu da vaga'  // Perda (Novo)
 ];
 
 export const JOB_STATUSES = ['Aberta', 'Preenchida', 'Cancelada', 'Fechada'];
@@ -21,5 +22,18 @@ export const STATUS_COLORS = {
   'Segunda Entrevista': 'bg-brand-orange/20 text-brand-orange border-brand-orange/30',
   'Selecionado': 'bg-yellow-900/40 text-yellow-300 border-yellow-700',
   'Contratado': 'bg-green-900/40 text-green-300 border-green-700',
-  'Reprovado': 'bg-red-900/40 text-red-300 border-red-700'
+  'Reprovado': 'bg-red-900/40 text-red-300 border-red-700',
+  'Desistiu da vaga': 'bg-slate-800 text-slate-400 border-slate-600'
 };
+
+// Mapeamento de campos CSV (Headers comuns) para campos do sistema
+export const CSV_FIELD_MAPPING_OPTIONS = [
+  { label: 'Nome Completo', value: 'fullName' },
+  { label: 'E-mail', value: 'email' },
+  { label: 'Telefone', value: 'phone' },
+  { label: 'Cidade', value: 'city' },
+  { label: 'Cargo/Vaga', value: 'role' },
+  { label: 'Origem/Fonte', value: 'source' },
+  { label: 'LinkedIn', value: 'linkedinUrl' },
+  { label: 'Currículo (Link)', value: 'cvUrl' }
+];
