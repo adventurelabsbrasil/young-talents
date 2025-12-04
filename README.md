@@ -1,16 +1,144 @@
 # React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# 🏆 Young Talents ATS
 
-Currently, two official plugins are available:
+Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desenvolvido com React + Vite + Firebase.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 📋 Funcionalidades
 
-## React Compiler
+- **Pipeline de Talentos**: Visualização kanban com drag & drop dos candidatos
+- **Banco de Talentos**: Tabela com busca, filtros, paginação e ordenação
+- **Dashboard**: Gráficos e KPIs de recrutamento
+- **Gestão de Vagas**: Criação e acompanhamento de vagas
+- **Autenticação**: Login com Google
+- **Tema**: Toggle dark/light com persistência
+- **Responsivo**: Otimizado para desktop e tablet
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 Quick Start
 
-## Expanding the ESLint configuration
+### Pré-requisitos
+- Node.js 16+
+- npm ou yarn
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Instalação
+
+\`\`\`bash
+# Clone o repositório
+git clone https://github.com/rodrigoribasyoung/young-hunt-ats.git
+cd young-hunt-ats
+
+# Instale dependências
+npm install
+
+# Configure variáveis de ambiente
+cp .env.example .env.local
+# Edite .env.local e adicione suas credenciais Firebase
+
+# Inicie o servidor de desenvolvimento
+npm run dev
+\`\`\`
+
+Acesse \`http://localhost:5173\`
+
+## 📦 Build e Deploy
+
+\`\`\`bash
+# Build para produção
+npm run build
+
+# Preview do build
+npm run preview
+\`\`\`
+
+### Deploy no Vercel
+
+1. Conecte seu repositório no [Vercel](https://vercel.com)
+2. Adicione variáveis de ambiente no dashboard:
+	- \`VITE_FIREBASE_API_KEY\`
+	- \`VITE_FIREBASE_AUTH_DOMAIN\`
+	- \`VITE_FIREBASE_PROJECT_ID\`
+	- \`VITE_FIREBASE_STORAGE_BUCKET\`
+	- \`VITE_FIREBASE_MESSAGING_SENDER_ID\`
+	- \`VITE_FIREBASE_APP_ID\`
+3. Clique em "Deploy"
+
+## 🔐 Configuração Firebase
+
+1. Crie um projeto no [Firebase Console](https://console.firebase.google.com)
+2. Ative Google Authentication
+3. Crie um arquivo \`.env.local\`:
+
+\`\`\`env
+VITE_FIREBASE_API_KEY=sua_api_key
+VITE_FIREBASE_AUTH_DOMAIN=seu_auth_domain
+VITE_FIREBASE_PROJECT_ID=seu_project_id
+VITE_FIREBASE_STORAGE_BUCKET=seu_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=seu_messaging_sender_id
+VITE_FIREBASE_APP_ID=seu_app_id
+\`\`\`
+
+## 📚 Documentação
+
+- [TESTE_COMPLETO.md](./TESTE_COMPLETO.md) - Guia completo de teste com Hunter
+- [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Solução de problemas de autenticação
+- [TECHNICAL_CHANGES.md](./TECHNICAL_CHANGES.md) - Mudanças técnicas realizadas
+
+## 🛠️ Scripts Disponíveis
+
+\`\`\`bash
+npm run dev      # Servidor de desenvolvimento
+npm run build    # Build para produção
+npm run preview  # Preview do build
+npm run lint     # Verificar linting
+\`\`\`
+
+## 📱 Estrutura do Projeto
+
+\`\`\`
+src/
+├── App.jsx                 # Aplicação principal
+├── constants.js            # Constantes (Pipeline stages, cores, etc)
+├── ThemeContext.jsx        # Context para tema dark/light
+├── components/
+│   ├── SettingsPage.jsx   # Página de configurações
+│   └── modals/
+│       ├── TransitionModal.jsx      # Modal de transição entre etapas
+│       ├── JobsCandidateModal.jsx   # Modal de candidatos de vagas
+│       └── CsvImportModal.jsx       # Modal de importação CSV
+├── assets/                 # Imagens e assets
+└── index.css              # Estilos globais
+\`\`\`
+
+## 🎯 Tecnologias
+
+- **React 18.3** - UI Framework
+- **Vite 5.4** - Build tool
+- **Firebase 11.0** - Backend e autenticação
+- **Recharts 2.13** - Gráficos
+- **Tailwind CSS 3.4** - Styling
+- **Lucide React 0.460** - Icons
+
+## 🐛 Troubleshooting
+
+### Login Google não funciona
+Ver [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md)
+
+### Porta 5173 em uso
+\`\`\`bash
+npm run dev -- --port 3000
+\`\`\`
+
+## 📝 Licença
+
+Proprietário - Young Talents
+
+## 👥 Contribuidores
+
+- Rodrigo Ribas (Young Talents)
+- GitHub Copilot (Desenvolvimento)
+
+---
+
+**Status:** ✅ Pronto para Produção
+
+Última atualização: 4 de Dezembro, 2025
