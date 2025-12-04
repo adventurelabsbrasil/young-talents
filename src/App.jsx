@@ -47,7 +47,7 @@ const db = getFirestore(app);
 // --- COMPONENTES AUXILIARES ---
 
 // Dashboard com Gráficos
-const Dashboard = ({ filteredJobs, filteredCandidates }) => {
+const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
   // Dados para gráficos
   const statusData = useMemo(() => {
     const counts = {};
@@ -79,6 +79,18 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
     return Object.entries(cities).slice(0, 5).map(([name, value]) => ({ name, value }));
   }, [filteredCandidates]);
 
+  const originData = useMemo(() => {
+    const origins = {};
+    filteredCandidates.forEach(c => {
+      if (c.source) origins[c.source] = (origins[c.source] || 0) + 1;
+    });
+    return Object.entries(origins).slice(0,5).map(([name,value])=>({name,value}));
+  }, [filteredCandidates]);
+
+  const missingReturnCount = useMemo(() => {
+    return filteredCandidates.filter(c => (c.status === 'Seleção' || c.status === 'Selecionado') && !c.returnSent).length;
+  }, [filteredCandidates]);
+
   const jobStats = {
     open: filteredJobs.filter(j => j.status === 'Aberta').length,
     filled: filteredJobs.filter(j => j.status === 'Preenchida').length,
@@ -98,25 +110,34 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
       
       {/* KPIs Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/10 p-6 rounded-xl border border-blue-700/30">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates)} className="cursor-pointer bg-gradient-to-br from-blue-900/30 to-blue-800/10 p-6 rounded-xl border border-blue-700/30 hover:scale-[1.01] transition-transform">
           <h3 className="text-slate-400 text-sm font-semibold">Total de Candidatos</h3>
           <p className="text-3xl font-bold text-blue-300 mt-2">{candidateStats.total}</p>
           <p className="text-xs text-slate-500 mt-1">{candidateStats.active} em processo</p>
         </div>
-        <div className="bg-gradient-to-br from-green-900/30 to-green-800/10 p-6 rounded-xl border border-green-700/30">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Contratado'))} className="cursor-pointer bg-gradient-to-br from-green-900/30 to-green-800/10 p-6 rounded-xl border border-green-700/30 hover:scale-[1.01] transition-transform">
           <h3 className="text-slate-400 text-sm font-semibold">Contratados</h3>
           <p className="text-3xl font-bold text-green-300 mt-2">{candidateStats.hired}</p>
           <p className="text-xs text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.hired / candidateStats.total) * 100).toFixed(1) : 0}%</p>
         </div>
-        <div className="bg-gradient-to-br from-orange-900/30 to-orange-800/10 p-6 rounded-xl border border-orange-700/30">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id)))} className="cursor-pointer bg-gradient-to-br from-orange-900/30 to-orange-800/10 p-6 rounded-xl border border-orange-700/30 hover:scale-[1.01] transition-transform">
           <h3 className="text-slate-400 text-sm font-semibold">Vagas Abertas</h3>
           <p className="text-3xl font-bold text-orange-300 mt-2">{jobStats.open}</p>
           <p className="text-xs text-slate-500 mt-1">{jobStats.filled} preenchidas</p>
         </div>
-        <div className="bg-gradient-to-br from-red-900/30 to-red-800/10 p-6 rounded-xl border border-red-700/30">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Reprovado'))} className="cursor-pointer bg-gradient-to-br from-red-900/30 to-red-800/10 p-6 rounded-xl border border-red-700/30 hover:scale-[1.01] transition-transform">
           <h3 className="text-slate-400 text-sm font-semibold">Reprovados</h3>
           <p className="text-3xl font-bold text-red-300 mt-2">{candidateStats.rejected}</p>
           <p className="text-xs text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.rejected / candidateStats.total) * 100).toFixed(1) : 0}%</p>
+        </div>
+
+      </div>
+      {/* Card rápido: falta dar retorno */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c => (c.status === 'Seleção' || c.status === 'Selecionado') && !c.returnSent))} className="cursor-pointer bg-brand-card p-4 rounded-xl border border-brand-border">
+          <div className="text-slate-400 text-sm">Faltam dar retorno</div>
+          <div className="text-2xl font-bold text-brand-orange mt-2">{missingReturnCount}</div>
+          <div className="text-xs text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
         </div>
       </div>
 
@@ -149,6 +170,25 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
                 <Pie data={areaData} cx="50%" cy="50%" labelLine={false} label={({name, value}) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
                   {areaData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]}/>
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-slate-500">Sem dados</div>
+          )}
+        </div>
+
+        {/* Origem dos Candidatos (Top) */}
+        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
+          <h3 className="font-bold text-lg text-white mb-4">Origem dos Candidatos</h3>
+          {originData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={originData} cx="50%" cy="50%" labelLine={false} label={({name, value}) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
+                  {originData.map((entry, index) => (
+                    <Cell key={`cell-origin-${index}`} fill={COLORS[index % COLORS.length]}/>
                   ))}
                 </Pie>
                 <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
@@ -218,7 +258,7 @@ const LoginScreen = ({ onLogin }) => (
 );
 
 // --- SIDEBAR FILTROS AVANÇADOS ---
-const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, options }) => {
+const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, options, candidates = [] }) => {
   if (!isOpen) return null;
   
   const dynamicFilters = CSV_FIELD_MAPPING_OPTIONS.filter(opt => 
@@ -242,35 +282,36 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
             </select>
           </div>
 
-          {dynamicFilters.map(field => {
+           {dynamicFilters.map(field => {
+             // Prefer options from system lists, fallback to deriving from candidates
              let optionsList = [];
-             if(field.value === 'city') optionsList = options.cities;
-             else if(field.value === 'interestAreas') optionsList = options.interestAreas;
-             else if(field.value === 'schoolingLevel') optionsList = options.schooling;
-             else if(field.value === 'source') optionsList = options.origins;
-             else if(field.value === 'maritalStatus') optionsList = options.marital;
+             if(field.value === 'city') optionsList = (options.cities && options.cities.length>0) ? options.cities.map(c=>({id:c.id,name:c.name})) : Array.from(new Set(candidates.map(x=>x.city).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+             else if(field.value === 'interestAreas') optionsList = (options.interestAreas && options.interestAreas.length>0) ? options.interestAreas.map(i=>({id:i.id,name:i.name})) : Array.from(new Set(candidates.map(x=>x.interestAreas).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+             else if(field.value === 'schoolingLevel') optionsList = (options.schooling && options.schooling.length>0) ? options.schooling.map(s=>({id:s.id,name:s.name})) : Array.from(new Set(candidates.map(x=>x.schoolingLevel).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+             else if(field.value === 'source') optionsList = (options.origins && options.origins.length>0) ? options.origins.map(o=>({id:o.id,name:o.name})) : Array.from(new Set(candidates.map(x=>x.source).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+             else if(field.value === 'maritalStatus') optionsList = (options.marital && options.marital.length>0) ? options.marital.map(m=>({id:m.id,name:m.name})) : Array.from(new Set(candidates.map(x=>x.maritalStatus).filter(Boolean))).map((n,i)=>({id:i,name:n}));
              
              const hasOptions = optionsList.length > 0;
              const isBoolean = ['hasLicense', 'isStudying', 'canRelocate'].includes(field.value);
 
              return (
-                <div key={field.value} className="space-y-2">
-                   <label className="text-xs font-bold text-slate-400 uppercase">{field.label.replace(':', '')}</label>
-                   {hasOptions ? (
-                      <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={filters[field.value] || 'all'} onChange={e => setFilters({...filters, [field.value]: e.target.value})}>
-                         <option value="all">Todos</option>
-                         {optionsList.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
-                      </select>
-                   ) : isBoolean ? (
-                      <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={filters[field.value] || 'all'} onChange={e => setFilters({...filters, [field.value]: e.target.value})}>
-                         <option value="all">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option>
-                      </select>
-                   ) : (
-                      <input type="text" className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" placeholder={`Filtrar...`} value={filters[field.value] || ''} onChange={e => setFilters({...filters, [field.value]: e.target.value})}/>
-                   )}
-                </div>
+               <div key={field.value} className="space-y-2">
+                 <label className="text-xs font-bold text-slate-400 uppercase">{field.label.replace(':', '')}</label>
+                 {hasOptions ? (
+                   <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={filters[field.value] || 'all'} onChange={e => setFilters({...filters, [field.value]: e.target.value})}>
+                     <option value="all">Todos</option>
+                     {optionsList.map(o => <option key={o.id || o.name} value={o.name}>{o.name}</option>)}
+                   </select>
+                 ) : isBoolean ? (
+                   <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={filters[field.value] || 'all'} onChange={e => setFilters({...filters, [field.value]: e.target.value})}>
+                     <option value="all">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option>
+                   </select>
+                 ) : (
+                   <input type="text" className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" placeholder={`Filtrar...`} value={filters[field.value] || ''} onChange={e => setFilters({...filters, [field.value]: e.target.value})}/>
+                 )}
+               </div>
              );
-          })}
+           })}
         </div>
 
         <div className="mt-8 pt-4 border-t border-brand-border flex flex-col gap-3">
@@ -432,7 +473,7 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-hidden bg-brand-dark relative">
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} /></div>}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} onAdd={()=>{setEditingJob({});setIsJobModalOpen(true)}} onEdit={(j)=>{setEditingJob(j);setIsJobModalOpen(true)}} onDelete={(id)=>deleteDoc(doc(db,'jobs',id))} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={setViewingJob}/></div>}
            {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>deleteDoc(doc(db,'candidates',id))}/></div>}
@@ -440,7 +481,7 @@ export default function App() {
         </div>
       </div>
 
-      <FilterSidebar isOpen={isFilterSidebarOpen} onClose={() => setIsFilterSidebarOpen(false)} filters={filters} setFilters={setFilters} clearFilters={() => setFilters(initialFilters)} options={optionsProps} />
+      <FilterSidebar isOpen={isFilterSidebarOpen} onClose={() => setIsFilterSidebarOpen(false)} filters={filters} setFilters={setFilters} clearFilters={() => setFilters(initialFilters)} options={optionsProps} candidates={candidates} />
 
       {/* MODAIS GLOBAIS - CORRIGIDO PASSAGEM DE PROPS */}
       {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={() => { setIsJobModalOpen(false); setEditingJob(null); }} onSave={d => handleSaveGeneric('jobs', d, () => {setIsJobModalOpen(false); setEditingJob(null);})} options={optionsProps} isSaving={isSaving} />}
@@ -462,6 +503,9 @@ export default function App() {
       
       <CsvImportModal isOpen={isCsvModalOpen} onClose={() => setIsCsvModalOpen(false)} onImportData={(d) => handleSaveGeneric('candidates_batch', d)} />
       <JobCandidatesModal isOpen={!!viewingJob} onClose={() => setViewingJob(null)} job={viewingJob} candidates={candidates.filter(c => c.jobId === viewingJob?.id)} />
+      {dashboardModalCandidates && (
+        <JobCandidatesModal isOpen={true} onClose={() => setDashboardModalCandidates(null)} job={{ title: 'Resultados do Dashboard' }} candidates={dashboardModalCandidates} />
+      )}
     </div>
   );
 }
@@ -537,20 +581,27 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus }) =>
 };
 
 const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect }) => {
-   const displayedCandidates = allCandidates.slice(0, limit);
-   const handleDrop = (e) => { e.preventDefault(); const cId = e.dataTransfer.getData("candidateId"); if (cId) onDragEnd(cId, stage); };
-   const handleDragStart = (e, cId) => { e.dataTransfer.setData("candidateId", cId); };
+  const displayedCandidates = allCandidates.slice(0, limit);
+  const handleDrop = (e) => { e.preventDefault(); const cId = e.dataTransfer.getData("text/plain"); if (cId) onDragEnd(cId, stage); };
+  const handleDragStart = (e, cId) => { try { e.dataTransfer.setData("text/plain", cId); e.dataTransfer.effectAllowed = 'move'; } catch(err){ console.warn('dragStart err', err); } };
    return (
       <div className="w-[300px] flex flex-col bg-brand-card/40 border border-brand-border rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
          <div className={`p-3 border-b border-brand-border flex justify-between items-center rounded-t-xl ${STATUS_COLORS[stage]}`}><span className="font-bold text-sm uppercase">{stage}</span><span className="bg-black/20 px-2 py-0.5 rounded text-xs font-mono">{allCandidates.length}</span></div>
-         <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">{displayedCandidates.map(c => (
-            <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-brand-border'}`}>
-               <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-brand-orange" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
-               <div className="pl-6 mb-2"><h4 className="font-bold text-white text-sm line-clamp-1">{c.fullName}</h4></div>
-               <div className="space-y-1 pl-6"><div className="text-xs text-brand-cyan truncate flex gap-1"><Building2 size={10}/> {c.interestAreas}</div><div className="text-xs text-slate-400 truncate flex gap-1"><MapPin size={10}/> {c.city}</div></div>
-               <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col bg-brand-card shadow-lg rounded border border-brand-border z-20"><button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Contratado')}} className="p-1.5 hover:text-green-400"><Check size={14}/></button><button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Reprovado')}} className="p-1.5 hover:text-red-400"><Ban size={14}/></button></div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">{displayedCandidates.map(c => (
+          <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-brand-border'}`}>
+            <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-brand-orange" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
+            <div className="pl-6 mb-2"><h4 className="font-bold text-white text-sm line-clamp-1">{c.fullName}</h4></div>
+            <div className="grid grid-cols-1 gap-1 pl-6">
+              <div className="text-xs text-brand-cyan truncate flex gap-1"><Building2 size={10}/> {c.interestAreas || 'N/D'}</div>
+              <div className="text-xs text-slate-400 truncate flex gap-1"><MapPin size={10}/> {c.city || 'N/D'}</div>
+              <div className="text-xs text-slate-400 truncate flex gap-1"><Mail size={10}/> {c.email || 'N/D'}</div>
+              <div className="text-xs text-slate-400 truncate flex gap-1">📞 {c.phone || 'N/D'}</div>
+              <div className="text-xs text-slate-400 truncate flex gap-1">🎓 {c.education || 'N/D'}</div>
+              {c.score && <div className="text-xs text-brand-orange font-bold">Match: {c.score}%</div>}
             </div>
-         ))}{allCandidates.length > limit && <button onClick={onLoadMore} className="w-full py-2 text-xs text-slate-400 dashed border border-slate-700 hover:bg-brand-card">Carregar mais</button>}</div>
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col bg-brand-card shadow-lg rounded border border-brand-border z-20"><button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Contratado')}} className="p-1.5 hover:text-green-400"><Check size={14}/></button><button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Reprovado')}} className="p-1.5 hover:text-red-400"><Ban size={14}/></button></div>
+          </div>
+        ))}{allCandidates.length > limit && <button onClick={onLoadMore} className="w-full py-2 text-xs text-slate-400 dashed border border-slate-700 hover:bg-brand-card">Carregar mais</button>}</div>
       </div>
    );
 };
