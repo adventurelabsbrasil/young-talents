@@ -71,32 +71,76 @@ export default function SettingsPage({
 // --- SUB-COMPONENTES DE CADA ABA ---
 
 const FieldsManager = () => {
-  // Mock dos campos baseado no CSV
-  const [fields, setFields] = useState(CSV_FIELD_MAPPING_OPTIONS.map((f, i) => ({
+  // Separar campos de candidato e de vaga
+  const candidateFields = CSV_FIELD_MAPPING_OPTIONS.map((f, i) => ({
     id: f.value, label: f.label.replace(':', ''), type: 'Texto', visible: true, required: i < 3
-  })));
+  }));
+  
+  // Campos de vaga (mock - pode ser expandido)
+  const jobFields = [
+    { id: 'title', label: 'Título da Vaga', type: 'Texto', visible: true, required: true },
+    { id: 'company', label: 'Empresa', type: 'Texto', visible: true, required: true },
+    { id: 'city', label: 'Cidade', type: 'Texto', visible: true, required: false },
+    { id: 'description', label: 'Descrição', type: 'Texto Longo', visible: true, required: false },
+    { id: 'requirements', label: 'Requisitos', type: 'Texto Longo', visible: true, required: false },
+    { id: 'salary', label: 'Salário', type: 'Número', visible: true, required: false },
+    { id: 'status', label: 'Status', type: 'Seleção', visible: true, required: true },
+  ];
+  
+  const [candidateFieldsState, setCandidateFieldsState] = useState(candidateFields);
+  const [jobFieldsState, setJobFieldsState] = useState(jobFields);
+  const [activeSection, setActiveSection] = useState('candidate');
   const [search, setSearch] = useState('');
 
-  const filteredFields = fields.filter(f => f.label.toLowerCase().includes(search.toLowerCase()));
+  const filteredCandidateFields = candidateFieldsState.filter(f => 
+    f.label.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredJobFields = jobFieldsState.filter(f => 
+    f.label.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in">
       <div className="flex justify-between items-center">
-        <div className="relative w-64">
-          <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
-          <input 
-            className="w-full bg-brand-card border border-brand-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-brand-cyan outline-none"
-            placeholder="Buscar campo..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveSection('candidate')}
+            className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+              activeSection === 'candidate'
+                ? 'bg-brand-orange text-white'
+                : 'bg-brand-card text-slate-400 hover:bg-brand-hover hover:text-white'
+            }`}
+          >
+            Campos do Candidato
+          </button>
+          <button
+            onClick={() => setActiveSection('job')}
+            className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+              activeSection === 'job'
+                ? 'bg-brand-orange text-white'
+                : 'bg-brand-card text-slate-400 hover:bg-brand-hover hover:text-white'
+            }`}
+          >
+            Campos da Vaga
+          </button>
         </div>
-        <button 
-          onClick={() => showToast('Funcionalidade de campo personalizado em desenvolvimento', 'info')}
-          className="bg-brand-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm"
-        >
-          <Plus size={16}/> Novo Campo Personalizado
-        </button>
+        <div className="flex gap-3">
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+            <input 
+              className="w-full bg-brand-card border border-brand-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-brand-cyan outline-none"
+              placeholder="Buscar campo..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <button 
+            onClick={() => showToast('Funcionalidade de campo personalizado em desenvolvimento', 'info')}
+            className="bg-brand-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm transition-colors"
+          >
+            <Plus size={16}/> Novo Campo Personalizado
+          </button>
+        </div>
       </div>
 
       <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden shadow-lg">

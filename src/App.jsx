@@ -155,8 +155,27 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
                 <XAxis type="number" stroke="#94a3b8" />
                 <YAxis type="category" dataKey="name" stroke="#94a3b8" width={170} tick={{ fontSize: 12 }}/>
-                <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
-                <Bar dataKey="value" fill="#fe5009" radius={[0, 8, 8, 0]}/>
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: '#1e293b', 
+                    border: '1px solid #475569', 
+                    borderRadius: '8px', 
+                    color: '#e2e8f0',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                  }}
+                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                />
+                <Bar 
+                  dataKey="value" 
+                  fill="#fe5009" 
+                  radius={[0, 8, 8, 0]}
+                  onMouseEnter={(e) => {
+                    if (e) e.target.style.opacity = '0.8';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (e) e.target.style.opacity = '1';
+                  }}
+                />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -167,15 +186,39 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
         {/* Top 5 Áreas de Interesse */}
         <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
           <h3 className="font-bold text-lg text-white mb-4">Principais Áreas de Interesse</h3>
-          {areaData.length > 0 ? (
+          {areaData.length > 0 && areaData.some(d => d.value > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie data={areaData} cx="50%" cy="50%" labelLine={false} label={({name, value}) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
-                  {areaData.map((entry, index) => (
+                <Pie 
+                  data={areaData.filter(d => d.value > 0)} 
+                  cx="50%" 
+                  cy="50%" 
+                  labelLine={false} 
+                  label={({name, value}) => value > 0 ? `${name}: ${value}` : ''} 
+                  outerRadius={100} 
+                  fill="#8884d8" 
+                  dataKey="value"
+                >
+                  {areaData.filter(d => d.value > 0).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]}/>
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: '#1e293b', 
+                    border: '1px solid #475569', 
+                    borderRadius: '8px', 
+                    color: '#e2e8f0',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                  }}
+                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  wrapperStyle={{ color: '#e2e8f0', fontSize: 11 }}
+                  formatter={(value) => <span className="break-words">{value}</span>}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -186,15 +229,39 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
         {/* Origem dos Candidatos (Top) */}
         <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
           <h3 className="font-bold text-lg text-white mb-4">Origem dos Candidatos</h3>
-          {originData.length > 0 ? (
+          {originData.length > 0 && originData.some(d => d.value > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie data={originData} cx="50%" cy="50%" labelLine={false} label={({name, value}) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
-                  {originData.map((entry, index) => (
+                <Pie 
+                  data={originData.filter(d => d.value > 0)} 
+                  cx="50%" 
+                  cy="50%" 
+                  labelLine={false} 
+                  label={({name, value}) => value > 0 ? `${name}: ${value}` : ''} 
+                  outerRadius={100} 
+                  fill="#8884d8" 
+                  dataKey="value"
+                >
+                  {originData.filter(d => d.value > 0).map((entry, index) => (
                     <Cell key={`cell-origin-${index}`} fill={COLORS[index % COLORS.length]}/>
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: '#1e293b', 
+                    border: '1px solid #475569', 
+                    borderRadius: '8px', 
+                    color: '#e2e8f0',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                  }}
+                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  wrapperStyle={{ color: '#e2e8f0', fontSize: 11 }}
+                  formatter={(value) => <span className="break-words">{value}</span>}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -211,8 +278,27 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
                 <XAxis type="number" stroke="#94a3b8"/>
                 <YAxis type="category" dataKey="name" stroke="#94a3b8" width={190} tick={{fontSize: 12}}/>
-                <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
-                <Bar dataKey="value" fill="#00bcbc" radius={[0, 8, 8, 0]}/>
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: '#1e293b', 
+                    border: '1px solid #475569', 
+                    borderRadius: '8px', 
+                    color: '#e2e8f0',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                  }}
+                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                />
+                <Bar 
+                  dataKey="value" 
+                  fill="#00bcbc" 
+                  radius={[0, 8, 8, 0]}
+                  onMouseEnter={(e) => {
+                    if (e) e.target.style.opacity = '0.8';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (e) e.target.style.opacity = '1';
+                  }}
+                />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -223,30 +309,48 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
         {/* Status de Vagas */}
         <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
           <h3 className="font-bold text-lg text-white mb-4">Status das Vagas</h3>
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart>
-              <Pie
-                data={[
-                  { name: 'Abertas', value: jobStats.open },
-                  { name: 'Preenchidas', value: jobStats.filled },
-                  { name: 'Fechadas', value: jobStats.closed }
-                ]}
-                cx="50%"
-                cy="48%"
-                labelLine={false}
-                label={({name, value}) => `${name}: ${value}`}
-                outerRadius={110}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                <Cell fill="#fe5009"/>
-                <Cell fill="#00bcbc"/>
-                <Cell fill="#64748b"/>
-              </Pie>
-              <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
-              <Legend verticalAlign="bottom" height={32} wrapperStyle={{ color: '#e2e8f0', fontSize: 12 }}/>
-            </PieChart>
-          </ResponsiveContainer>
+          {jobStats.open > 0 || jobStats.filled > 0 || jobStats.closed > 0 ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Abertas', value: jobStats.open },
+                    { name: 'Preenchidas', value: jobStats.filled },
+                    { name: 'Fechadas', value: jobStats.closed }
+                  ].filter(d => d.value > 0)}
+                  cx="50%"
+                  cy="48%"
+                  labelLine={false}
+                  label={({name, value}) => value > 0 ? `${name}: ${value}` : ''}
+                  outerRadius={110}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  <Cell fill="#fe5009"/>
+                  <Cell fill="#00bcbc"/>
+                  <Cell fill="#64748b"/>
+                </Pie>
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: '#1e293b', 
+                    border: '1px solid #475569', 
+                    borderRadius: '8px', 
+                    color: '#e2e8f0',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                  }}
+                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  wrapperStyle={{ color: '#e2e8f0', fontSize: 11 }}
+                  formatter={(value) => <span className="break-words">{value}</span>}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[320px] flex items-center justify-center text-slate-500">Sem dados</div>
+          )}
         </div>
       </div>
     </div>
