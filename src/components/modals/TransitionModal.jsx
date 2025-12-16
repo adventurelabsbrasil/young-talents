@@ -54,6 +54,13 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
     const commonClass = "w-full bg-brand-dark border border-brand-border p-2 rounded text-white text-sm focus:border-brand-orange outline-none";
 
     switch(field) {
+        case 'city':
+            return (
+                <select className={commonClass} value={data.city} onChange={e => setData({...data, city: e.target.value})}>
+                    <option value="">Selecione...</option>
+                    {cities && cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+            );
         case 'hasLicense':
             return (
                 <select className={commonClass} value={data.hasLicense} onChange={e => setData({...data, hasLicense: e.target.value})}>

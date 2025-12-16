@@ -703,7 +703,17 @@ const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd
               <div className="text-xs text-slate-400 truncate flex gap-1">🎓 {c.education || 'N/D'}</div>
               {c.score && <div className="text-xs text-brand-orange font-bold">Match: {c.score}%</div>}
             </div>
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col bg-brand-card shadow-lg rounded border border-brand-border z-20"><button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Contratado')}} className="p-1.5 hover:text-green-400"><Check size={14}/></button><button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Reprovado')}} className="p-1.5 hover:text-red-400"><Ban size={14}/></button></div>
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-brand-card shadow-lg rounded border border-brand-border z-30">
+              <button onClick={(e)=>{e.stopPropagation();onEdit(c)}} className="p-1.5 hover:text-blue-400" title="Editar">
+                <Edit3 size={14}/>
+              </button>
+              <button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Contratado')}} className="p-1.5 hover:text-green-400" title="Contratar">
+                <Check size={14}/>
+              </button>
+              <button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Reprovado')}} className="p-1.5 hover:text-red-400" title="Reprovar">
+                <Ban size={14}/>
+              </button>
+            </div>
           </div>
         ))}{allCandidates.length > limit && <button onClick={onLoadMore} className="w-full py-2 text-xs text-slate-400 dashed border border-slate-700 hover:bg-brand-card">Carregar mais</button>}</div>
       </div>
@@ -934,5 +944,73 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
   
   const handleInputChange = (field, value) => setD(prev => ({...prev, [field]: value}));
 
-  return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"><div className="bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-brand-border text-white"><div className="px-6 py-4 border-b border-brand-border flex justify-between bg-brand-dark/50"><div><h3 className="font-bold text-xl">{d.id?'Editar':'Novo'} Candidato</h3></div><button onClick={onClose}><X/></button></div><div className="flex border-b border-brand-border">{['pessoal', 'profissional', 'processo'].map(tab => (<button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-slate-500'}`}>{tab}</button>))}</div><div className="p-8 overflow-y-auto flex-1 bg-brand-dark">{activeSection === 'pessoal' && <div className="grid grid-cols-2 gap-6"><InputField label="Nome" field="fullName" value={d.fullName} onChange={handleInputChange}/><InputField label="Email" field="email" value={d.email} onChange={handleInputChange}/><InputField label="Celular" field="phone" value={d.phone} onChange={handleInputChange}/><InputField label="Cidade" field="city" value={d.city} onChange={handleInputChange}/></div>}{activeSection === 'profissional' && <div className="grid grid-cols-2 gap-6"><InputField label="Formação" field="education" value={d.education} onChange={handleInputChange}/><InputField label="Área Interesse" field="interestAreas" value={d.interestAreas} onChange={handleInputChange}/><InputField label="Link CV" field="cvUrl" value={d.cvUrl} onChange={handleInputChange}/><InputField label="Link Portfolio" field="portfolioUrl" value={d.portfolioUrl} onChange={handleInputChange}/></div>}{activeSection === 'processo' && <div className="grid grid-cols-2 gap-6"><div className="mb-3"><label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label><select className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white" value={d.status} onChange={e=>setD({...d, status:e.target.value})}>{ALL_STATUSES.map(s=><option key={s} value={s}>{s}</option>)}</select></div></div>}</div><div className="px-6 py-4 border-t border-brand-border flex justify-end gap-2"><button onClick={onClose} className="px-6 py-2 text-slate-400">Cancelar</button><button onClick={()=>onSave(d)} disabled={isSaving} className="bg-brand-orange text-white px-8 py-2 rounded">Salvar</button></div></div></div>);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div className="bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-brand-border text-white">
+        <div className="px-6 py-4 border-b border-brand-border flex justify-between bg-brand-dark/50">
+          <div><h3 className="font-bold text-xl">{d.id?'Editar':'Novo'} Candidato</h3></div>
+          <button onClick={onClose}><X/></button>
+        </div>
+        <div className="flex border-b border-brand-border">
+          {['pessoal', 'profissional', 'processo'].map(tab => (
+            <button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-slate-500'}`}>
+              {tab}
+            </button>
+          ))}
+        </div>
+        <div className="p-8 overflow-y-auto flex-1 bg-brand-dark">
+          {activeSection === 'pessoal' && (
+            <div className="grid grid-cols-2 gap-6">
+              <InputField label="Nome" field="fullName" value={d.fullName} onChange={handleInputChange}/>
+              <InputField label="Email" field="email" value={d.email} onChange={handleInputChange}/>
+              <InputField label="Celular" field="phone" value={d.phone} onChange={handleInputChange}/>
+              <div className="mb-3">
+                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Cidade</label>
+                <select className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange" value={d.city || ''} onChange={e=>setD({...d, city:e.target.value})}>
+                  <option value="">Selecione...</option>
+                  {options.cities && options.cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Onde encontrou (Fonte)</label>
+                <select className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange" value={d.source || ''} onChange={e=>setD({...d, source:e.target.value})}>
+                  <option value="">Selecione...</option>
+                  {options.origins && options.origins.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+          {activeSection === 'profissional' && (
+            <div className="grid grid-cols-2 gap-6">
+              <InputField label="Formação" field="education" value={d.education} onChange={handleInputChange}/>
+              <div className="mb-3">
+                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Área de Interesse</label>
+                <select className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange" value={d.interestAreas || ''} onChange={e=>setD({...d, interestAreas:e.target.value})}>
+                  <option value="">Selecione...</option>
+                  {options.interestAreas && options.interestAreas.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+                </select>
+              </div>
+              <InputField label="Link CV" field="cvUrl" value={d.cvUrl} onChange={handleInputChange}/>
+              <InputField label="Link Portfolio" field="portfolioUrl" value={d.portfolioUrl} onChange={handleInputChange}/>
+            </div>
+          )}
+          {activeSection === 'processo' && (
+            <div className="grid grid-cols-2 gap-6">
+              <div className="mb-3">
+                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label>
+                <select className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange" value={d.status || ''} onChange={e=>setD({...d, status:e.target.value})}>
+                  <option value="">Selecione...</option>
+                  {ALL_STATUSES.map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-brand-border flex justify-end gap-2">
+          <button onClick={onClose} className="px-6 py-2 text-slate-400">Cancelar</button>
+          <button onClick={()=>onSave(d)} disabled={isSaving} className="bg-brand-orange text-white px-8 py-2 rounded">Salvar</button>
+        </div>
+      </div>
+    </div>
+  );
 };

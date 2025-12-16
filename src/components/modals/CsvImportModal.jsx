@@ -46,20 +46,29 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
             const lowerH = h.toLowerCase().trim();
             
             // Tenta encontrar correspondência exata ou aproximada na lista de constantes
-            const foundOption = CSV_FIELD_MAPPING_OPTIONS.find(opt => 
-                opt.label.toLowerCase() === lowerH || 
-                lowerH.includes(opt.label.toLowerCase())
-            );
+            const foundOption = CSV_FIELD_MAPPING_OPTIONS.find(opt => {
+                const optLabel = opt.label.toLowerCase().replace(':', '').trim();
+                return optLabel === lowerH || 
+                       lowerH.includes(optLabel) ||
+                       optLabel.includes(lowerH);
+            });
 
             if (foundOption) {
                 initialMap[h] = foundOption.value;
             } else {
-                // Fallbacks genéricos caso o nome mude um pouco
-                if(lowerH.includes('nome')) initialMap[h] = 'fullName';
-                else if(lowerH.includes('mail')) initialMap[h] = 'email';
-                else if(lowerH.includes('cel') || lowerH.includes('whatsapp')) initialMap[h] = 'phone';
-                else if(lowerH.includes('cidade')) initialMap[h] = 'city';
-                else if(lowerH.includes('currículo') || lowerH.includes('cv')) initialMap[h] = 'cvUrl';
+                // Fallbacks genéricos caso o nome mude um pouco - ordem importa!
+                if(lowerH.includes('nome completo') || lowerH.includes('nome') && !lowerH.includes('instituição')) initialMap[h] = 'fullName';
+                else if(lowerH.includes('e-mail') || lowerH.includes('email') || lowerH.includes('mail')) initialMap[h] = 'email';
+                else if(lowerH.includes('telefone') || lowerH.includes('celular') || lowerH.includes('whatsapp') || lowerH.includes('cel')) initialMap[h] = 'phone';
+                else if(lowerH.includes('cidade onde') || lowerH.includes('cidade')) initialMap[h] = 'city';
+                else if(lowerH.includes('onde você nos encontrou') || lowerH.includes('onde encontrou') || lowerH.includes('fonte') || lowerH.includes('origem')) initialMap[h] = 'source';
+                else if(lowerH.includes('áreas de interesse') || lowerH.includes('área de interesse') || lowerH.includes('area interesse')) initialMap[h] = 'interestAreas';
+                else if(lowerH.includes('formação') || lowerH.includes('formacao')) initialMap[h] = 'education';
+                else if(lowerH.includes('currículo') || lowerH.includes('curriculo') || lowerH.includes('cv')) initialMap[h] = 'cvUrl';
+                else if(lowerH.includes('portfólio') || lowerH.includes('portfolio')) initialMap[h] = 'portfolioUrl';
+                else if(lowerH.includes('cnh') || lowerH.includes('carteira')) initialMap[h] = 'hasLicense';
+                else if(lowerH.includes('estado civil')) initialMap[h] = 'maritalStatus';
+                else if(lowerH.includes('escolaridade') || lowerH.includes('nível de escolaridade')) initialMap[h] = 'schoolingLevel';
             }
         });
         setMapping(initialMap);

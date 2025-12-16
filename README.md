@@ -11,7 +11,10 @@ Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desen
 - **Dashboard**: Gráficos e KPIs de recrutamento
 - **Gestão de Vagas**: Criação e acompanhamento de vagas
 - **Autenticação**: Login com Google
-- **Tema**: Toggle dark/light com persistência
+- **Tema**: Toggle dark/light com persistência (corrigido)
+- **Importação CSV**: Mapeamento inteligente de campos com auto-detecção melhorada
+- **Campos do Candidato**: Seletores apropriados para cidade, fonte, áreas de interesse
+- **Botões de Ação**: Edição, visibilidade e popups funcionando corretamente
 - **Responsivo**: Otimizado para desktop e tablet
 
 ## 🚀 Quick Start
@@ -136,6 +139,20 @@ Proprietário - Young Talents
 
 - Rodrigo Ribas (Young Talents)
 - GitHub Copilot (Desenvolvimento)
+
+## 🔧 Correções e Melhorias Recentes
+
+### Fixes (Correções)
+- ✅ **Toggle Dark/Light Mode**: Corrigido bug do tema - adicionado `darkMode: 'class'` no Tailwind config
+- ✅ **Campos do Candidato**: Corrigido mapeamento de campos - cidade, fonte e áreas de interesse agora usam selects apropriados
+- ✅ **Botões de Edição/Visibilidade**: Corrigidos botões no Kanban - agora aparecem corretamente no hover com melhor z-index
+- ✅ **TransitionModal**: Adicionado suporte para campo 'city' com select de cidades
+- ✅ **CandidateModal**: Melhorado para usar selects para cidade, fonte e áreas de interesse ao invés de inputs de texto
+
+### Features (Melhorias)
+- ✨ **Auto-guess Mapping CSV**: Melhorado algoritmo de detecção automática de campos no CSV
+- ✨ **Botões de Ação no Kanban**: Adicionado botão de edição junto com botões de contratar/reprovar
+- ✨ **Melhor UX**: Campos com selects apropriados melhoram a consistência dos dados
 
 ---
 
