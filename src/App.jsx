@@ -274,11 +274,41 @@ const LoginScreen = ({ onLogin }) => (
 const FILTER_STORAGE_KEY = 'yt-filters';
 
 const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, options, candidates = [] }) => {
+  const [searchTexts, setSearchTexts] = React.useState({
+    city: '',
+    interestAreas: '',
+    source: ''
+  });
+  const [showCustomPeriod, setShowCustomPeriod] = React.useState(filters.createdAtPreset === 'custom');
+  
+  React.useEffect(() => {
+    setShowCustomPeriod(filters.createdAtPreset === 'custom');
+  }, [filters.createdAtPreset]);
+  
   if (!isOpen) return null;
   
   const dynamicFilters = CSV_FIELD_MAPPING_OPTIONS.filter(opt => 
     ['city', 'interestAreas', 'schoolingLevel', 'source', 'maritalStatus', 'hasLicense'].includes(opt.value)
   );
+
+  // Função para ordenar alfabeticamente
+  const sortAlphabetically = (arr) => {
+    return [...arr].sort((a, b) => {
+      const nameA = (a.name || a).toLowerCase();
+      const nameB = (b.name || b).toLowerCase();
+      return nameA.localeCompare(nameB, 'pt-BR');
+    });
+  };
+
+  // Função para filtrar por texto de busca
+  const filterBySearch = (optionsList, searchText) => {
+    if (!searchText) return optionsList;
+    const lowerSearch = searchText.toLowerCase();
+    return optionsList.filter(opt => {
+      const name = (opt.name || opt).toLowerCase();
+      return name.includes(lowerSearch);
+    });
+  };
 
   return (
     <>
@@ -290,17 +320,59 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
         </div>
         
         <div className="space-y-6 flex-1 custom-scrollbar overflow-y-auto pr-2">
+          {/* Período */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-brand-orange uppercase">Período</label>
             <select
               className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange"
               value={filters.createdAtPreset || 'all'}
-              onChange={e => setFilters({...filters, createdAtPreset: e.target.value})}
+              onChange={e => {
+                const value = e.target.value;
+                setFilters({...filters, createdAtPreset: value, customDateStart: '', customDateEnd: ''});
+                setShowCustomPeriod(value === 'custom');
+              }}
             >
               <option value="all">Qualquer data</option>
               <option value="7d">Últimos 7 dias</option>
               <option value="30d">Últimos 30 dias</option>
               <option value="90d">Últimos 90 dias</option>
+              <option value="custom">Período personalizado</option>
+            </select>
+            {showCustomPeriod && (
+              <div className="space-y-2 mt-2">
+                <input
+                  type="date"
+                  className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-orange"
+                  value={filters.customDateStart || ''}
+                  onChange={e => setFilters({...filters, customDateStart: e.target.value})}
+                  placeholder="Data inicial"
+                />
+                <input
+                  type="date"
+                  className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-orange"
+                  value={filters.customDateEnd || ''}
+                  onChange={e => setFilters({...filters, customDateEnd: e.target.value})}
+                  placeholder="Data final"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Status (Etapa da Pipeline) */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-brand-orange uppercase">Status (Etapa)</label>
+            <select
+              className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange"
+              value={filters.status || 'all'}
+              onChange={e => setFilters({...filters, status: e.target.value})}
+            >
+              <option value="all">Todas as etapas</option>
+              {PIPELINE_STAGES.map(stage => (
+                <option key={stage} value={stage}>{stage}</option>
+              ))}
+              {CLOSING_STATUSES.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
             </select>
           </div>
           <div className="space-y-2">
@@ -313,20 +385,62 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
            {dynamicFilters.map(field => {
              // Prefer options from system lists, fallback to deriving from candidates
              let optionsList = [];
-             if(field.value === 'city') optionsList = (options.cities && options.cities.length>0) ? options.cities.map(c=>({id:c.id,name:c.name})) : Array.from(new Set(candidates.map(x=>x.city).filter(Boolean))).map((n,i)=>({id:i,name:n}));
-             else if(field.value === 'interestAreas') optionsList = (options.interestAreas && options.interestAreas.length>0) ? options.interestAreas.map(i=>({id:i.id,name:i.name})) : Array.from(new Set(candidates.map(x=>x.interestAreas).filter(Boolean))).map((n,i)=>({id:i,name:n}));
-             else if(field.value === 'schoolingLevel') optionsList = (options.schooling && options.schooling.length>0) ? options.schooling.map(s=>({id:s.id,name:s.name})) : Array.from(new Set(candidates.map(x=>x.schoolingLevel).filter(Boolean))).map((n,i)=>({id:i,name:n}));
-             else if(field.value === 'source') optionsList = (options.origins && options.origins.length>0) ? options.origins.map(o=>({id:o.id,name:o.name})) : Array.from(new Set(candidates.map(x=>x.source).filter(Boolean))).map((n,i)=>({id:i,name:n}));
-             else if(field.value === 'maritalStatus') optionsList = (options.marital && options.marital.length>0) ? options.marital.map(m=>({id:m.id,name:m.name})) : Array.from(new Set(candidates.map(x=>x.maritalStatus).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+             if(field.value === 'city') {
+               optionsList = (options.cities && options.cities.length>0) 
+                 ? options.cities.map(c=>({id:c.id,name:c.name})) 
+                 : Array.from(new Set(candidates.map(x=>x.city).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+               optionsList = sortAlphabetically(optionsList);
+               optionsList = filterBySearch(optionsList, searchTexts.city);
+             }
+             else if(field.value === 'interestAreas') {
+               optionsList = (options.interestAreas && options.interestAreas.length>0) 
+                 ? options.interestAreas.map(i=>({id:i.id,name:i.name})) 
+                 : Array.from(new Set(candidates.map(x=>x.interestAreas).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+               optionsList = sortAlphabetically(optionsList);
+               optionsList = filterBySearch(optionsList, searchTexts.interestAreas);
+             }
+             else if(field.value === 'schoolingLevel') {
+               optionsList = (options.schooling && options.schooling.length>0) 
+                 ? options.schooling.map(s=>({id:s.id,name:s.name})) 
+                 : Array.from(new Set(candidates.map(x=>x.schoolingLevel).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+               optionsList = sortAlphabetically(optionsList);
+             }
+             else if(field.value === 'source') {
+               optionsList = (options.origins && options.origins.length>0) 
+                 ? options.origins.map(o=>({id:o.id,name:o.name})) 
+                 : Array.from(new Set(candidates.map(x=>x.source).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+               optionsList = sortAlphabetically(optionsList);
+               optionsList = filterBySearch(optionsList, searchTexts.source);
+             }
+             else if(field.value === 'maritalStatus') {
+               optionsList = (options.marital && options.marital.length>0) 
+                 ? options.marital.map(m=>({id:m.id,name:m.name})) 
+                 : Array.from(new Set(candidates.map(x=>x.maritalStatus).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+               optionsList = sortAlphabetically(optionsList);
+             }
              
              const hasOptions = optionsList.length > 0;
              const isBoolean = ['hasLicense', 'isStudying', 'canRelocate'].includes(field.value);
+             const needsSearch = ['city', 'interestAreas', 'source'].includes(field.value);
 
              return (
                <div key={field.value} className="space-y-2">
                  <label className="text-xs font-bold text-slate-400 uppercase">{field.label.replace(':', '')}</label>
+                 {needsSearch && (
+                   <input
+                     type="text"
+                     className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-cyan mb-2"
+                     placeholder={`Buscar ${field.label.replace(':', '').toLowerCase()}...`}
+                     value={searchTexts[field.value] || ''}
+                     onChange={e => setSearchTexts({...searchTexts, [field.value]: e.target.value})}
+                   />
+                 )}
                  {hasOptions ? (
-                   <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={filters[field.value] || 'all'} onChange={e => setFilters({...filters, [field.value]: e.target.value})}>
+                   <select 
+                     className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" 
+                     value={filters[field.value] || 'all'} 
+                     onChange={e => setFilters({...filters, [field.value]: e.target.value})}
+                   >
                      <option value="all">Todos</option>
                      {optionsList.map(o => <option key={o.id || o.name} value={o.name}>{o.name}</option>)}
                    </select>
