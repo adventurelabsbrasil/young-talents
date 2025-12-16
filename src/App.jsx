@@ -970,6 +970,14 @@ export default function App() {
         });
       }
       
+      // Registra ação no histórico
+      await recordActionHistory({
+        action: 'exclusão',
+        collection: col,
+        recordsAffected: 1,
+        details: { id }
+      });
+      
       // Deleta o documento
       await deleteDoc(docRef);
       showToast('Excluído com sucesso', 'success');
@@ -977,6 +985,27 @@ export default function App() {
       showToast(`Erro ao excluir: ${e.message}`, 'error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Função para registrar histórico de ações
+  const recordActionHistory = async ({ action, collection, recordsAffected, details = {} }) => {
+    if (!user || !user.email) return;
+    
+    try {
+      await addDoc(collection(db, 'actionHistory'), {
+        action,
+        collection,
+        recordsAffected,
+        userEmail: user.email,
+        userName: user.displayName || user.email,
+        timestamp: serverTimestamp(),
+        details,
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Erro ao registrar histórico:', error);
+      // Não interrompe a operação principal se o histórico falhar
     }
   };
 
@@ -1018,7 +1047,8 @@ export default function App() {
 
   // Filtra candidatos baseado nos filtros da Sidebar (Avançados)
   const filteredCandidates = useMemo(() => {
-    let data = [...candidates];
+    // Filtrar registros deletados (soft delete)
+    let data = candidates.filter(c => !c.deletedAt);
     const nowSeconds = Math.floor(Date.now() / 1000);
     const preset = filters.createdAtPreset || 'all';
     const presetToSeconds = {
@@ -1233,6 +1263,24 @@ export default function App() {
               }
             }
             
+            // Registra histórico da importação
+            const totalAffected = imported + updated + duplicated;
+            if (totalAffected > 0) {
+              await recordActionHistory({
+                action: 'importação_csv',
+                collection: 'candidates',
+                recordsAffected: totalAffected,
+                details: {
+                  imported,
+                  updated,
+                  duplicated,
+                  skipped,
+                  importMode,
+                  totalProcessed: candidatesData.length
+                }
+              });
+            }
+            
             const message = `Importação concluída! ${imported} novos, ${updated} atualizados, ${duplicated} duplicados, ${skipped} ignorados.`;
             showToast(message, 'success');
             closeCsvModal();
@@ -1285,7 +1333,8 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   const handleSelectAll = () => selectedIds.length === processedData.length ? setSelectedIds([]) : setSelectedIds(processedData.map(c => c.id));
 
   const processedData = useMemo(() => {
-     let data = [...candidates];
+     // Filtrar registros deletados (soft delete)
+     let data = candidates.filter(c => !c.deletedAt);
      if (statusFilter === 'active') data = data.filter(c => PIPELINE_STAGES.includes(c.status) || !c.status);
      else if (statusFilter === 'hired') data = data.filter(c => c.status === 'Contratado');
      else if (statusFilter === 'rejected') data = data.filter(c => c.status === 'Reprovado');
@@ -1700,20 +1749,34 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
   
   // Filtrar vagas baseado na aba ativa
   const filteredJobs = useMemo(() => {
+    // Filtrar registros deletados (soft delete)
+    const activeJobs = jobs.filter(j => !j.deletedAt);
+    
     if (activeTab === 'status') {
-      if (statusFilter === 'all') return jobs;
-      return jobs.filter(j => j.status === statusFilter);
+      if (statusFilter === 'all') return activeJobs;
+      return activeJobs.filter(j => j.status === statusFilter);
     } else if (activeTab === 'city') {
-      if (cityFilter === 'all') return jobs;
-      return jobs.filter(j => (j.city || 'Sem cidade') === cityFilter);
+      if (cityFilter === 'all') return activeJobs;
+      return activeJobs.filter(j => (j.city || 'Sem cidade') === cityFilter);
     } else if (activeTab === 'company') {
-      if (companyFilter === 'all') return jobs;
-      return jobs.filter(j => (j.company || 'Sem empresa') === companyFilter);
+      if (companyFilter === 'all') return activeJobs;
+      return activeJobs.filter(j => (j.company || 'Sem empresa') === companyFilter);
     } else if (activeTab === 'period') {
-      if (periodFilter === 'all') return jobs;
-      return jobsByPeriod[periodFilter] || [];
+      if (periodFilter === 'all') return activeJobs;
+      // Recalcular jobsByPeriod apenas com jobs ativos
+      const activeJobsByPeriod = {};
+      activeJobs.forEach(j => {
+        const ts = j.createdAt?.seconds || j.createdAt?._seconds;
+        if (ts) {
+          const date = new Date(ts * 1000);
+          const monthYear = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+          if (!activeJobsByPeriod[monthYear]) activeJobsByPeriod[monthYear] = [];
+          activeJobsByPeriod[monthYear].push(j);
+        }
+      });
+      return activeJobsByPeriod[periodFilter] || [];
     }
-    return jobs;
+    return activeJobs;
   }, [activeTab, statusFilter, cityFilter, companyFilter, periodFilter, jobs, jobsByPeriod]);
   
   const renderJobCard = (j) => (

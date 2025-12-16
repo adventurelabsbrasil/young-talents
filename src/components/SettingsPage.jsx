@@ -1,9 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, Mail, History, Database, Layout, UploadCloud, Download, 
   Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
+import { 
+  collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, serverTimestamp
+} from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from 'firebase/app';
+import * as XLSX from 'xlsx';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // Helper para mostrar toast (será passado do App ou criado localmente)
 let showToast = (message, type = 'info') => {
@@ -59,7 +77,7 @@ export default function SettingsPage({
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
         {activeTab === 'campos' && <FieldsManager />}
         {activeTab === 'pipeline' && <PipelineManager />}
-        {activeTab === 'import' && <ImportExportManager onOpenCsvModal={onOpenCsvModal} />}
+        {activeTab === 'import' && <ImportExportManager onOpenCsvModal={onOpenCsvModal} onShowToast={onShowToast} />}
         {activeTab === 'users' && <UserManager />}
         {activeTab === 'emails' && <EmailTemplateManager />}
         {activeTab === 'history' && <MassActionHistory />}
@@ -283,34 +301,187 @@ const PipelineManager = () => {
   );
 };
 
-const ImportExportManager = ({ onOpenCsvModal }) => (
-  <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto animate-in fade-in">
-     <div className="bg-brand-card p-8 rounded-xl border border-brand-border flex flex-col items-center text-center hover:border-brand-cyan/50 transition-colors">
-        <div className="w-16 h-16 bg-brand-cyan/10 rounded-full flex items-center justify-center mb-4 text-brand-cyan">
-           <UploadCloud size={32}/>
-        </div>
-        <h3 className="text-xl font-bold text-white mb-2">Importar Candidatos</h3>
-        <p className="text-slate-400 text-sm mb-6">Carregue arquivos CSV para adicionar candidatos em massa ao banco de talentos.</p>
-        <button onClick={onOpenCsvModal} className="bg-brand-cyan text-brand-dark px-6 py-3 rounded-lg font-bold hover:bg-cyan-400 w-full">
-           Iniciar Importação
-        </button>
-     </div>
+const ImportExportManager = ({ onOpenCsvModal, onShowToast }) => {
+  const [exportType, setExportType] = useState('candidates'); // 'candidates' ou 'jobs'
+  const [exportFormat, setExportFormat] = useState('csv'); // 'csv' ou 'xlsx'
+  const [exporting, setExporting] = useState(false);
 
-     <div className="bg-brand-card p-8 rounded-xl border border-brand-border flex flex-col items-center text-center hover:border-brand-orange/50 transition-colors">
-        <div className="w-16 h-16 bg-brand-orange/10 rounded-full flex items-center justify-center mb-4 text-brand-orange">
-           <Download size={32}/>
+  const exportData = async () => {
+    setExporting(true);
+    try {
+      // Buscar dados do Firestore
+      const collectionName = exportType === 'candidates' ? 'candidates' : 'jobs';
+      const q = query(collection(db, collectionName), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      
+      const data = snapshot.docs.map(doc => {
+        const docData = doc.data();
+        // Converter timestamps para formato legível
+        const processed = { ...docData };
+        if (docData.createdAt) {
+          const date = docData.createdAt.toDate ? docData.createdAt.toDate() : new Date(docData.createdAt);
+          processed.createdAt = date.toLocaleString('pt-BR');
+        }
+        if (docData.updatedAt) {
+          const date = docData.updatedAt.toDate ? docData.updatedAt.toDate() : new Date(docData.updatedAt);
+          processed.updatedAt = date.toLocaleString('pt-BR');
+        }
+        return processed;
+      });
+
+      if (data.length === 0) {
+        if (onShowToast) onShowToast('Nenhum dado encontrado para exportar', 'info');
+        else alert('Nenhum dado encontrado para exportar');
+        setExporting(false);
+        return;
+      }
+
+      // Preparar dados para exportação
+      const headers = Object.keys(data[0]);
+      const rows = data.map(item => headers.map(header => item[header] || ''));
+
+      if (exportFormat === 'csv') {
+        // Exportar CSV
+        const csvContent = [
+          headers.join(','),
+          ...rows.map(row => row.map(cell => {
+            const cellStr = String(cell || '');
+            // Escapar vírgulas e aspas
+            if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+              return `"${cellStr.replace(/"/g, '""')}"`;
+            }
+            return cellStr;
+          }).join(','))
+        ].join('\n');
+
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${exportType}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // Exportar XLSX
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, exportType === 'candidates' ? 'Candidatos' : 'Vagas');
+        XLSX.writeFile(workbook, `${exportType}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      }
+
+      if (onShowToast) {
+        onShowToast(`Exportação concluída! ${data.length} registro(s) exportado(s).`, 'success');
+      } else {
+        alert(`Exportação concluída! ${data.length} registro(s) exportado(s).`);
+      }
+      
+      // Registrar no histórico
+      try {
+        await addDoc(collection(db, 'actionHistory'), {
+          action: 'exportação',
+          collection: collectionName,
+          recordsAffected: data.length,
+          userEmail: 'system', // Será atualizado pelo App se necessário
+          timestamp: serverTimestamp(),
+          details: { format: exportFormat, type: exportType },
+          createdAt: serverTimestamp()
+        });
+      } catch (e) {
+        console.error('Erro ao registrar histórico de exportação:', e);
+      }
+    } catch (error) {
+      console.error('Erro na exportação:', error);
+      if (onShowToast) {
+        onShowToast(`Erro ao exportar: ${error.message}`, 'error');
+      } else {
+        alert(`Erro ao exportar: ${error.message}`);
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Importação */}
+        <div className="bg-brand-card p-8 rounded-xl border border-brand-border flex flex-col items-center text-center hover:border-brand-cyan/50 transition-colors">
+          <div className="w-16 h-16 bg-brand-cyan/10 rounded-full flex items-center justify-center mb-4 text-brand-cyan">
+            <UploadCloud size={32}/>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Importar Candidatos</h3>
+          <p className="text-slate-400 text-sm mb-6">Carregue arquivos CSV para adicionar candidatos em massa ao banco de talentos.</p>
+          <button onClick={onOpenCsvModal} className="bg-brand-cyan text-brand-dark px-6 py-3 rounded-lg font-bold hover:bg-cyan-400 w-full">
+            Iniciar Importação
+          </button>
         </div>
-        <h3 className="text-xl font-bold text-white mb-2">Exportar Dados</h3>
-        <p className="text-slate-400 text-sm mb-6">Baixe relatórios completos de candidatos, vagas e históricos em formato CSV ou Excel.</p>
-        <button
-          onClick={() => alert('Exportação ainda não configurada.')}
-          className="bg-brand-dark border border-brand-border text-white px-6 py-3 rounded-lg font-bold hover:bg-brand-border w-full"
-        >
-          Configurar Exportação
-        </button>
-     </div>
-  </div>
-);
+
+        {/* Exportação */}
+        <div className="bg-brand-card p-8 rounded-xl border border-brand-border flex flex-col items-center text-center hover:border-brand-orange/50 transition-colors">
+          <div className="w-16 h-16 bg-brand-orange/10 rounded-full flex items-center justify-center mb-4 text-brand-orange">
+            <Download size={32}/>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Exportar Dados</h3>
+          <p className="text-slate-400 text-sm mb-6">Baixe relatórios completos de candidatos ou vagas em formato CSV ou Excel.</p>
+          
+          <div className="w-full space-y-3">
+            <select
+              value={exportType}
+              onChange={e => setExportType(e.target.value)}
+              className="w-full bg-brand-dark border border-brand-border rounded px-3 py-2 text-sm text-white outline-none focus:border-brand-orange"
+            >
+              <option value="candidates">Candidatos</option>
+              <option value="jobs">Vagas</option>
+            </select>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => setExportFormat('csv')}
+                className={`flex-1 px-3 py-2 rounded text-sm font-bold transition-colors ${
+                  exportFormat === 'csv'
+                    ? 'bg-brand-orange text-white'
+                    : 'bg-brand-dark border border-brand-border text-slate-400 hover:text-white'
+                }`}
+              >
+                CSV
+              </button>
+              <button
+                onClick={() => setExportFormat('xlsx')}
+                className={`flex-1 px-3 py-2 rounded text-sm font-bold transition-colors ${
+                  exportFormat === 'xlsx'
+                    ? 'bg-brand-orange text-white'
+                    : 'bg-brand-dark border border-brand-border text-slate-400 hover:text-white'
+                }`}
+              >
+                Excel
+              </button>
+            </div>
+            
+            <button
+              onClick={exportData}
+              disabled={exporting}
+              className="bg-brand-orange text-white px-6 py-3 rounded-lg font-bold hover:bg-orange-600 w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {exporting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <Download size={16}/>
+                  Exportar {exportType === 'candidates' ? 'Candidatos' : 'Vagas'}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const UserManager = () => (
   <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
@@ -381,29 +552,129 @@ const EmailTemplateManager = () => (
    </div>
 );
 
-const MassActionHistory = () => (
-   <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
-      <h3 className="text-lg font-bold text-white">Histórico de Ações em Massa</h3>
+const MassActionHistory = () => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'actionHistory'),
+      orderBy('timestamp', 'desc'),
+      limit(100)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const historyData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setHistory(historyData);
+      setLoading(false);
+    }, (error) => {
+      console.error('Erro ao carregar histórico:', error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getActionLabel = (action) => {
+    const labels = {
+      'importação_csv': 'Importação CSV',
+      'exclusão': 'Exclusão',
+      'atualização_massa': 'Atualização em Massa',
+      'exportação': 'Exportação'
+    };
+    return labels[action] || action;
+  };
+
+  const getActionColor = (action) => {
+    if (action.includes('importação')) return 'bg-blue-900/30 text-blue-300 border-blue-800';
+    if (action.includes('exclusão')) return 'bg-red-900/30 text-red-300 border-red-800';
+    if (action.includes('atualização')) return 'bg-yellow-900/30 text-yellow-300 border-yellow-800';
+    if (action.includes('exportação')) return 'bg-green-900/30 text-green-300 border-green-800';
+    return 'bg-slate-900/30 text-slate-300 border-slate-800';
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-bold text-white">Histórico de Ações em Massa</h3>
+        <div className="text-xs text-slate-400">
+          {history.length} registro{history.length !== 1 ? 's' : ''}
+        </div>
+      </div>
       <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
-         <table className="w-full text-left text-sm">
+        {loading ? (
+          <div className="p-8 text-center text-slate-400">
+            <div className="animate-spin inline-block w-6 h-6 border-2 border-brand-cyan border-t-transparent rounded-full"></div>
+            <p className="mt-2">Carregando histórico...</p>
+          </div>
+        ) : history.length === 0 ? (
+          <div className="p-8 text-center text-slate-400">
+            <History size={48} className="mx-auto mb-4 opacity-50" />
+            <p>Nenhuma ação registrada ainda</p>
+          </div>
+        ) : (
+          <table className="w-full text-left text-sm">
             <thead className="bg-brand-dark/50 text-slate-400 uppercase text-xs font-bold">
-               <tr><th className="p-4">Data/Hora</th><th className="p-4">Usuário</th><th className="p-4">Ação</th><th className="p-4 text-right">Registros Afetados</th></tr>
+              <tr>
+                <th className="p-4">Data/Hora</th>
+                <th className="p-4">Usuário</th>
+                <th className="p-4">Ação</th>
+                <th className="p-4">Detalhes</th>
+                <th className="p-4 text-right">Registros Afetados</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-brand-border">
-               <tr className="hover:bg-brand-dark/30">
-                  <td className="p-4 text-slate-400">03/12/2025 14:30</td>
-                  <td className="p-4 text-white">Admin</td>
-                  <td className="p-4"><span className="bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-xs border border-blue-800">Importação CSV</span></td>
-                  <td className="p-4 text-right font-mono font-bold text-white">145</td>
-               </tr>
-               <tr className="hover:bg-brand-dark/30">
-                  <td className="p-4 text-slate-400">02/12/2025 09:15</td>
-                  <td className="p-4 text-white">Recrutador 01</td>
-                  <td className="p-4"><span className="bg-red-900/30 text-red-300 px-2 py-1 rounded text-xs border border-red-800">Exclusão em Massa</span></td>
-                  <td className="p-4 text-right font-mono font-bold text-white">12</td>
-               </tr>
+              {history.map((item) => (
+                <tr key={item.id} className="hover:bg-brand-dark/30">
+                  <td className="p-4 text-slate-400 text-xs">
+                    {formatDate(item.timestamp)}
+                  </td>
+                  <td className="p-4 text-white text-sm">
+                    {item.userName || item.userEmail}
+                  </td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded text-xs border ${getActionColor(item.action)}`}>
+                      {getActionLabel(item.action)}
+                    </span>
+                  </td>
+                  <td className="p-4 text-xs text-slate-400">
+                    {item.details?.importMode && (
+                      <span className="block">Modo: {item.details.importMode}</span>
+                    )}
+                    {item.details?.imported && (
+                      <span className="block">Novos: {item.details.imported}</span>
+                    )}
+                    {item.details?.updated && (
+                      <span className="block">Atualizados: {item.details.updated}</span>
+                    )}
+                    {item.collection && (
+                      <span className="block">Coleção: {item.collection}</span>
+                    )}
+                  </td>
+                  <td className="p-4 text-right font-mono font-bold text-white">
+                    {item.recordsAffected || 0}
+                  </td>
+                </tr>
+              ))}
             </tbody>
-         </table>
+          </table>
+        )}
       </div>
-   </div>
-);
+    </div>
+  );
+};
