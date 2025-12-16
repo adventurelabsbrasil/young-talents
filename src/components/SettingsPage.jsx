@@ -156,11 +156,11 @@ const FieldsManager = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-border">
-            {filteredFields.map(field => (
-              <tr key={field.id} className="hover:bg-brand-dark/30 transition-colors">
-                <td className="p-4 font-bold text-white">{field.label}</td>
-                <td className="p-4 font-mono text-xs text-brand-cyan">{field.id}</td>
-                <td className="p-4 text-slate-400">{field.type}</td>
+            {(activeSection === 'candidate' ? filteredCandidateFields : filteredJobFields).map(field => (
+              <tr key={field.id} className="hover:bg-brand-hover/50 dark:hover:bg-brand-hover/50 transition-colors">
+                <td className="p-4 font-bold text-white break-words">{field.label}</td>
+                <td className="p-4 font-mono text-xs text-brand-cyan break-words">{field.id}</td>
+                <td className="p-4 text-slate-400 break-words">{field.type}</td>
                 <td className="p-4 text-center">
                   <input
                     type="checkbox"
@@ -182,7 +182,7 @@ const FieldsManager = () => {
                 <td className="p-4 text-right">
                   <button
                     onClick={() => showToast(`Edição do campo "${field.label}" em desenvolvimento`, 'info')}
-                    className="p-2 text-slate-400 hover:text-white"
+                    className="p-2 text-slate-400 hover:text-brand-cyan transition-colors"
                     title="Editar campo"
                   >
                     <Edit3 size={16}/>
