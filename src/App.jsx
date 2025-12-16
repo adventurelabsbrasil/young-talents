@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
-  CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight
+  CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ExternalLink
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
