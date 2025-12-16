@@ -1871,12 +1871,20 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
         </div>
 
         {/* Paginação */}
-        {totalPages > 1 && (
+        {filtered.length > 0 && (
           <div className="bg-brand-dark/50 border-t border-brand-border px-6 py-3 flex justify-between items-center">
-            <button 
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded bg-brand-card disabled:opacity-50 text-sm hover:bg-brand-hover"
+            <div className="text-xs text-slate-400">
+              Mostrando {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length} candidatos
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
+                  currentPage === 1
+                    ? 'bg-brand-card text-slate-600 cursor-not-allowed'
+                    : 'bg-brand-dark text-white hover:bg-brand-hover'
+                }`}
             >
               ← Anterior
             </button>
