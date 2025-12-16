@@ -4,18 +4,84 @@
 
 Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desenvolvido com React + Vite + Firebase.
 
-## 📋 Funcionalidades
+## 📋 Funcionalidades Principais
 
-- **Pipeline de Talentos**: Visualização kanban com drag & drop dos candidatos
-- **Banco de Talentos**: Tabela com busca, filtros, paginação e ordenação
-- **Dashboard**: Gráficos e KPIs de recrutamento
-- **Gestão de Vagas**: Criação e acompanhamento de vagas
-- **Autenticação**: Login com Google
-- **Tema**: Toggle dark/light com persistência (corrigido)
-- **Importação CSV**: Mapeamento inteligente de campos com auto-detecção melhorada
-- **Campos do Candidato**: Seletores apropriados para cidade, fonte, áreas de interesse
-- **Botões de Ação**: Edição, visibilidade e popups funcionando corretamente
-- **Responsivo**: Otimizado para desktop e tablet
+### 🎯 Gestão de Candidatos
+- **Pipeline Kanban**: Visualização em colunas com drag & drop para mover candidatos entre etapas
+- **Banco de Talentos**: Tabela completa com todas as informações dos candidatos
+  - Colunas: Nome, Email, Telefone, Cidade, Fonte, Áreas de Interesse, Formação, Escolaridade, CNH, Status, Data de Cadastro
+  - Busca em tempo real por múltiplos campos
+  - Ordenação por qualquer coluna (clique no cabeçalho)
+  - Paginação configurável (5, 10, 25, 50, 100, 500, 1000 itens por página)
+- **Filtros Avançados**: 
+  - Período (últimos 7/30/90 dias ou personalizado)
+  - Status/Etapa da Pipeline (seleção múltipla)
+  - Vaga vinculada (seleção múltipla)
+  - Cidade (seleção múltipla com busca por texto)
+  - Área de Interesse (seleção múltipla com busca por texto)
+  - Fonte/Origem (seleção múltipla com busca por texto)
+  - Escolaridade (seleção múltipla, ordenado alfabeticamente)
+  - Estado Civil (seleção múltipla, ordenado alfabeticamente)
+  - CNH (Sim/Não)
+- **Menu de Avanço de Etapa**: Menu destacado na primeira aba do formulário de candidato para avançar etapas rapidamente
+- **Normalização Inteligente**: Padronização automática de cidades, fontes e áreas de interesse
+
+### 💼 Gestão de Vagas
+- **Cadastro Completo**: Título, Empresa, Cidade, Área de Interesse, Status, Tipo, Faixa Salarial, Descrição, Requisitos
+- **Vincular a Base**: Empresas, Cidades e Áreas de Interesse vinculadas às collections do sistema
+- **Visualização por Abas**: 
+  - Por Status (Aberta, Preenchida, Cancelada, Fechada)
+  - Por Cidade
+  - Por Empresa
+  - Por Período (data de criação)
+- **Candidatos Vinculados**: Visualizar quantos candidatos estão associados a cada vaga
+
+### 🏢 Gestão de Empresas/Unidades
+- **CRUD Completo**: Criar, editar e excluir empresas
+- **Campos**: Nome, Cidade, Área de Interesse, Endereço, Telefone, Email
+- **Integração**: Empresas cadastradas aparecem automaticamente no cadastro de vagas
+
+### 📊 Dashboard
+- **KPIs Principais**: Total de Candidatos, Contratados, Vagas Abertas, Reprovados
+- **Gráficos Interativos**:
+  - Candidatos por Status (Pizza)
+  - Candidatos por Cidade (Barras)
+  - Candidatos por Fonte/Origem (Barras)
+  - Candidatos por Área de Interesse (Barras)
+  - Candidatos por Mês (Linha)
+- **Responsivo**: Gráficos adaptáveis com legendas e tooltips melhorados
+
+### 📥 Importação e Exportação
+- **Importação CSV/XLSX**:
+  - Download de modelo (CSV ou XLSX) com 3 linhas de exemplo
+  - Mapeamento inteligente de colunas com auto-detecção
+  - Revisão de vínculos antes da importação
+  - Opções de duplicação: Pular (manter atual), Substituir/Atualizar, Duplicar
+  - Tags de importação automáticas (nome do arquivo + data + hora) ou personalizadas
+  - Normalização automática de cidades, fontes e áreas de interesse
+- **Exportação**: Exportar candidatos ou vagas em formato CSV ou Excel (XLSX)
+
+### ⚙️ Configurações
+- **Gerenciamento de Campos**: 
+  - Seções separadas para Campos do Candidato e Campos da Vaga
+  - Toggle de visibilidade e obrigatoriedade (funcional)
+  - Busca de campos
+- **Configuração do Pipeline**: 
+  - Adicionar, editar e remover etapas do funil
+  - Gerenciar motivos de perda
+- **Empresas/Unidades**: Gerenciamento completo de empresas
+- **Histórico de Ações**: Registro de todas as ações em massa (importações, exportações, exclusões)
+- **Usuários**: Gerenciamento de usuários do sistema (em desenvolvimento)
+- **Modelos de Email**: Templates de email automáticos (em desenvolvimento)
+
+### 🎨 Interface e UX
+- **Tema Dark/Light**: Toggle com persistência e suporte completo
+- **Design Universal**: Cores padrão (blue/gray) para melhor contraste e legibilidade
+- **Responsivo**: Otimizado para desktop, tablet e mobile
+- **URLs Compartilháveis**: Cada página e modal tem URL única para compartilhamento
+- **Paginação**: Implementada em Pipeline (Kanban e Lista) e Banco de Talentos
+- **Soft Delete**: Exclusão lógica com preservação de dados
+- **Histórico de Ações**: Rastreamento completo de modificações por usuário
 
 ## 🚀 Quick Start
 
@@ -140,22 +206,28 @@ Proprietário - Young Talents
 - Rodrigo Ribas (Young Talents)
 - GitHub Copilot (Desenvolvimento)
 
-## 🔧 Correções e Melhorias Recentes
+## 🔧 Melhorias e Correções Recentes
 
-### Fixes (Correções)
-- ✅ **Toggle Dark/Light Mode**: Corrigido bug do tema - adicionado `darkMode: 'class'` no Tailwind config
-- ✅ **Campos do Candidato**: Corrigido mapeamento de campos - cidade, fonte e áreas de interesse agora usam selects apropriados
-- ✅ **Botões de Edição/Visibilidade**: Corrigidos botões no Kanban - agora aparecem corretamente no hover com melhor z-index
-- ✅ **TransitionModal**: Adicionado suporte para campo 'city' com select de cidades
-- ✅ **CandidateModal**: Melhorado para usar selects para cidade, fonte e áreas de interesse ao invés de inputs de texto
+### ✨ Funcionalidades Adicionadas
+- ✅ **Menu de Avanço de Etapa**: Menu destacado no formulário de candidato para avançar etapas rapidamente
+- ✅ **Coluna de Data de Cadastro**: Adicionada na tabela de banco de talentos com ordenação
+- ✅ **Cadastro de Empresas Completo**: Com campos de cidade e área de interesse
+- ✅ **Filtros de Período**: Funcionando corretamente com campo createdAt
+- ✅ **Avisos Visuais**: Badges indicando funcionalidades em desenvolvimento
+- ✅ **Melhorias de Contraste**: Cores ajustadas para melhor legibilidade em dark/light mode
+- ✅ **Normalização de Dados**: Sistema inteligente para padronizar cidades, fontes e áreas de interesse
+- ✅ **Histórico de Ações**: Sistema completo de rastreamento de operações
+- ✅ **Exportação de Dados**: Exportação de candidatos e vagas em CSV/XLSX
 
-### Features (Melhorias)
-- ✨ **Auto-guess Mapping CSV**: Melhorado algoritmo de detecção automática de campos no CSV
-- ✨ **Botões de Ação no Kanban**: Adicionado botão de edição junto com botões de contratar/reprovar
-- ✨ **Melhor UX**: Campos com selects apropriados melhoram a consistência dos dados
+### 🐛 Correções
+- ✅ **Filtros de Período**: Corrigido funcionamento com campo createdAt
+- ✅ **Soft Delete**: Registros deletados não aparecem mais nas listas
+- ✅ **Contraste Visual**: Tags, etapas e cabeçalhos com melhor visibilidade
+- ✅ **Tabela Completa**: Todas as colunas importantes incluídas
 
 ---
 
 **Status:** ✅ Pronto para Produção
 
-Última atualização: 4 de Dezembro, 2025
+**Versão:** 2.0.0  
+**Última atualização:** Dezembro 2025
