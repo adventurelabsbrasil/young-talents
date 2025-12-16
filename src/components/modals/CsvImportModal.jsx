@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UploadCloud, X, ArrowRight, CheckCircle, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS } from '../../constants';
+import { normalizeCity } from '../../utils/cityNormalizer';
 import * as XLSX from 'xlsx';
 
 export default function CsvImportModal({ isOpen, onClose, onImportData }) {
@@ -409,8 +410,12 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
         Object.keys(mapping).forEach(header => {
             if(mapping[header] && row[header] !== undefined) {
                 // Limpa valores vazios e espaços
-                const value = String(row[header] || '').trim();
+                let value = String(row[header] || '').trim();
                 if (value) {
+                  // Normaliza cidade se for o campo city
+                  if (mapping[header] === 'city') {
+                    value = normalizeCity(value);
+                  }
                   candidate[mapping[header]] = value;
                 }
             }

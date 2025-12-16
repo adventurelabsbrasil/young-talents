@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Save, AlertTriangle } from 'lucide-react';
+import { normalizeCity, getMainCitiesOptions } from '../../utils/cityNormalizer';
 
 export default function TransitionModal({ transition, onClose, onConfirm, cities, interestAreas, schooling, marital, origins }) {
   // transition contém: { candidate, toStage, missingFields, isConclusion }
@@ -47,7 +48,13 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
        }
     }
     
-    onConfirm(data);
+    // Normaliza cidade antes de salvar
+    const dataToSave = { ...data };
+    if (dataToSave.city) {
+      dataToSave.city = normalizeCity(dataToSave.city);
+    }
+    
+    onConfirm(dataToSave);
   };
 
   const renderInput = (field) => {
@@ -56,9 +63,19 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
     switch(field) {
         case 'city':
             return (
-                <select className={commonClass} value={data.city} onChange={e => setData({...data, city: e.target.value})}>
+                <select className={commonClass} value={data.city} onChange={e => {
+                  const value = normalizeCity(e.target.value);
+                  setData({...data, city: value});
+                }}>
                     <option value="">Selecione...</option>
-                    {cities && cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    <optgroup label="Cidades Principais">
+                      {getMainCitiesOptions().map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                    {cities && cities.length > 0 && (
+                      <optgroup label="Outras Cidades">
+                        {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </optgroup>
+                    )}
                 </select>
             );
         case 'hasLicense':

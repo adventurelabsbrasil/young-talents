@@ -248,8 +248,88 @@ function rowToCandidateObject(row, headers) {
 
 function normalizeCity(city) {
   if (!city) return "";
-  // Pega apenas o texto antes de "/" ou "-"
-  return city.split('/')[0].split('-')[0].trim();
+  
+  // Remove espaços extras e converte para minúsculas para comparação
+  const normalized = String(city).trim();
+  const lowerCity = normalized.toLowerCase();
+  
+  // Remove acentos para comparação mais flexível
+  const removeAccents = (str) => {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+  
+  const lowerCityNoAccents = removeAccents(lowerCity);
+  
+  // Cidades principais com suas variações
+  const mainCities = {
+    'Porto Alegre/RS': ['porto alegre', 'porto alegre/rs', 'poa', 'poa/rs', 'portoalegre', 'porto alegre rs', 'p. alegre', 'p. alegre/rs'],
+    'Canoas/RS': ['canoas', 'canoas/rs', 'canoas rs'],
+    'Bagé/RS': ['bagé', 'bage', 'bagé/rs', 'bage/rs', 'bagé rs', 'bage rs'],
+    'Santo Antônio da Patrulha/RS': ['santo antônio da patrulha', 'santo antonio da patrulha', 'sto antônio da patrulha', 'sto antonio da patrulha', 'santo ant patrulha', 'sto ant patrulha', 'sap', 'sap/rs', 'sap rs', 'santo antônio da patrulha/rs', 'santo antonio da patrulha/rs', 'sto antônio da patrulha/rs', 'sto antonio da patrulha/rs', 'santo ant patrulha/rs', 'sto ant patrulha/rs'],
+    'Guaíba/RS': ['guaíba', 'guaiba', 'guaíba/rs', 'guaiba/rs', 'guaíba rs', 'guaiba rs'],
+    'Osório/RS': ['osório', 'osorio', 'osório/rs', 'osorio/rs', 'osório rs', 'osorio rs'],
+    'Tramandaí/RS': ['tramandaí', 'tramandai', 'tramandaí/rs', 'tramandai/rs', 'tramandaí rs', 'tramandai rs', 'tramandai/rs'],
+    'São Borja/RS': ['são borja', 'sao borja', 'são borja/rs', 'sao borja/rs', 'são borja rs', 'sao borja rs', 's borja', 's borja/rs'],
+    "Sant'Ana do Livramento/RS": ["sant'ana do livramento", "santana do livramento", "sant'ana do livramento/rs", "santana do livramento/rs", "sant'ana do livramento rs", "santana do livramento rs", "sant ana do livramento", "sant ana do livramento/rs", "livramento", "livramento/rs", "livramento rs"],
+    'Cruz Alta/RS': ['cruz alta', 'cruz alta/rs', 'cruz alta rs', 'cruzalta', 'cruzalta/rs'],
+    'Itaqui/RS': ['itaqui', 'itaqui/rs', 'itaqui rs'],
+    'Alegrete/RS': ['alegrete', 'alegrete/rs', 'alegrete rs'],
+    'Arroio do Sal/RS': ['arroio do sal', 'arroio do sal/rs', 'arroio do sal rs', 'arroio sal', 'arroio sal/rs', 'arroio sal rs'],
+    'Torres/RS': ['torres', 'torres/rs', 'torres rs']
+  };
+  
+  // Procura nas cidades principais
+  for (const [standardName, variations] of Object.entries(mainCities)) {
+    // Verifica se é exatamente igual (case-insensitive)
+    if (lowerCity === standardName.toLowerCase()) {
+      return standardName;
+    }
+    
+    // Verifica variações
+    for (const variation of variations) {
+      const lowerVariation = variation.toLowerCase();
+      const lowerVariationNoAccents = removeAccents(lowerVariation);
+      
+      // Match exato
+      if (lowerCity === lowerVariation || lowerCityNoAccents === lowerVariationNoAccents) {
+        return standardName;
+      }
+      
+      // Match parcial (para casos como "SAP" dentro de "SAP/RS")
+      if (lowerCity.indexOf(lowerVariation) !== -1 || lowerVariation.indexOf(lowerCity) !== -1) {
+        // Verifica se não é muito genérico (ex: "RS" sozinho)
+        if (lowerVariation.length > 2 && lowerCity.length > 2) {
+          return standardName;
+        }
+      }
+    }
+    
+    // Verifica se o nome padrão está contido no input
+    const lowerStandard = standardName.toLowerCase();
+    const lowerStandardNoAccents = removeAccents(lowerStandard);
+    
+    if (lowerCity.indexOf(lowerStandardNoAccents) !== -1 || lowerStandardNoAccents.indexOf(lowerCity) !== -1) {
+      // Verifica se não é muito genérico
+      if (lowerStandard.length > 5 && lowerCity.length > 5) {
+        return standardName;
+      }
+    }
+  }
+  
+  // Se não encontrou, tenta limpar e padronizar formato básico
+  // Remove espaços extras, mantém primeira letra maiúscula
+  const words = normalized.split(/\s+/);
+  const cleaned = words.map(function(word) {
+    if (word.length === 0) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+  
+  // Se termina com /RS, mantém; se não, adiciona se for do RS
+  if (cleaned.indexOf('/') === -1 && !cleaned.match(/\b(RS|SC|PR|SP|RJ|MG|ES|BA|SE|AL|PE|PB|RN|CE|PI|MA|PA|AP|AM|AC|RO|RR|TO|GO|MT|MS|DF)\b/i)) {
+    return cleaned + '/RS';
+  }
+  
+  return cleaned;
 }
 
 function normalizeInterests(rawString) {

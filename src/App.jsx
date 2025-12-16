@@ -28,6 +28,7 @@ import JobCandidatesModal from './components/modals/JobsCandidateModal';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS } from './constants';
+import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 
 const COLORS = ['#fe5009', '#00bcbc', '#fb923c', '#22d3ee', '#f87171', '#8884d8', '#82ca9d']; 
 
@@ -525,6 +526,12 @@ export default function App() {
     setIsSaving(true);
     try {
       const payload = { ...d, updatedAt: serverTimestamp() };
+      
+      // Normaliza cidade se for collection de candidatos
+      if (col === 'candidates' && payload.city) {
+        payload.city = normalizeCity(payload.city);
+      }
+      
       if (!d.id) payload.createdAt = serverTimestamp();
       if (d.id) await updateDoc(doc(db, col, d.id), payload);
       else await addDoc(collection(db, col), payload);
@@ -1127,10 +1134,27 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
 };
 
 const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
-  const [d, setD] = useState({ ...candidate });
+  // Normaliza cidade ao carregar candidato
+  const normalizedCandidate = candidate?.city ? { ...candidate, city: normalizeCity(candidate.city) } : candidate;
+  const [d, setD] = useState({ ...normalizedCandidate });
   const [activeSection, setActiveSection] = useState('pessoal');
   
-  const handleInputChange = (field, value) => setD(prev => ({...prev, [field]: value}));
+  const handleInputChange = (field, value) => {
+    // Normaliza cidade quando o usuário digita
+    if (field === 'city' && value) {
+      value = normalizeCity(value);
+    }
+    setD(prev => ({...prev, [field]: value}));
+  };
+  
+  const handleSave = () => {
+    // Garante que a cidade está normalizada antes de salvar
+    const dataToSave = { ...d };
+    if (dataToSave.city) {
+      dataToSave.city = normalizeCity(dataToSave.city);
+    }
+    onSave(dataToSave);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 dark:bg-black/80 p-4 backdrop-blur-sm">
@@ -1155,10 +1179,18 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
               <InputField label="Telefone/Celular" field="phone" value={d.phone} onChange={handleInputChange}/>
               <div className="mb-3">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Cidade</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.city || ''} onChange={e=>setD({...d, city:e.target.value})}>
+                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.city || ''} onChange={e=>handleInputChange('city', e.target.value)}>
                   <option value="">Selecione...</option>
-                  {options.cities && options.cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  <optgroup label="Cidades Principais">
+                    {getMainCitiesOptions().map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </optgroup>
+                  {options.cities && options.cities.length > 0 && (
+                    <optgroup label="Outras Cidades">
+                      {options.cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                  )}
                 </select>
+                <p className="text-xs text-slate-400 mt-1">Digite ou selecione - será normalizado automaticamente</p>
               </div>
               <InputField label="Data de Nascimento" field="birthDate" type="date" value={d.birthDate} onChange={handleInputChange}/>
               <InputField label="Idade" field="age" type="number" value={d.age} onChange={handleInputChange}/>
@@ -1266,7 +1298,7 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
         </div>
         <div className="px-6 py-4 border-t border-brand-border dark:border-brand-border flex justify-end gap-2">
           <button onClick={onClose} className="px-6 py-2 text-slate-400 dark:text-slate-400">Cancelar</button>
-          <button onClick={()=>onSave(d)} disabled={isSaving} className="bg-brand-orange text-white px-8 py-2 rounded">Salvar</button>
+          <button onClick={handleSave} disabled={isSaving} className="bg-brand-orange text-white px-8 py-2 rounded">Salvar</button>
         </div>
       </div>
     </div>
