@@ -2017,25 +2017,58 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
   // Filtrar por busca
   const filtered = useMemo(() => {
     let data = [...candidates];
-    if (localSearch) {
+      if (localSearch) {
       const search = localSearch.toLowerCase();
       data = data.filter(c => 
         c.fullName?.toLowerCase().includes(search) ||
         c.email?.toLowerCase().includes(search) ||
+        c.email_secondary?.toLowerCase().includes(search) ||
         c.phone?.toLowerCase().includes(search) ||
         c.city?.toLowerCase().includes(search) ||
         c.source?.toLowerCase().includes(search) ||
         c.interestAreas?.toLowerCase().includes(search) ||
         c.education?.toLowerCase().includes(search) ||
-        c.schoolingLevel?.toLowerCase().includes(search)
+        c.schoolingLevel?.toLowerCase().includes(search) ||
+        c.institution?.toLowerCase().includes(search) ||
+        c.experience?.toLowerCase().includes(search) ||
+        c.courses?.toLowerCase().includes(search) ||
+        c.certifications?.toLowerCase().includes(search) ||
+        c.referral?.toLowerCase().includes(search) ||
+        c.salaryExpectation?.toLowerCase().includes(search) ||
+        c.references?.toLowerCase().includes(search) ||
+        c.typeOfApp?.toLowerCase().includes(search) ||
+        c.freeField?.toLowerCase().includes(search) ||
+        c.external_id?.toLowerCase().includes(search) ||
+        c.maritalStatus?.toLowerCase().includes(search)
       );
     }
     // Ordenar
     data.sort((a, b) => {
-      if (sortField === 'createdAt') {
-        const aTs = a.createdAt?.seconds || a.createdAt?._seconds || 0;
-        const bTs = b.createdAt?.seconds || b.createdAt?._seconds || 0;
+      if (sortField === 'original_timestamp') {
+        // Tenta usar original_timestamp primeiro, depois createdAt
+        let aTs = 0;
+        let bTs = 0;
+        
+        if (a.original_timestamp) {
+          const aDate = typeof a.original_timestamp === 'string' ? new Date(a.original_timestamp) : (a.original_timestamp.toDate ? a.original_timestamp.toDate() : new Date(a.original_timestamp));
+          aTs = aDate.getTime();
+        } else if (a.createdAt?.seconds || a.createdAt?._seconds) {
+          aTs = (a.createdAt.seconds || a.createdAt._seconds) * 1000;
+        }
+        
+        if (b.original_timestamp) {
+          const bDate = typeof b.original_timestamp === 'string' ? new Date(b.original_timestamp) : (b.original_timestamp.toDate ? b.original_timestamp.toDate() : new Date(b.original_timestamp));
+          bTs = bDate.getTime();
+        } else if (b.createdAt?.seconds || b.createdAt?._seconds) {
+          bTs = (b.createdAt.seconds || b.createdAt._seconds) * 1000;
+        }
+        
         return sortOrder === 'asc' ? aTs - bTs : bTs - aTs;
+      }
+      if (sortField === 'birthDate') {
+        const aDate = a.birthDate ? new Date(a.birthDate) : new Date(0);
+        const bDate = b.birthDate ? new Date(b.birthDate) : new Date(0);
+        return sortOrder === 'asc' ? aDate.getTime() - bDate.getTime() : bDate.getTime() - aDate.getTime();
       }
       let aVal = a[sortField] || '';
       let bVal = b[sortField] || '';
@@ -2135,9 +2168,18 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                 <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('status')}>
                   <div className="flex items-center gap-1 text-xs font-semibold">Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('createdAt')}>
-                  <div className="flex items-center gap-1 text-xs font-semibold">Data Cadastro {sortField === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('original_timestamp')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Data Cadastro Original {sortField === 'original_timestamp' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('birthDate')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Data Nasc. {sortField === 'birthDate' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-4 py-3 text-xs">Idade</th>
+                <th className="px-4 py-3 text-xs">Indicação</th>
+                <th className="px-4 py-3 text-xs">Expect. Salarial</th>
+                <th className="px-4 py-3 text-xs">Mudança Cidade</th>
+                <th className="px-4 py-3 text-xs">Tipo Candidatura</th>
+                <th className="px-4 py-3 text-xs">ID Externo</th>
                 <th className="px-4 py-3 text-right text-xs">Ações</th>
               </tr>
             </thead>
@@ -2186,15 +2228,52 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
-                        {c.createdAt?.seconds || c.createdAt?._seconds ? (
-                          new Date((c.createdAt.seconds || c.createdAt._seconds) * 1000).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric'
-                          })
-                        ) : 'N/A'}
+                      <div className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                        {(() => {
+                          let date = null;
+                          if (c.original_timestamp) {
+                            date = typeof c.original_timestamp === 'string' 
+                              ? new Date(c.original_timestamp) 
+                              : (c.original_timestamp.toDate ? c.original_timestamp.toDate() : new Date(c.original_timestamp));
+                          } else if (c.createdAt?.seconds || c.createdAt?._seconds) {
+                            date = new Date((c.createdAt.seconds || c.createdAt._seconds) * 1000);
+                          }
+                          return date && !isNaN(date.getTime()) 
+                            ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : 'N/A';
+                        })()}
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        {c.birthDate ? new Date(c.birthDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">{c.age || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[150px]" title={c.referral}>{c.referral || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[120px]" title={c.salaryExpectation}>{c.salaryExpectation || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        {c.canRelocate === 'Sim' || c.canRelocate === true ? (
+                          <span className="text-green-600 dark:text-green-400">✓ Sim</span>
+                        ) : c.canRelocate === 'Não' || c.canRelocate === false ? (
+                          <span className="text-red-600 dark:text-red-400">✗ Não</span>
+                        ) : (
+                          <span className="text-gray-500 dark:text-gray-400">N/A</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[150px]" title={c.typeOfApp}>{c.typeOfApp || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-500 dark:text-gray-500 font-mono">{c.external_id || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end">
@@ -2210,7 +2289,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="12" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan="19" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     Nenhum candidato encontrado
                   </td>
                 </tr>
