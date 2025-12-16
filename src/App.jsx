@@ -1886,17 +1886,21 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                     : 'bg-brand-dark text-white hover:bg-brand-hover'
                 }`}
             >
-              ← Anterior
+              <ChevronLeft size={16} className="inline"/>
             </button>
-            <div className="text-xs text-slate-400">
+            <span className="px-4 py-1.5 text-sm text-slate-300">
               Página {currentPage} de {totalPages}
-            </div>
+            </span>
             <button 
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1 rounded bg-brand-card disabled:opacity-50 text-sm hover:bg-brand-hover"
+              className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
+                currentPage === totalPages
+                  ? 'bg-brand-card text-slate-600 cursor-not-allowed'
+                  : 'bg-brand-dark text-white hover:bg-brand-hover'
+              }`}
             >
-              Próxima →
+              <ChevronRight size={16} className="inline"/>
             </button>
           </div>
         )}
