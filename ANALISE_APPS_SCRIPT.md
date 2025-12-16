@@ -131,3 +131,39 @@ O arquivo `Code.gs` foi criado com todas as correções aplicadas:
 3. **Verificar** se os dados aparecem corretamente no frontend
 4. **Executar importação em massa** se necessário (função `importarEmLotes()`)
 
+---
+
+## 📋 Checklist de Implementação
+
+### No Google Apps Script:
+- [ ] Substituir código antigo pelo `Code.gs` corrigido
+- [ ] Verificar PROJECT_ID e SPREADSHEET_ID
+- [ ] Configurar gatilho `onFormSubmit` no formulário
+- [ ] Testar envio de um formulário de teste
+- [ ] Verificar logs no Apps Script
+
+### No Frontend:
+- [ ] Verificar se dados aparecem corretamente na tabela
+- [ ] Verificar se modal de edição carrega todos os campos
+- [ ] Testar filtros com novos campos
+- [ ] Verificar se status inicial é "Inscrito"
+
+---
+
+## 🔄 Compatibilidade
+
+### interestAreas
+- **Apps Script:** Envia como string (separado por vírgula)
+- **Frontend:** Aceita string e trata como string
+- **Status:** ✅ Compatível
+
+### Status do Pipeline
+- **Apps Script:** Envia `status: "Inscrito"`
+- **Frontend:** Espera status do pipeline (Inscrito, Considerado, etc.)
+- **Status:** ✅ Compatível
+
+### Campos Opcionais
+- **Apps Script:** Todos os campos opcionais têm fallback para string vazia
+- **Frontend:** Trata campos vazios como "N/A"
+- **Status:** ✅ Compatível
+
