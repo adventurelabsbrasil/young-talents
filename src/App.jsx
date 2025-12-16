@@ -367,8 +367,56 @@ export default function App() {
   const { isDark, toggleTheme } = useTheme();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('pipeline');
+  
+  // Sistema de Rotas usando URL
+  const getRouteFromURL = () => {
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get('page') || 'pipeline';
+    return {
+      page,
+      modal: params.get('modal') || null,
+      id: params.get('id') || null,
+      settingsTab: params.get('settingsTab') || (page === 'settings' ? 'campos' : null)
+    };
+  };
+
+  const updateURL = (updates) => {
+    const params = new URLSearchParams(window.location.search);
+    Object.keys(updates).forEach(key => {
+      if (updates[key]) {
+        params.set(key, updates[key]);
+      } else {
+        params.delete(key);
+      }
+    });
+    const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+    window.history.pushState({}, '', newURL);
+  };
+
+  const [route, setRoute] = useState(getRouteFromURL());
+  const activeTab = route.page;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Sincronizar URL com mudanças de rota e inicializar settingsTab se necessário
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoute(getRouteFromURL());
+    };
+    window.addEventListener('popstate', handlePopState);
+    
+    // Inicializar settingsTab na URL se estiver na página de settings
+    if (activeTab === 'settings' && !route.settingsTab) {
+      updateURL({ settingsTab: 'campos' });
+      setRoute(prev => ({ ...prev, settingsTab: 'campos' }));
+    }
+    
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeTab]);
+
+  const setActiveTab = (tab) => {
+    updateURL({ page: tab });
+    setRoute(prev => ({ ...prev, page: tab }));
+  };
   
   // Dados
   const [jobs, setJobs] = useState([]);
@@ -382,16 +430,49 @@ export default function App() {
   const [marital, setMarital] = useState([]);
   const [tags, setTags] = useState([]);
 
-  // Modais
-  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
-  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
-  const [viewingJob, setViewingJob] = useState(null);
+  // Modais - sincronizados com URL
+  const isJobModalOpen = route.modal === 'job';
+  const isCsvModalOpen = route.modal === 'csv';
+  const viewingJob = route.modal === 'job-candidates' && route.id ? jobs.find(j => j.id === route.id) : null;
   const [editingCandidate, setEditingCandidate] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
   const [pendingTransition, setPendingTransition] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
   const [dashboardModalCandidates, setDashboardModalCandidates] = useState(null);
+
+  // Helpers para abrir modais com URL
+  const openJobModal = (job = null) => {
+    setEditingJob(job);
+    updateURL({ modal: 'job', id: job?.id || '' });
+    setRoute(prev => ({ ...prev, modal: 'job', id: job?.id || '' }));
+  };
+
+  const closeJobModal = () => {
+    setEditingJob(null);
+    updateURL({ modal: null, id: null });
+    setRoute(prev => ({ ...prev, modal: null, id: null }));
+  };
+
+  const openCsvModal = () => {
+    updateURL({ modal: 'csv' });
+    setRoute(prev => ({ ...prev, modal: 'csv' }));
+  };
+
+  const closeCsvModal = () => {
+    updateURL({ modal: null });
+    setRoute(prev => ({ ...prev, modal: null }));
+  };
+
+  const openJobCandidatesModal = (job) => {
+    updateURL({ modal: 'job-candidates', id: job?.id || '' });
+    setRoute(prev => ({ ...prev, modal: 'job-candidates', id: job?.id || '' }));
+  };
+
+  const closeJobCandidatesModal = () => {
+    updateURL({ modal: null, id: null });
+    setRoute(prev => ({ ...prev, modal: null, id: null }));
+  };
   
   // Filtro Global
   const initialFilters = { 
@@ -559,16 +640,16 @@ export default function App() {
         <div className="flex-1 overflow-hidden bg-brand-dark relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
-           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} onAdd={()=>{setEditingJob({});setIsJobModalOpen(true)}} onEdit={(j)=>{setEditingJob(j);setIsJobModalOpen(true)}} onDelete={(id)=>deleteDoc(doc(db,'jobs',id))} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={setViewingJob}/></div>}
+           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>deleteDoc(doc(db,'jobs',id))} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>deleteDoc(doc(db,'candidates',id))}/></div>}
-           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={()=>setIsCsvModalOpen(true)} /></div>}
+           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} /></div>}
         </div>
       </div>
 
       <FilterSidebar isOpen={isFilterSidebarOpen} onClose={() => setIsFilterSidebarOpen(false)} filters={filters} setFilters={setFilters} clearFilters={() => setFilters(initialFilters)} options={optionsProps} candidates={candidates} />
 
       {/* MODAIS GLOBAIS - CORRIGIDO PASSAGEM DE PROPS */}
-      {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={() => { setIsJobModalOpen(false); setEditingJob(null); }} onSave={d => handleSaveGeneric('jobs', d, () => {setIsJobModalOpen(false); setEditingJob(null);})} options={optionsProps} isSaving={isSaving} />}
+      {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={closeJobModal} onSave={d => handleSaveGeneric('jobs', d, closeJobModal)} options={optionsProps} isSaving={isSaving} />}
       {editingCandidate && <CandidateModal candidate={editingCandidate} onClose={() => setEditingCandidate(null)} onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} options={optionsProps} isSaving={isSaving} />}
       
       {/* CORREÇÃO IMPORTANTE: Passando todas as props necessárias para o TransitionModal */}
@@ -596,8 +677,8 @@ export default function App() {
         />
       )}
       
-      <CsvImportModal isOpen={isCsvModalOpen} onClose={() => setIsCsvModalOpen(false)} onImportData={(d) => handleSaveGeneric('candidates_batch', d)} />
-      <JobCandidatesModal isOpen={!!viewingJob} onClose={() => setViewingJob(null)} job={viewingJob} candidates={candidates.filter(c => c.jobId === viewingJob?.id)} />
+      <CsvImportModal isOpen={isCsvModalOpen} onClose={closeCsvModal} onImportData={(d) => { handleSaveGeneric('candidates_batch', d); closeCsvModal(); }} />
+      <JobCandidatesModal isOpen={!!viewingJob} onClose={closeJobCandidatesModal} job={viewingJob} candidates={candidates.filter(c => c.jobId === viewingJob?.id)} />
       {dashboardModalCandidates && (
         <JobCandidatesModal isOpen={true} onClose={() => setDashboardModalCandidates(null)} job={{ title: 'Resultados do Dashboard' }} candidates={dashboardModalCandidates} />
       )}
@@ -740,8 +821,12 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
       data = data.filter(c => 
         c.fullName?.toLowerCase().includes(search) ||
         c.email?.toLowerCase().includes(search) ||
+        c.phone?.toLowerCase().includes(search) ||
         c.city?.toLowerCase().includes(search) ||
-        c.interestAreas?.toLowerCase().includes(search)
+        c.source?.toLowerCase().includes(search) ||
+        c.interestAreas?.toLowerCase().includes(search) ||
+        c.education?.toLowerCase().includes(search) ||
+        c.schoolingLevel?.toLowerCase().includes(search)
       );
     }
     // Ordenar
@@ -785,7 +870,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
         <div className="flex-1 min-w-[200px]">
           <input 
             type="text" 
-            placeholder="Buscar por nome, email, cidade, área..."
+            placeholder="Buscar por nome, email, telefone, cidade, fonte, área..."
             className="w-full bg-brand-dark border border-brand-border rounded px-3 py-2 text-sm text-white outline-none focus:border-brand-cyan"
             value={localSearch}
             onChange={e => {setLocalSearch(e.target.value); setCurrentPage(1);}}
@@ -818,46 +903,64 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
           <table className="w-full text-sm text-left text-slate-300">
             <thead className="bg-brand-hover text-slate-200 font-medium sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('fullName')}>
-                  <div className="flex items-center gap-1">Nome {sortField === 'fullName' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('fullName')}>
+                  <div className="flex items-center gap-1 text-xs">Nome {sortField === 'fullName' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('email')}>
-                  <div className="flex items-center gap-1">Email {sortField === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('email')}>
+                  <div className="flex items-center gap-1 text-xs">Email {sortField === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('city')}>
-                  <div className="flex items-center gap-1">Cidade {sortField === 'city' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('phone')}>
+                  <div className="flex items-center gap-1 text-xs">Telefone {sortField === 'phone' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('interestAreas')}>
-                  <div className="flex items-center gap-1">Áreas {sortField === 'interestAreas' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('city')}>
+                  <div className="flex items-center gap-1 text-xs">Cidade {sortField === 'city' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-6 py-3">Formação</th>
-                <th className="px-6 py-3">CNH</th>
-                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('status')}>
-                  <div className="flex items-center gap-1">Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('source')}>
+                  <div className="flex items-center gap-1 text-xs">Fonte {sortField === 'source' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-6 py-3 text-right">Ações</th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('interestAreas')}>
+                  <div className="flex items-center gap-1 text-xs">Áreas {sortField === 'interestAreas' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-4 py-3 text-xs">Formação</th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('schoolingLevel')}>
+                  <div className="flex items-center gap-1 text-xs">Escolaridade {sortField === 'schoolingLevel' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-4 py-3 text-xs">CNH</th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('status')}>
+                  <div className="flex items-center gap-1 text-xs">Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-4 py-3 text-right text-xs">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border">
               {paginatedCandidates.length > 0 ? (
                 paginatedCandidates.map(c => (
                   <tr key={c.id} className="hover:bg-brand-hover/50 cursor-pointer" onClick={() => onEdit(c)}>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-white">{c.fullName}</div>
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-white text-sm">{c.fullName || 'N/A'}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-xs text-slate-400 truncate">{c.email || 'N/A'}</div>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-slate-400 truncate max-w-[200px]" title={c.email}>{c.email || 'N/A'}</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-slate-400">{c.phone || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="text-xs text-slate-400">{c.city || 'N/A'}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-xs text-brand-cyan truncate">{c.interestAreas || 'N/A'}</div>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-brand-cyan truncate max-w-[150px]" title={c.source}>{c.source || 'N/A'}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-xs text-slate-400 truncate">{c.education || 'N/A'}</div>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-brand-cyan truncate max-w-[150px]" title={c.interestAreas}>{c.interestAreas || 'N/A'}</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-slate-400 truncate max-w-[150px]" title={c.education}>{c.education || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-slate-400 truncate max-w-[120px]" title={c.schoolingLevel}>{c.schoolingLevel || 'N/A'}</div>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="text-xs">
                         {c.hasLicense === 'Sim' || c.hasLicense === true ? (
                           <span className="text-green-400">✓ Sim</span>
@@ -868,17 +971,17 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-xs border ${STATUS_COLORS[c.status]}`}>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>
                         {c.status || 'Sem Status'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end">
-                        <button onClick={(e) => {e.stopPropagation(); onEdit(c);}} className="text-blue-400 hover:text-blue-300">
+                        <button onClick={(e) => {e.stopPropagation(); onEdit(c);}} className="text-blue-400 hover:text-blue-300" title="Editar">
                           <Edit3 size={16}/>
                         </button>
-                        <button onClick={(e) => {e.stopPropagation(); onDelete(c.id);}} className="text-red-500 hover:text-red-400">
+                        <button onClick={(e) => {e.stopPropagation(); onDelete(c.id);}} className="text-red-500 hover:text-red-400" title="Excluir">
                           <Trash2 size={16}/>
                         </button>
                       </div>
@@ -887,7 +990,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="11" className="px-6 py-8 text-center text-slate-500">
                     Nenhum candidato encontrado
                   </td>
                 </tr>

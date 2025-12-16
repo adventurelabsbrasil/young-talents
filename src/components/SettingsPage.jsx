@@ -5,10 +5,24 @@ import {
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
 
+// Helper para mostrar toast (será passado do App ou criado localmente)
+let showToast = (message, type = 'info') => {
+  alert(message); // Fallback simples
+};
+
 export default function SettingsPage({ 
   onOpenCsvModal,
+  activeSettingsTab,
+  onSettingsTabChange,
+  onShowToast,
 }) {
-  const [activeTab, setActiveTab] = useState('campos');
+  // Usar toast do App se disponível
+  if (onShowToast) showToast = onShowToast;
+  
+  const activeTab = activeSettingsTab || 'campos';
+  const setActiveTab = (tab) => {
+    if (onSettingsTabChange) onSettingsTabChange(tab);
+  };
 
   const tabs = [
     { id: 'campos', label: 'Gerenciamento de Campos', icon: Database },
@@ -77,7 +91,10 @@ const FieldsManager = () => {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <button className="bg-brand-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm">
+        <button 
+          onClick={() => showToast('Funcionalidade de campo personalizado em desenvolvimento', 'info')}
+          className="bg-brand-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm"
+        >
           <Plus size={16}/> Novo Campo Personalizado
         </button>
       </div>
@@ -120,8 +137,9 @@ const FieldsManager = () => {
                 </td>
                 <td className="p-4 text-right">
                   <button
+                    onClick={() => showToast(`Edição do campo "${field.label}" em desenvolvimento`, 'info')}
                     className="p-2 text-slate-400 hover:text-white"
-                    title="Edição pendente de implementação"
+                    title="Editar campo"
                   >
                     <Edit3 size={16}/>
                   </button>
@@ -142,7 +160,12 @@ const PipelineManager = () => {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-bold text-white">Etapas do Funil (Kanban)</h3>
-          <button className="text-brand-cyan hover:underline text-sm font-bold flex items-center gap-1"><Plus size={14}/> Adicionar Etapa</button>
+          <button 
+            onClick={() => showToast('Funcionalidade de adicionar etapa em desenvolvimento', 'info')}
+            className="text-brand-cyan hover:underline text-sm font-bold flex items-center gap-1"
+          >
+            <Plus size={14}/> Adicionar Etapa
+          </button>
         </div>
         <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
            {PIPELINE_STAGES.map((stage, index) => (
@@ -152,8 +175,20 @@ const PipelineManager = () => {
                   <span className="font-medium text-white">{stage}</span>
                 </div>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded"><Edit3 size={14}/></button>
-                  <button className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"><Trash2 size={14}/></button>
+                  <button 
+                    onClick={() => showToast(`Edição da etapa "${stage}" em desenvolvimento`, 'info')}
+                    className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded"
+                    title="Editar etapa"
+                  >
+                    <Edit3 size={14}/>
+                  </button>
+                  <button 
+                    onClick={() => showToast(`Remoção da etapa "${stage}" em desenvolvimento`, 'info')}
+                    className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+                    title="Remover etapa"
+                  >
+                    <Trash2 size={14}/>
+                  </button>
                 </div>
              </div>
            ))}
@@ -177,13 +212,24 @@ const PipelineManager = () => {
         <div className="space-y-4">
            <div className="flex justify-between items-center">
              <h3 className="text-lg font-bold text-white">Motivos de Perda</h3>
-             <button className="text-brand-cyan hover:underline text-sm font-bold flex items-center gap-1"><Plus size={14}/> Novo Motivo</button>
+             <button 
+               onClick={() => showToast('Funcionalidade de adicionar motivo em desenvolvimento', 'info')}
+               className="text-brand-cyan hover:underline text-sm font-bold flex items-center gap-1"
+             >
+               <Plus size={14}/> Novo Motivo
+             </button>
            </div>
            <div className="bg-brand-card border border-brand-border rounded-xl p-4 space-y-2">
               {['Salário Incompatível', 'Sem qualificação técnica', 'Fit Cultural', 'Aceitou outra proposta'].map(m => (
                 <div key={m} className="text-sm text-slate-300 p-2 border-b border-brand-border last:border-0 flex justify-between">
                   {m}
-                  <button className="text-slate-500 hover:text-red-400"><Trash2 size={14}/></button>
+                  <button 
+                    onClick={() => showToast(`Remoção do motivo "${m}" em desenvolvimento`, 'info')}
+                    className="text-slate-500 hover:text-red-400"
+                    title="Remover motivo"
+                  >
+                    <Trash2 size={14}/>
+                  </button>
                 </div>
               ))}
            </div>
@@ -226,7 +272,12 @@ const UserManager = () => (
   <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
      <div className="flex justify-between items-center">
         <h3 className="text-lg font-bold text-white">Usuários do Sistema</h3>
-        <button className="bg-brand-orange text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><Plus size={16}/> Convidar Usuário</button>
+        <button 
+          onClick={() => showToast('Funcionalidade de convidar usuário em desenvolvimento', 'info')}
+          className="bg-brand-orange text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+        >
+          <Plus size={16}/> Convidar Usuário
+        </button>
      </div>
      <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
         <table className="w-full text-left text-sm">
@@ -257,7 +308,12 @@ const EmailTemplateManager = () => (
    <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
       <div className="flex justify-between items-center">
          <h3 className="text-lg font-bold text-white">Modelos de Email Automáticos</h3>
-         <button className="bg-brand-cyan text-brand-dark px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><Plus size={16}/> Novo Template</button>
+         <button 
+           onClick={() => showToast('Funcionalidade de criar template em desenvolvimento', 'info')}
+           className="bg-brand-cyan text-brand-dark px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
+         >
+           <Plus size={16}/> Novo Template
+         </button>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
          {[
