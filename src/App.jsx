@@ -780,7 +780,7 @@ export default function App() {
         <div className="flex-1 overflow-hidden bg-brand-dark relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
-           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>deleteDoc(doc(db,'jobs',id))} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
+           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>deleteDoc(doc(db,'jobs',id))} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>deleteDoc(doc(db,'candidates',id))}/></div>}
            {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} /></div>}
         </div>
@@ -1143,10 +1143,289 @@ const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd
    );
 };
 
-const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandidates }) => (
-  <div className="space-y-6"><div className="flex justify-between"><h2 className="text-2xl font-bold text-white">Vagas</h2><button onClick={onAdd} className="bg-brand-orange text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={18}/> Nova</button></div>
-  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">{jobs.map(j => (<div key={j.id} className="bg-brand-card p-6 rounded-xl border border-brand-border shadow-lg group hover:border-brand-cyan/50"><div className="flex justify-between mb-4"><select className="text-xs px-2 py-1 rounded border bg-transparent outline-none cursor-pointer text-brand-cyan border-brand-cyan/30" value={j.status} onChange={(e) => onToggleStatus('jobs', {id: j.id, status: e.target.value})} onClick={(e) => e.stopPropagation()}>{JOB_STATUSES.map(s => <option key={s} value={s} className="bg-brand-card">{s}</option>)}</select><button onClick={() => onEdit(j)} className="text-slate-400 hover:text-white opacity-0 group-hover:opacity-100"><Edit3 size={16}/></button></div><h3 className="font-bold text-lg text-white mb-1">{j.title}</h3><p className="text-sm text-slate-400 mb-4">{j.company}</p><div className="border-t border-brand-border pt-4 flex justify-between items-center"><p className="text-xs text-slate-500 cursor-pointer hover:text-brand-cyan" onClick={() => onViewCandidates(j)}>{candidates.filter(c => c.jobId === j.id).length} candidatos</p></div></div>))}</div></div>
-);
+const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandidates, companies }) => {
+  const [activeTab, setActiveTab] = useState('status');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState('all');
+  
+  // Agrupar vagas por status
+  const jobsByStatus = useMemo(() => {
+    const grouped = {};
+    JOB_STATUSES.forEach(status => {
+      grouped[status] = jobs.filter(j => j.status === status);
+    });
+    return grouped;
+  }, [jobs]);
+  
+  // Agrupar vagas por cidade
+  const jobsByCity = useMemo(() => {
+    const grouped = {};
+    jobs.forEach(job => {
+      const city = job.city || 'Sem cidade';
+      if (!grouped[city]) grouped[city] = [];
+      grouped[city].push(job);
+    });
+    return grouped;
+  }, [jobs]);
+  
+  // Agrupar vagas por empresa
+  const jobsByCompany = useMemo(() => {
+    const grouped = {};
+    jobs.forEach(job => {
+      const company = job.company || 'Sem empresa';
+      if (!grouped[company]) grouped[company] = [];
+      grouped[company].push(job);
+    });
+    return grouped;
+  }, [jobs]);
+  
+  // Agrupar vagas por período
+  const jobsByPeriod = useMemo(() => {
+    const now = Date.now() / 1000;
+    const periods = {
+      'Hoje': [],
+      'Esta Semana': [],
+      'Este Mês': [],
+      'Últimos 3 Meses': [],
+      'Anteriores': []
+    };
+    
+    jobs.forEach(job => {
+      const ts = job.createdAt?.seconds || job.createdAt?._seconds || 0;
+      const daysAgo = (now - ts) / (24 * 60 * 60);
+      
+      if (daysAgo < 1) periods['Hoje'].push(job);
+      else if (daysAgo < 7) periods['Esta Semana'].push(job);
+      else if (daysAgo < 30) periods['Este Mês'].push(job);
+      else if (daysAgo < 90) periods['Últimos 3 Meses'].push(job);
+      else periods['Anteriores'].push(job);
+    });
+    
+    return periods;
+  }, [jobs]);
+  
+  // Filtrar vagas baseado na aba ativa
+  const filteredJobs = useMemo(() => {
+    if (activeTab === 'status') {
+      if (statusFilter === 'all') return jobs;
+      return jobs.filter(j => j.status === statusFilter);
+    } else if (activeTab === 'city') {
+      if (cityFilter === 'all') return jobs;
+      return jobs.filter(j => (j.city || 'Sem cidade') === cityFilter);
+    } else if (activeTab === 'company') {
+      if (companyFilter === 'all') return jobs;
+      return jobs.filter(j => (j.company || 'Sem empresa') === companyFilter);
+    } else if (activeTab === 'period') {
+      if (periodFilter === 'all') return jobs;
+      return jobsByPeriod[periodFilter] || [];
+    }
+    return jobs;
+  }, [activeTab, statusFilter, cityFilter, companyFilter, periodFilter, jobs, jobsByPeriod]);
+  
+  const renderJobCard = (j) => (
+    <div key={j.id} className="bg-brand-card p-6 rounded-xl border border-brand-border shadow-lg group hover:border-brand-cyan/50 transition-colors">
+      <div className="flex justify-between mb-4">
+        <select 
+          className="text-xs px-2 py-1 rounded border bg-transparent outline-none cursor-pointer text-brand-cyan border-brand-cyan/30 hover:bg-brand-cyan/10 transition-colors" 
+          value={j.status} 
+          onChange={(e) => onToggleStatus('jobs', {id: j.id, status: e.target.value})} 
+          onClick={(e) => e.stopPropagation()}
+        >
+          {JOB_STATUSES.map(s => <option key={s} value={s} className="bg-brand-card">{s}</option>)}
+        </select>
+        <button onClick={() => onEdit(j)} className="text-slate-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+          <Edit3 size={16}/>
+        </button>
+      </div>
+      <h3 className="font-bold text-lg text-white mb-1 break-words">{j.title}</h3>
+      <p className="text-sm text-slate-400 mb-2 break-words">{j.company}</p>
+      {j.city && <p className="text-xs text-slate-500 mb-4 flex items-center gap-1"><MapPin size={12}/> {j.city}</p>}
+      <div className="border-t border-brand-border pt-4 flex justify-between items-center">
+        <p className="text-xs text-slate-500 cursor-pointer hover:text-brand-cyan transition-colors" onClick={() => onViewCandidates(j)}>
+          {candidates.filter(c => c.jobId === j.id).length} candidatos
+        </p>
+      </div>
+    </div>
+  );
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-white">Vagas</h2>
+        <button onClick={onAdd} className="bg-brand-orange text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-orange-600 transition-colors">
+          <Plus size={18}/> Nova
+        </button>
+      </div>
+      
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-brand-border overflow-x-auto custom-scrollbar">
+        <button
+          onClick={() => setActiveTab('status')}
+          className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
+            activeTab === 'status'
+              ? 'text-brand-orange border-brand-orange'
+              : 'text-slate-500 border-transparent hover:text-slate-300'
+          }`}
+        >
+          Por Status
+        </button>
+        <button
+          onClick={() => setActiveTab('city')}
+          className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
+            activeTab === 'city'
+              ? 'text-brand-orange border-brand-orange'
+              : 'text-slate-500 border-transparent hover:text-slate-300'
+          }`}
+        >
+          Por Cidade
+        </button>
+        <button
+          onClick={() => setActiveTab('company')}
+          className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
+            activeTab === 'company'
+              ? 'text-brand-orange border-brand-orange'
+              : 'text-slate-500 border-transparent hover:text-slate-300'
+          }`}
+        >
+          Por Empresa
+        </button>
+        <button
+          onClick={() => setActiveTab('period')}
+          className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
+            activeTab === 'period'
+              ? 'text-brand-orange border-brand-orange'
+              : 'text-slate-500 border-transparent hover:text-slate-300'
+          }`}
+        >
+          Por Período
+        </button>
+      </div>
+      
+      {/* Filtros por aba */}
+      <div className="flex gap-3 items-center flex-wrap">
+        {activeTab === 'status' && (
+          <select
+            className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+          >
+            <option value="all">Todas as vagas</option>
+            {JOB_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+        {activeTab === 'city' && (
+          <select
+            className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
+            value={cityFilter}
+            onChange={e => setCityFilter(e.target.value)}
+          >
+            <option value="all">Todas as cidades</option>
+            {Array.from(new Set(jobs.map(j => j.city).filter(Boolean))).sort().map(city => (
+              <option key={city} value={city}>{city}</option>
+            ))}
+          </select>
+        )}
+        {activeTab === 'company' && (
+          <select
+            className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
+            value={companyFilter}
+            onChange={e => setCompanyFilter(e.target.value)}
+          >
+            <option value="all">Todas as empresas</option>
+            {Array.from(new Set(jobs.map(j => j.company).filter(Boolean))).sort().map(company => (
+              <option key={company} value={company}>{company}</option>
+            ))}
+          </select>
+        )}
+        {activeTab === 'period' && (
+          <select
+            className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
+            value={periodFilter}
+            onChange={e => setPeriodFilter(e.target.value)}
+          >
+            <option value="all">Todos os períodos</option>
+            {Object.keys(jobsByPeriod).map(period => (
+              <option key={period} value={period}>{period} ({jobsByPeriod[period].length})</option>
+            ))}
+          </select>
+        )}
+      </div>
+      
+      {/* Conteúdo agrupado ou filtrado */}
+      {activeTab === 'status' && statusFilter === 'all' ? (
+        <div className="space-y-8">
+          {JOB_STATUSES.map(status => (
+            jobsByStatus[status] && jobsByStatus[status].length > 0 && (
+              <div key={status}>
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  {status} <span className="text-sm text-slate-400 font-normal">({jobsByStatus[status].length})</span>
+                </h3>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {jobsByStatus[status].map(renderJobCard)}
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      ) : activeTab === 'city' && cityFilter === 'all' ? (
+        <div className="space-y-8">
+          {Object.keys(jobsByCity).sort().map(city => (
+            jobsByCity[city].length > 0 && (
+              <div key={city}>
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <MapPin size={18}/> {city} <span className="text-sm text-slate-400 font-normal">({jobsByCity[city].length})</span>
+                </h3>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {jobsByCity[city].map(renderJobCard)}
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      ) : activeTab === 'company' && companyFilter === 'all' ? (
+        <div className="space-y-8">
+          {Object.keys(jobsByCompany).sort().map(company => (
+            jobsByCompany[company].length > 0 && (
+              <div key={company}>
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <Building2 size={18}/> {company} <span className="text-sm text-slate-400 font-normal">({jobsByCompany[company].length})</span>
+                </h3>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {jobsByCompany[company].map(renderJobCard)}
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      ) : activeTab === 'period' && periodFilter === 'all' ? (
+        <div className="space-y-8">
+          {Object.keys(jobsByPeriod).map(period => (
+            jobsByPeriod[period].length > 0 && (
+              <div key={period}>
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  {period} <span className="text-sm text-slate-400 font-normal">({jobsByPeriod[period].length})</span>
+                </h3>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {jobsByPeriod[period].map(renderJobCard)}
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredJobs.length > 0 ? filteredJobs.map(renderJobCard) : (
+            <div className="col-span-full text-center py-12 text-slate-500">
+              Nenhuma vaga encontrada
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
   const [localSearch, setLocalSearch] = useState('');
