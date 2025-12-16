@@ -1023,8 +1023,9 @@ export default function App() {
 const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies }) => {
   const [viewMode, setViewMode] = useState('kanban'); 
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [kanbanItemsPerPage, setKanbanItemsPerPage] = useState(10); // Itens por coluna no kanban
   const [selectedIds, setSelectedIds] = useState([]);
-  const [visibleCounts, setVisibleCounts] = useState(PIPELINE_STAGES.reduce((acc, stage) => ({...acc, [stage]: 20}), {}));
   const [localSearch, setLocalSearch] = useState('');
   const [localSort, setLocalSort] = useState('recent');
   const [statusFilter, setStatusFilter] = useState('active'); // active, hired, rejected
@@ -1033,11 +1034,13 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   const [companyFilter, setCompanyFilter] = useState('all');
   const [cityFilter, setCityFilter] = useState('all');
 
-  useEffect(() => setSelectedIds([]), [candidates]);
+  useEffect(() => {
+    setSelectedIds([]);
+    setCurrentPage(1); // Reset página ao mudar filtros
+  }, [candidates, statusFilter, localSearch, localSort, pipelineStatusFilter, jobFilter, companyFilter, cityFilter]);
 
   const handleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const handleSelectAll = () => selectedIds.length === candidates.length ? setSelectedIds([]) : setSelectedIds(candidates.map(c => c.id));
-  const loadMore = (stage) => setVisibleCounts(prev => ({ ...prev, [stage]: prev[stage] + 20 }));
+  const handleSelectAll = () => selectedIds.length === processedData.length ? setSelectedIds([]) : setSelectedIds(processedData.map(c => c.id));
 
   const processedData = useMemo(() => {
      let data = [...candidates];
@@ -1086,6 +1089,32 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
      });
      return data;
   }, [candidates, statusFilter, localSearch, localSort, pipelineStatusFilter, jobFilter, companyFilter, cityFilter, jobs]);
+  
+  // Dados paginados para modo lista
+  const paginatedListData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return processedData.slice(start, end);
+  }, [processedData, currentPage, itemsPerPage]);
+  
+  // Dados paginados para modo kanban (por coluna)
+  const kanbanDataByStage = useMemo(() => {
+    const byStage = {};
+    PIPELINE_STAGES.forEach(stage => {
+      const stageCandidates = processedData.filter(c => (c.status || 'Inscrito') === stage);
+      const start = (currentPage - 1) * kanbanItemsPerPage;
+      const end = start + kanbanItemsPerPage;
+      byStage[stage] = {
+        all: stageCandidates,
+        displayed: stageCandidates.slice(start, end),
+        total: stageCandidates.length
+      };
+    });
+    return byStage;
+  }, [processedData, currentPage, kanbanItemsPerPage]);
+  
+  const totalPages = Math.ceil(processedData.length / itemsPerPage);
+  const kanbanTotalPages = Math.ceil(Math.max(...PIPELINE_STAGES.map(s => kanbanDataByStage[s]?.total || 0)) / kanbanItemsPerPage);
 
   return (
      <div className="flex flex-col h-full relative">
@@ -1123,15 +1152,61 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                  <option value="recent">Mais Recentes</option><option value="oldest">Mais Antigos</option><option value="az">A-Z</option><option value="za">Z-A</option>
               </select>
            </div>
-           <div className="text-xs text-slate-500">{processedData.length} talentos</div>
+           <div className="flex items-center gap-4">
+             <div className="text-xs text-slate-500">{processedData.length} talentos</div>
+             {viewMode === 'list' && (
+               <select
+                 className="bg-brand-card border border-brand-border rounded px-2 py-1 text-xs text-white outline-none focus:border-brand-cyan"
+                 value={itemsPerPage}
+                 onChange={e => {
+                   setItemsPerPage(Number(e.target.value));
+                   setCurrentPage(1);
+                 }}
+               >
+                 <option value={10}>10 por página</option>
+                 <option value={25}>25 por página</option>
+                 <option value={50}>50 por página</option>
+                 <option value={100}>100 por página</option>
+               </select>
+             )}
+             {viewMode === 'kanban' && (
+               <select
+                 className="bg-brand-card border border-brand-border rounded px-2 py-1 text-xs text-white outline-none focus:border-brand-cyan"
+                 value={kanbanItemsPerPage}
+                 onChange={e => {
+                   setKanbanItemsPerPage(Number(e.target.value));
+                   setCurrentPage(1);
+                 }}
+               >
+                 <option value={5}>5 por coluna</option>
+                 <option value={10}>10 por coluna</option>
+                 <option value={15}>15 por coluna</option>
+                 <option value={20}>20 por coluna</option>
+               </select>
+             )}
+           </div>
         </div>
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden flex flex-col">
            {viewMode === 'kanban' ? (
-              <div className="h-full overflow-x-auto p-2 custom-scrollbar"><div className="flex gap-2 h-full min-w-max">
+              <div className="flex-1 overflow-x-auto p-2 custom-scrollbar">
+                <div className="flex gap-2 h-full min-w-max">
                  {PIPELINE_STAGES.map(stage => (
-                    <KanbanColumn key={stage} stage={stage} allCandidates={processedData.filter(c => (c.status || 'Inscrito') === stage)} limit={visibleCounts[stage]} onLoadMore={() => loadMore(stage)} jobs={jobs} onDragEnd={onDragEnd} onEdit={onEdit} onCloseStatus={onCloseStatus} selectedIds={selectedIds} onSelect={handleSelect} />
+                    <KanbanColumn 
+                      key={stage} 
+                      stage={stage} 
+                      allCandidates={kanbanDataByStage[stage]?.all || []}
+                      displayedCandidates={kanbanDataByStage[stage]?.displayed || []}
+                      total={kanbanDataByStage[stage]?.total || 0}
+                      jobs={jobs} 
+                      onDragEnd={onDragEnd} 
+                      onEdit={onEdit} 
+                      onCloseStatus={onCloseStatus} 
+                      selectedIds={selectedIds} 
+                      onSelect={handleSelect} 
+                    />
                  ))}
-              </div></div>
+                </div>
+              </div>
            ) : (
               <div className="h-full overflow-y-auto p-4 custom-scrollbar">
                  <table className="w-full text-left text-sm text-slate-300"><thead className="bg-brand-card text-white font-bold sticky top-0 z-10 shadow-sm"><tr><th className="p-4 w-10"><input type="checkbox" className="accent-brand-orange" checked={selectedIds.length>0 && selectedIds.length===processedData.length} onChange={handleSelectAll}/></th><th className="p-4">Nome</th><th className="p-4">Status</th><th className="p-4">Vaga</th><th className="p-4">Ações</th></tr></thead><tbody className="divide-y divide-brand-border bg-brand-card/20">{processedData.slice(0, itemsPerPage).map(c => (<tr key={c.id} className="hover:bg-brand-card/50"><td className="p-4"><input type="checkbox" className="accent-brand-orange" checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)}/></td><td className="p-4 font-bold text-white cursor-pointer" onClick={() => onEdit(c)}>{c.fullName}</td><td className="p-4"><span className={`px-2 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status]}`}>{c.status}</span></td><td className="p-4 text-xs">{jobs.find(j=>j.id===c.jobId)?.title}</td><td className="p-4"><button onClick={() => onEdit(c)}><Edit3 size={16}/></button></td></tr>))}</tbody></table>
@@ -1142,13 +1217,11 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   );
 };
 
-const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect }) => {
+const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect }) => {
   const [columnColor, setColumnColor] = useState(() => {
     const saved = localStorage.getItem(`kanban-color-${stage}`);
     return saved || STATUS_COLORS[stage];
   });
-  
-  const displayedCandidates = allCandidates.slice(0, limit);
   const handleDrop = (e) => { e.preventDefault(); const cId = e.dataTransfer.getData("text/plain"); if (cId) onDragEnd(cId, stage); };
   const handleDragStart = (e, cId) => { try { e.dataTransfer.setData("text/plain", cId); e.dataTransfer.effectAllowed = 'move'; } catch(err){ console.warn('dragStart err', err); } };
   
@@ -1174,7 +1247,7 @@ const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd
       <div className="w-[240px] flex-shrink-0 flex flex-col bg-brand-card/40 border border-brand-border rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
          <div className={`p-2 border-b border-brand-border flex justify-between items-center rounded-t-xl ${columnColor} relative group`}>
            <span className="font-bold text-xs uppercase break-words">{stage}</span>
-           <span className="bg-black/20 px-2 py-0.5 rounded text-xs font-mono">{allCandidates.length}</span>
+           <span className="bg-black/20 px-2 py-0.5 rounded text-xs font-mono">{total}</span>
            <div className="absolute top-full left-0 right-0 bg-brand-card border border-brand-border rounded-b-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-lg">
              <div className="text-xs text-slate-400 mb-1">Cor da coluna:</div>
              <div className="grid grid-cols-5 gap-1">
@@ -1189,7 +1262,8 @@ const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd
              </div>
            </div>
          </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">{displayedCandidates.map(c => {
+        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+          {displayedCandidates.length > 0 ? displayedCandidates.map(c => {
           const candidateJob = jobs.find(j => j.id === c.jobId);
           return (
           <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-brand-border'}`}>
@@ -1242,7 +1316,10 @@ const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd
               </button>
             </div>
           </div>
-        )})}{allCandidates.length > limit && <button onClick={onLoadMore} className="w-full py-2 text-xs text-slate-400 dashed border border-slate-700 hover:bg-brand-card">Carregar mais</button>}</div>
+        )}) : (
+          <div className="text-center py-8 text-slate-500 text-xs">Nenhum candidato nesta etapa</div>
+        )}
+        </div>
       </div>
    );
 };
