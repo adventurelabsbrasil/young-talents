@@ -40,6 +40,16 @@ export const STAGE_REQUIRED_FIELDS = {
 
 export const JOB_STATUSES = ['Aberta', 'Preenchida', 'Cancelada', 'Fechada'];
 
+// Motivos de rejeição para candidatos
+export const REJECTION_REASONS = [
+  'Fit Cultural',
+  'Salário',
+  'Técnico',
+  'Experiência Insuficiente',
+  'Disponibilidade',
+  'Outro'
+];
+
 export const STATUS_COLORS = {
   'Inscrito': 'bg-gray-600 dark:bg-gray-700 text-white dark:text-gray-100 border-gray-500 dark:border-gray-600 font-medium',
   'Considerado': 'bg-blue-500 dark:bg-blue-600 text-white border-blue-600 dark:border-blue-700 font-medium',
