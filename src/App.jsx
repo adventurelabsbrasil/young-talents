@@ -1343,6 +1343,7 @@ export default function App() {
   const [cities, setCities] = useState([]);
   const [interestAreas, setInterestAreas] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [sectors, setSectors] = useState([]);
   const [origins, setOrigins] = useState([]);
   const [schooling, setSchooling] = useState([]);
   const [marital, setMarital] = useState([]);
@@ -1508,6 +1509,8 @@ export default function App() {
       onSnapshot(query(collection(db, 'companies')), s => setCompanies(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'cities')), s => setCities(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'interest_areas')), s => setInterestAreas(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(query(collection(db, 'positions')), s => setRoles(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(query(collection(db, 'sectors')), s => setSectors(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'origins')), s => setOrigins(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'schooling_levels')), s => setSchooling(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'marital_statuses')), s => setMarital(s.docs.map(d => ({id:d.id, ...d.data()})))),
@@ -2251,9 +2254,16 @@ export default function App() {
 
         <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
+           {activeTab === 'candidates' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} />}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} />}
-           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
+           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('candidates')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'applications' && <ApplicationsPage applications={applications} candidates={candidates} jobs={jobs} companies={companies} onUpdateApplicationStatus={updateApplicationStatus} onRemoveApplication={removeApplication} onAddApplicationNote={addApplicationNote} onEditCandidate={setEditingCandidate} onViewJob={openJobCandidatesModal} onCreateApplication={createApplication} />}
+           {activeTab === 'companies' && <MasterDataManager collection="companies" title="Empresas" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={companies} onShowToast={showToast} />}
+           {activeTab === 'positions' && <MasterDataManager collection="positions" title="Cargos" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'level', label: 'Nível', required: false}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={roles} onShowToast={showToast} />}
+           {activeTab === 'sectors' && <MasterDataManager collection="sectors" title="Setores" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={sectors} onShowToast={showToast} />}
+           {activeTab === 'cities' && <MasterDataManager collection="cities" title="Cidades" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={cities} onShowToast={showToast} />}
+           {activeTab === 'reports' && <ReportsPage candidates={candidates} jobs={jobs} applications={applications} statusMovements={statusMovements} />}
+           {activeTab === 'help' && <HelpPage />}
            {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} currentUserName={user?.displayName} currentUserPhoto={user?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
         </div>
       </div>
@@ -5237,6 +5247,295 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
         <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 flex justify-end gap-2">
           <button onClick={onClose} className="px-6 py-2 text-slate-400 dark:text-slate-400">Cancelar</button>
           <button onClick={handleSave} disabled={isSaving} className="bg-brand-orange text-white px-8 py-2 rounded">Salvar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- MASTER DATA MANAGER ---
+const MasterDataManager = ({ collection, title, fields, items, onSave, onDelete, onShowToast }) => {
+  const [editing, setEditing] = useState(null);
+  const [formData, setFormData] = useState({});
+  const [search, setSearch] = useState('');
+
+  const filteredItems = useMemo(() => {
+    if (!search) return items;
+    const s = search.toLowerCase();
+    return items.filter(item => 
+      fields.some(f => {
+        const value = item[f.key] || '';
+        return String(value).toLowerCase().includes(s);
+      })
+    );
+  }, [items, search, fields]);
+
+  const handleSave = async () => {
+    if (!formData[fields[0].key]) {
+      onShowToast('Preencha os campos obrigatórios', 'error');
+      return;
+    }
+    await onSave(collection, formData, () => {
+      setEditing(null);
+      setFormData({});
+    });
+  };
+
+  return (
+    <div className="p-6 h-full overflow-y-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h2>
+        <button
+          onClick={() => { setEditing({}); setFormData({}); }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        >
+          <Plus size={18}/> Novo
+        </button>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Buscar..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full max-w-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-gray-900 dark:text-white"
+        />
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-100 dark:bg-gray-900">
+            <tr>
+              {fields.map(f => (
+                <th key={f.key} className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">
+                  {f.label} {f.required && <span className="text-red-500">*</span>}
+                </th>
+              ))}
+              <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {filteredItems.map(item => (
+              <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                {fields.map(f => (
+                  <td key={f.key} className="px-4 py-3 text-gray-900 dark:text-white">
+                    {item[f.key] || '-'}
+                  </td>
+                ))}
+                <td className="px-4 py-3 text-right">
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => { setEditing(item); setFormData(item); }}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                    >
+                      <Edit3 size={16}/>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Tem certeza que deseja excluir?')) {
+                          onDelete(collection, item.id);
+                        }
+                      }}
+                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                    >
+                      <Trash2 size={16}/>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md border border-gray-200 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                {editing.id ? 'Editar' : 'Novo'} {title}
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              {fields.map(f => (
+                <div key={f.key}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {f.label} {f.required && <span className="text-red-500">*</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData[f.key] || ''}
+                    onChange={e => setFormData({...formData, [f.key]: e.target.value})}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    required={f.required}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+              <button
+                onClick={() => { setEditing(null); setFormData({}); }}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- REPORTS PAGE ---
+const ReportsPage = ({ candidates, jobs, applications, statusMovements }) => {
+  const handleExport = () => {
+    const data = {
+      candidates: candidates.length,
+      jobs: jobs.length,
+      applications: applications.length,
+      statusMovements: statusMovements.length,
+      timestamp: new Date().toISOString()
+    };
+    
+    const csv = `Relatório ATS - ${new Date().toLocaleDateString('pt-BR')}\n\n` +
+      `Total de Candidatos,${data.candidates}\n` +
+      `Total de Vagas,${data.jobs}\n` +
+      `Total de Candidaturas,${data.applications}\n` +
+      `Total de Movimentações,${data.statusMovements}\n` +
+      `Data do Relatório,${data.timestamp}\n`;
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `relatorio-ats-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="p-6 h-full overflow-y-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Relatórios</h2>
+        <button
+          onClick={handleExport}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        >
+          <ExternalLink size={18}/> Exportar CSV
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Total de Candidatos</h3>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{candidates.length}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Total de Vagas</h3>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{jobs.length}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Total de Candidaturas</h3>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{applications.length}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Movimentações</h3>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{statusMovements.length}</p>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Estatísticas do Sistema</h3>
+        <p className="text-gray-600 dark:text-gray-400">
+          Use o botão "Exportar CSV" acima para baixar um relatório completo com todas as estatísticas do sistema.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// --- HELP PAGE ---
+const HelpPage = () => {
+  return (
+    <div className="p-6 h-full overflow-y-auto">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Ajuda e Documentação</h2>
+
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Info size={20}/> Como Funciona o Sistema
+          </h3>
+          <div className="space-y-4 text-gray-700 dark:text-gray-300">
+            <div>
+              <h4 className="font-semibold mb-2">1. Dashboard</h4>
+              <p>Visualize métricas gerais, taxas de conversão e próximas entrevistas agendadas.</p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">2. Candidatos</h4>
+              <p>Gerencie todos os candidatos no sistema. Use o modo Kanban para visualizar por etapa ou o modo Tabela para uma visão completa com filtros avançados.</p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">3. Vagas</h4>
+              <p>Gerencie vagas, candidaturas, empresas, cargos, setores e cidades. Organize todo o processo de recrutamento.</p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">4. Relatórios</h4>
+              <p>Exporte relatórios em CSV com estatísticas do sistema.</p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">5. Configurações</h4>
+              <p>Acesse configurações avançadas, gestão de dados mestres, usuários e importação/exportação.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <ExternalLink size={20}/> Links Úteis
+          </h3>
+          <div className="space-y-3">
+            <a
+              href="https://github.com/rodrigoribasyoung/young-hunt-ats"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+            >
+              <ExternalLink size={16}/> Repositório no GitHub
+            </a>
+            <a
+              href="https://github.com/rodrigoribasyoung/young-hunt-ats/blob/main/README.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+            >
+              <ExternalLink size={16}/> Documentação Completa
+            </a>
+            <a
+              href="https://github.com/rodrigoribasyoung/young-hunt-ats/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+            >
+              <ExternalLink size={16}/> Reportar Problemas
+            </a>
+          </div>
+        </div>
+
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
+          <h3 className="text-lg font-bold text-blue-900 dark:text-blue-300 mb-2">Dúvidas?</h3>
+          <p className="text-blue-800 dark:text-blue-200">
+            Se você tiver dúvidas ou precisar de suporte, consulte a documentação no GitHub ou entre em contato com o administrador do sistema.
+          </p>
         </div>
       </div>
     </div>
