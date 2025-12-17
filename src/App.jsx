@@ -217,7 +217,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
           <p className="text-3xl font-bold text-[#EA4335] mt-2">{candidateStats.rejected}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.rejected / candidateStats.total) * 100).toFixed(1) : 0}%</p>
         </div>
-      </div>
+        </div>
 
       {/* Taxas de Conversão entre Etapas */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
@@ -232,7 +232,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                 {rate.rate}%
               </span>
               <span className="text-xs text-gray-500">({rate.toCount}/{rate.fromCount})</span>
-            </div>
+      </div>
           ))}
         </div>
       </div>
@@ -410,7 +410,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                   cursor={{ fill: 'rgba(255,255,255,0.1)' }}
                 />
                 <Bar 
-                  dataKey="value" 
+                dataKey="value"
                   radius={[8, 8, 0, 0]}
                   label={{ position: 'top', fill: '#94a3b8', fontSize: 14, fontWeight: 'bold' }}
                 >
@@ -419,7 +419,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                   <Cell fill="#9E9E9E"/>
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+          </ResponsiveContainer>
           ) : (
             <div className="h-[280px] flex items-center justify-center text-gray-500">Sem dados</div>
           )}
@@ -440,7 +440,7 @@ const LoginScreen = ({ onLogin }) => (
           alt="Young Empreendimentos" 
           className="h-16 w-auto"
         />
-      </div>
+        </div>
       
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Young Talents ATS</h1>
       <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Sistema de Gestão de Talentos</p>
@@ -470,7 +470,9 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
   const [searchTexts, setSearchTexts] = React.useState({
     city: '',
     interestAreas: '',
-    source: ''
+    source: '',
+    schoolingLevel: '',
+    tags: ''
   });
   const [showCustomPeriod, setShowCustomPeriod] = React.useState(filters.createdAtPreset === 'custom');
   const [expandedFilters, setExpandedFilters] = React.useState({});
@@ -544,9 +546,9 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
         </div>
         
         <div className="space-y-6 flex-1 custom-scrollbar overflow-y-auto pr-2">
-          {/* Período */}
+          {/* Período - Data de Cadastro Original */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-brand-orange uppercase">Período</label>
+            <label className="text-xs font-bold text-brand-orange uppercase">Período (Data Cadastro Original)</label>
             <select
               className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange"
               value={filters.createdAtPreset || 'all'}
@@ -557,6 +559,8 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
               }}
             >
               <option value="all">Qualquer data</option>
+              <option value="today">Hoje</option>
+              <option value="yesterday">Ontem</option>
               <option value="7d">Últimos 7 dias</option>
               <option value="30d">Últimos 30 dias</option>
               <option value="90d">Últimos 90 dias</option>
@@ -564,21 +568,26 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
             </select>
             {showCustomPeriod && (
               <div className="space-y-2 mt-2">
-                <input
-                  type="date"
-                  className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-orange"
-                  value={filters.customDateStart || ''}
-                  onChange={e => setFilters({...filters, customDateStart: e.target.value})}
-                  placeholder="Data inicial"
-                />
-                <input
-                  type="date"
-                  className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-orange"
-                  value={filters.customDateEnd || ''}
-                  onChange={e => setFilters({...filters, customDateEnd: e.target.value})}
-                  placeholder="Data final"
-                />
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Data inicial</label>
+                  <input
+                    type="date"
+                    className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-orange"
+                    value={filters.customDateStart || ''}
+                    onChange={e => setFilters({...filters, customDateStart: e.target.value})}
+                  />
           </div>
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Data final</label>
+                  <input
+                    type="date"
+                    className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-orange"
+                    value={filters.customDateEnd || ''}
+                    onChange={e => setFilters({...filters, customDateEnd: e.target.value})}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 italic">Usa a data original de cadastro do candidato</p>
+              </div>
             )}
           </div>
 
@@ -705,6 +714,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                  ? options.schooling.map(s=>({id:s.id,name:s.name})) 
                  : Array.from(new Set(candidates.map(x=>x.schoolingLevel).filter(Boolean))).map((n,i)=>({id:i,name:n}));
                optionsList = sortAlphabetically(optionsList);
+               optionsList = filterBySearch(optionsList, searchTexts.schoolingLevel || '');
              }
              else if(field.value === 'source') {
                optionsList = (options.origins && options.origins.length>0) 
@@ -722,7 +732,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
              
              const hasOptions = optionsList.length > 0;
              const isBoolean = ['hasLicense', 'isStudying', 'canRelocate'].includes(field.value);
-             const needsSearch = ['city', 'interestAreas', 'source'].includes(field.value);
+             const needsSearch = ['city', 'interestAreas', 'source', 'schoolingLevel'].includes(field.value);
 
              return (
                <div key={field.value} className="space-y-2">
@@ -822,6 +832,76 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                </div>
              );
            })}
+
+          {/* Filtro por Tags */}
+          {(() => {
+            // Coleta todas as tags únicas dos candidatos
+            const allTags = new Set();
+            candidates.forEach(c => {
+              if (c.tags && Array.isArray(c.tags)) {
+                c.tags.forEach(tag => allTags.add(tag));
+              }
+              if (c.importTag) allTags.add(c.importTag);
+            });
+            const tagsList = sortAlphabetically(Array.from(allTags).map((t, i) => ({ id: i, name: t })));
+            const filteredTags = filterBySearch(tagsList, searchTexts.tags || '');
+
+            if (tagsList.length === 0) return null;
+
+            return (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-brand-orange uppercase">Tags</label>
+                  <button
+                    onClick={() => toggleExpanded('tags')}
+                    className="text-xs text-brand-cyan hover:text-white"
+                  >
+                    {expandedFilters.tags ? 'Recolher' : 'Expandir'}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-cyan mb-2"
+                  placeholder="Buscar tags..."
+                  value={searchTexts.tags || ''}
+                  onChange={e => setSearchTexts({...searchTexts, tags: e.target.value})}
+                />
+                {expandedFilters.tags ? (
+                  <div className="max-h-48 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
+                    <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filters.tags === 'all' || !filters.tags || (Array.isArray(filters.tags) && filters.tags.length === 0)}
+                        onChange={() => setFilters({...filters, tags: 'all'})}
+                        className="accent-brand-orange"
+                      />
+                      <span className="text-sm text-white">Todas as tags</span>
+                    </label>
+                    {filteredTags.map(tag => (
+                      <label key={tag.id} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isSelected('tags', tag.name)}
+                          onChange={() => handleMultiSelect('tags', tag.name)}
+                          className="accent-brand-orange"
+                        />
+                        <span className="text-sm text-white truncate">{tag.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <select 
+                    className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" 
+                    value={Array.isArray(filters.tags) ? filters.tags[0] || 'all' : (filters.tags || 'all')} 
+                    onChange={e => setFilters({...filters, tags: e.target.value === 'all' ? 'all' : [e.target.value]})}
+                  >
+                    <option value="all">Todas as tags</option>
+                    {tagsList.map(tag => <option key={tag.id} value={tag.name}>{tag.name}</option>)}
+                  </select>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="mt-8 pt-4 border-t border-brand-border flex flex-col gap-3">
@@ -969,7 +1049,7 @@ export default function App() {
   const initialFilters = { 
     jobId: 'all', company: 'all', city: 'all', interestArea: 'all',
     cnh: 'all', marital: 'all', origin: 'all', schooling: 'all',
-    createdAtPreset: 'all'
+    createdAtPreset: 'all', tags: 'all'
   };
   const [filters, setFilters] = useState(() => {
     try {
@@ -1142,13 +1222,35 @@ export default function App() {
     const nowSeconds = Math.floor(Date.now() / 1000);
     const preset = filters.createdAtPreset || 'all';
     const presetToSeconds = {
+      'today': 1 * 24 * 60 * 60,
+      'yesterday': 2 * 24 * 60 * 60,
       '7d': 7 * 24 * 60 * 60,
       '30d': 30 * 24 * 60 * 60,
       '90d': 90 * 24 * 60 * 60,
     };
+
+    // Função para obter timestamp do candidato (original_timestamp ou createdAt)
+    const getCandidateTimestamp = (c) => {
+      // Prioriza original_timestamp (data de cadastro original do formulário)
+      if (c.original_timestamp) {
+        if (typeof c.original_timestamp === 'string') {
+          return new Date(c.original_timestamp).getTime() / 1000;
+        } else if (c.original_timestamp.seconds || c.original_timestamp._seconds) {
+          return c.original_timestamp.seconds || c.original_timestamp._seconds;
+        } else if (c.original_timestamp.toDate) {
+          return c.original_timestamp.toDate().getTime() / 1000;
+        }
+      }
+      // Fallback para createdAt
+      if (c.createdAt?.seconds || c.createdAt?._seconds) {
+        return c.createdAt.seconds || c.createdAt._seconds;
+      }
+      return null;
+    };
+
     Object.keys(filters).forEach(key => {
        if(filters[key] !== 'all' && filters[key] !== '') {
-          if (key === 'createdAtPreset' || key === 'customDateStart' || key === 'customDateEnd') return;
+          if (key === 'createdAtPreset' || key === 'customDateStart' || key === 'customDateEnd' || key === 'tags') return;
           
           // Suporta arrays para seleção múltipla
           if (Array.isArray(filters[key])) {
@@ -1161,20 +1263,51 @@ export default function App() {
        }
     });
     
-    // Filtro por período personalizado
+    // Filtro por tags (seleção múltipla)
+    if (filters.tags && filters.tags !== 'all' && Array.isArray(filters.tags) && filters.tags.length > 0) {
+      data = data.filter(c => {
+        if (!c.tags || !Array.isArray(c.tags)) return false;
+        return filters.tags.some(tag => c.tags.includes(tag));
+      });
+    }
+    
+    // Filtro por período - USANDO DATA DE CADASTRO ORIGINAL
     if (preset === 'custom' && filters.customDateStart && filters.customDateEnd) {
       const startDate = new Date(filters.customDateStart).getTime() / 1000;
       const endDate = new Date(filters.customDateEnd).getTime() / 1000 + 86400; // +1 dia para incluir o dia final
       data = data.filter(c => {
-        const ts = c.createdAt?.seconds || c.createdAt?._seconds;
+        const ts = getCandidateTimestamp(c);
         if (!ts) return false;
         return ts >= startDate && ts <= endDate;
+      });
+    } else if (preset === 'today') {
+      // Hoje: do início do dia até agora
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const startTs = todayStart.getTime() / 1000;
+      data = data.filter(c => {
+        const ts = getCandidateTimestamp(c);
+        if (!ts) return false;
+        return ts >= startTs;
+      });
+    } else if (preset === 'yesterday') {
+      // Ontem: do início de ontem até o início de hoje
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+      const startTs = yesterdayStart.getTime() / 1000;
+      const endTs = todayStart.getTime() / 1000;
+      data = data.filter(c => {
+        const ts = getCandidateTimestamp(c);
+        if (!ts) return false;
+        return ts >= startTs && ts < endTs;
       });
     } else if (preset !== 'all') {
       const delta = presetToSeconds[preset];
       if (delta) {
         data = data.filter(c => {
-          const ts = c.createdAt?.seconds || c.createdAt?._seconds;
+          const ts = getCandidateTimestamp(c);
           if (!ts) return false;
           return ts >= nowSeconds - delta;
         });
@@ -1444,6 +1577,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   const [jobFilter, setJobFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [cityFilter, setCityFilter] = useState('all');
+  const [showColorPicker, setShowColorPicker] = useState(false); // Para mostrar/ocultar o seletor de cores
 
   useEffect(() => {
     setSelectedIds([]);
@@ -1582,6 +1716,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                </select>
              )}
              {viewMode === 'kanban' && (
+              <>
                <select
                  className="bg-brand-card border border-brand-border rounded px-2 py-1 text-xs text-white outline-none focus:border-brand-cyan"
                  value={kanbanItemsPerPage}
@@ -1595,6 +1730,18 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                  <option value={15}>15 por coluna</option>
                  <option value={20}>20 por coluna</option>
                </select>
+               <button
+                 onClick={() => setShowColorPicker(!showColorPicker)}
+                 className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded border transition-colors ${
+                   showColorPicker 
+                     ? 'bg-brand-orange text-white border-brand-orange' 
+                     : 'bg-brand-card border-brand-border text-slate-400 hover:text-white hover:border-brand-cyan'
+                 }`}
+                 title="Personalizar cores das colunas"
+               >
+                 🎨 Cores
+               </button>
+              </>
              )}
         </div>
         </div>
@@ -1614,7 +1761,8 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                       onEdit={onEdit} 
                       onCloseStatus={onCloseStatus} 
                       selectedIds={selectedIds} 
-                      onSelect={handleSelect} 
+                      onSelect={handleSelect}
+                      showColorPicker={showColorPicker}
                     />
                  ))}
                 </div>
@@ -1698,7 +1846,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   );
 };
 
-const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect }) => {
+const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker }) => {
   const [columnColor, setColumnColor] = useState(() => {
     const saved = localStorage.getItem(`kanban-color-${stage}`);
     return saved || STATUS_COLORS[stage];
@@ -1726,22 +1874,25 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
   
    return (
       <div className="w-[240px] flex-shrink-0 flex flex-col bg-brand-card/40 border border-brand-border rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-         <div className={`p-2 border-b border-brand-border flex justify-between items-center rounded-t-xl ${columnColor} relative group`}>
+         <div className={`p-2 border-b border-brand-border flex justify-between items-center rounded-t-xl ${columnColor} relative`}>
            <span className="font-bold text-xs uppercase break-words">{stage}</span>
            <span className="bg-black/20 px-2 py-0.5 rounded text-xs font-mono">{total}</span>
-           <div className="absolute top-full left-0 right-0 bg-brand-card border border-brand-border rounded-b-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-lg">
-             <div className="text-xs text-slate-400 mb-1">Cor da coluna:</div>
-             <div className="grid grid-cols-5 gap-1">
-               {presetColors.map((color, idx) => (
-                 <button
-                   key={idx}
-                   onClick={() => handleColorChange(color)}
-                   className={`h-6 rounded border-2 ${color} ${columnColor === color ? 'ring-2 ring-brand-orange' : ''}`}
-                   title={color}
-                 />
-               ))}
+           {/* Seletor de cor só aparece quando o botão "Cores" está ativo */}
+           {showColorPicker && (
+             <div className="absolute top-full left-0 right-0 bg-brand-card border border-brand-border rounded-b-lg p-2 z-50 shadow-lg">
+               <div className="text-xs text-slate-400 mb-1">Cor da coluna:</div>
+               <div className="grid grid-cols-5 gap-1">
+                 {presetColors.map((color, idx) => (
+                   <button
+                     key={idx}
+                     onClick={() => handleColorChange(color)}
+                     className={`h-6 rounded border-2 ${color} ${columnColor === color ? 'ring-2 ring-brand-orange' : ''}`}
+                     title={color}
+                   />
+                 ))}
+               </div>
              </div>
-           </div>
+           )}
          </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
           {displayedCandidates.length > 0 ? displayedCandidates.map(c => {
@@ -2328,7 +2479,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
   // Filtrar por busca
   const filtered = useMemo(() => {
     let data = [...candidates];
-      if (localSearch) {
+    if (localSearch) {
       const search = localSearch.toLowerCase();
       data = data.filter(c => 
         c.fullName?.toLowerCase().includes(search) ||
@@ -2497,7 +2648,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                     <div className="flex items-center gap-1 text-xs font-semibold">
                       {col.label} {sortField === col.key && (sortOrder === 'asc' ? '↑' : '↓')}
                     </div>
-                  </th>
+                </th>
                 ))}
                 <th className="px-3 py-2 text-right text-xs font-semibold sticky right-0 bg-gray-100 dark:bg-gray-900">Ações</th>
               </tr>
@@ -2509,7 +2660,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                     {ALL_COLUMNS.filter(col => visibleColumns.includes(col.key)).map(col => (
                       <td key={col.key} className="px-3 py-2">
                         {renderCellContent(c, col.key)}
-                      </td>
+                    </td>
                     ))}
                     <td className="px-3 py-2 text-right sticky right-0 bg-white dark:bg-gray-800">
                       <div className="flex gap-2 justify-end">
@@ -2545,9 +2696,9 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
               {String(filtered.length)} candidatos
             </div>
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
+            <button 
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   currentPage === 1
                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
@@ -2555,13 +2706,13 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                 }`}
               >
                 <ChevronLeft size={16} className="inline"/> Anterior
-              </button>
+            </button>
               <span className="px-4 py-1.5 text-sm text-gray-600 dark:text-gray-300">
-                Página {currentPage} de {totalPages}
+              Página {currentPage} de {totalPages}
               </span>
-              <button 
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
+            <button 
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                   currentPage === totalPages
                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
@@ -2569,7 +2720,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                 }`}
               >
                 Próxima <ChevronRight size={16} className="inline"/>
-              </button>
+            </button>
             </div>
           </div>
         )}
