@@ -65,7 +65,7 @@ const db = getFirestore(app);
 
 // Dashboard com Gráficos
 const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
-  // Dados para gráficos
+  // Dados para gráficos - ordenados por status do pipeline
   const statusData = useMemo(() => {
     const counts = {};
     PIPELINE_STAGES.forEach(stage => {
@@ -76,6 +76,37 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [filteredCandidates]);
 
+  // Calcular taxas de conversão entre etapas
+  const conversionRates = useMemo(() => {
+    const stages = [...PIPELINE_STAGES, 'Contratado'];
+    const rates = [];
+    for (let i = 0; i < stages.length - 1; i++) {
+      const current = filteredCandidates.filter(c => c.status === stages[i]).length;
+      const next = filteredCandidates.filter(c => c.status === stages[i + 1]).length;
+      const rate = current > 0 ? ((next / current) * 100).toFixed(1) : 0;
+      rates.push({
+        from: stages[i],
+        to: stages[i + 1],
+        rate: parseFloat(rate),
+        fromCount: current,
+        toCount: next
+      });
+    }
+    return rates;
+  }, [filteredCandidates]);
+
+  // Dados com taxas de conversão para o gráfico de status
+  const statusDataWithConversion = useMemo(() => {
+    return statusData.map((item, index) => {
+      const conversionRate = conversionRates.find(r => r.from === item.name);
+      return {
+        ...item,
+        conversion: conversionRate ? `${conversionRate.rate}%` : null,
+        conversionValue: conversionRate ? conversionRate.rate : null
+      };
+    });
+  }, [statusData, conversionRates]);
+
   const areaData = useMemo(() => {
     const areas = {};
     filteredCandidates.forEach(c => {
@@ -83,9 +114,18 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
         areas[c.interestAreas] = (areas[c.interestAreas] || 0) + 1;
       }
     });
-    return Object.entries(areas).slice(0, 5).map(([name, value]) => ({ name, value }));
+    const total = filteredCandidates.length;
+    return Object.entries(areas)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, value]) => ({ 
+        name, 
+        value,
+        percentage: total > 0 ? ((value / total) * 100).toFixed(1) : 0
+      }));
   }, [filteredCandidates]);
 
+  // Cidades ordenadas do maior para o menor
   const cityData = useMemo(() => {
     const cities = {};
     filteredCandidates.forEach(c => {
@@ -93,7 +133,10 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
         cities[c.city] = (cities[c.city] || 0) + 1;
       }
     });
-    return Object.entries(cities).slice(0, 5).map(([name, value]) => ({ name, value }));
+    return Object.entries(cities)
+      .sort((a, b) => b[1] - a[1]) // Ordenar do maior para o menor
+      .slice(0, 5)
+      .map(([name, value]) => ({ name, value }));
   }, [filteredCandidates]);
 
   const originData = useMemo(() => {
@@ -101,7 +144,15 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
     filteredCandidates.forEach(c => {
       if (c.source) origins[c.source] = (origins[c.source] || 0) + 1;
     });
-    return Object.entries(origins).slice(0,5).map(([name,value])=>({name,value}));
+    const total = filteredCandidates.length;
+    return Object.entries(origins)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0,5)
+      .map(([name, value]) => ({ 
+        name, 
+        value,
+        percentage: total > 0 ? ((value / total) * 100).toFixed(1) : 0
+      }));
   }, [filteredCandidates]);
 
   const missingReturnCount = useMemo(() => {
@@ -121,170 +172,200 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
     active: filteredCandidates.filter(c => PIPELINE_STAGES.includes(c.status || 'Inscrito')).length,
   };
 
+  // Taxa de conversão geral (Inscrito -> Contratado)
+  const overallConversionRate = candidateStats.total > 0 
+    ? ((candidateStats.hired / candidateStats.total) * 100).toFixed(1) 
+    : 0;
+
+  // Label customizado para donut - apenas número e %
+  const renderDonutLabel = ({ value, percentage }) => {
+    return `${value} (${percentage}%)`;
+  };
+
+  // Tooltip customizado
+  const tooltipStyle = {
+    backgroundColor: '#1e293b', 
+    border: '1px solid #475569', 
+    borderRadius: '8px', 
+    color: '#e2e8f0',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+  };
+
   return (
-    <div className="text-white space-y-6 overflow-y-auto h-full pb-6">
+    <div className="text-gray-900 dark:text-white space-y-6 overflow-y-auto h-full pb-6">
       <h2 className="text-2xl font-bold mb-2">Dashboard</h2>
       
       {/* KPIs Principais - Material Design Colors */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates)} className="cursor-pointer bg-gradient-to-br from-[#4285F4]/20 to-[#4285F4]/10 p-6 rounded-xl border border-[#4285F4]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#4285F4]/20">
-          <h3 className="text-slate-400 text-sm font-semibold">Total de Candidatos</h3>
+          <h3 className="text-gray-600 dark:text-slate-400 text-sm font-semibold">Total de Candidatos</h3>
           <p className="text-3xl font-bold text-[#4285F4] mt-2">{candidateStats.total}</p>
-          <p className="text-xs text-slate-500 mt-1">{candidateStats.active} em processo</p>
+          <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">{candidateStats.active} em processo</p>
         </div>
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Contratado'))} className="cursor-pointer bg-gradient-to-br from-[#34A853]/20 to-[#34A853]/10 p-6 rounded-xl border border-[#34A853]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#34A853]/20">
-          <h3 className="text-slate-400 text-sm font-semibold">Contratados</h3>
+          <h3 className="text-gray-600 dark:text-slate-400 text-sm font-semibold">Contratados</h3>
           <p className="text-3xl font-bold text-[#34A853] mt-2">{candidateStats.hired}</p>
-          <p className="text-xs text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.hired / candidateStats.total) * 100).toFixed(1) : 0}%</p>
+          <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Taxa geral: {overallConversionRate}%</p>
         </div>
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id)))} className="cursor-pointer bg-gradient-to-br from-[#FBBC04]/20 to-[#FBBC04]/10 p-6 rounded-xl border border-[#FBBC04]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#FBBC04]/20">
-          <h3 className="text-slate-400 text-sm font-semibold">Vagas Abertas</h3>
+          <h3 className="text-gray-600 dark:text-slate-400 text-sm font-semibold">Vagas Abertas</h3>
           <p className="text-3xl font-bold text-[#FBBC04] mt-2">{jobStats.open}</p>
-          <p className="text-xs text-slate-500 mt-1">{jobStats.filled} preenchidas</p>
+          <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">{jobStats.filled} preenchidas</p>
         </div>
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Reprovado'))} className="cursor-pointer bg-gradient-to-br from-[#EA4335]/20 to-[#EA4335]/10 p-6 rounded-xl border border-[#EA4335]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#EA4335]/20">
-          <h3 className="text-slate-400 text-sm font-semibold">Reprovados</h3>
+          <h3 className="text-gray-600 dark:text-slate-400 text-sm font-semibold">Reprovados</h3>
           <p className="text-3xl font-bold text-[#EA4335] mt-2">{candidateStats.rejected}</p>
-          <p className="text-xs text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.rejected / candidateStats.total) * 100).toFixed(1) : 0}%</p>
+          <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.rejected / candidateStats.total) * 100).toFixed(1) : 0}%</p>
         </div>
       </div>
+
+      {/* Taxas de Conversão entre Etapas */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Taxas de Conversão por Etapa</h3>
+        <div className="flex flex-wrap gap-3">
+          {conversionRates.map((rate, idx) => (
+            <div key={idx} className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg">
+              <span className="text-xs text-gray-600 dark:text-gray-300">{rate.from}</span>
+              <span className="text-gray-400">→</span>
+              <span className="text-xs text-gray-600 dark:text-gray-300">{rate.to}</span>
+              <span className={`text-sm font-bold ${rate.rate >= 50 ? 'text-green-500' : rate.rate >= 25 ? 'text-yellow-500' : 'text-red-500'}`}>
+                {rate.rate}%
+              </span>
+              <span className="text-xs text-gray-500">({rate.toCount}/{rate.fromCount})</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Card rápido: falta dar retorno */}
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c => (c.status === 'Seleção' || c.status === 'Selecionado') && !c.returnSent))} className="cursor-pointer bg-gradient-to-br from-[#9C27B0]/20 to-[#9C27B0]/10 p-4 rounded-xl border border-[#9C27B0]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#9C27B0]/20">
-          <div className="text-slate-400 text-sm">Faltam dar retorno</div>
+          <div className="text-gray-600 dark:text-slate-400 text-sm">Faltam dar retorno</div>
           <div className="text-2xl font-bold text-[#9C27B0] mt-2">{missingReturnCount}</div>
-          <div className="text-xs text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
+          <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
         </div>
       </div>
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 gap-6">
-        {/* Distribuição por Status */}
-        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
-          <h3 className="font-bold text-lg text-white mb-4">Distribuição por Status</h3>
+        {/* Distribuição por Status com Taxa de Conversão */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Distribuição por Status (com Taxa de Conversão)</h3>
           {statusData.some(d => d.value > 0) ? (
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={statusData} layout="vertical" margin={{ top: 5, right: 24, left: 180, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={380}>
+              <BarChart data={statusDataWithConversion} layout="vertical" margin={{ top: 5, right: 80, left: 180, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
                 <XAxis type="number" stroke="#94a3b8" />
                 <YAxis type="category" dataKey="name" stroke="#94a3b8" width={170} tick={{ fontSize: 12 }}/>
                 <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569', 
-                    borderRadius: '8px', 
-                    color: '#e2e8f0',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                  }}
+                  contentStyle={tooltipStyle}
                   cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                  formatter={(value, name, props) => {
+                    const conv = props.payload.conversion;
+                    return [
+                      <span key="v">{value} candidatos{conv ? ` (→ ${conv} conversão)` : ''}</span>,
+                      'Quantidade'
+                    ];
+                  }}
                 />
                 <Bar 
                   dataKey="value" 
                   fill="#4285F4" 
                   radius={[0, 8, 8, 0]}
-                  onMouseEnter={(e) => {
-                    if (e) e.target.style.fill = '#5a95f5';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (e) e.target.style.fill = '#4285F4';
+                  label={{ 
+                    position: 'right', 
+                    fill: '#94a3b8', 
+                    fontSize: 11,
+                    formatter: (value, entry) => {
+                      const item = statusDataWithConversion.find(d => d.value === value);
+                      return item?.conversion ? `${value} (${item.conversion})` : value;
+                    }
                   }}
                 />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[320px] flex items-center justify-center text-slate-500">Sem dados</div>
+            <div className="h-[380px] flex items-center justify-center text-gray-500">Sem dados</div>
           )}
         </div>
 
-        {/* Top 5 Áreas de Interesse */}
-        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
-          <h3 className="font-bold text-lg text-white mb-4">Principais Áreas de Interesse</h3>
+        {/* Top 5 Áreas de Interesse - DONUT */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Principais Áreas de Interesse</h3>
           {areaData.length > 0 && areaData.some(d => d.value > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie 
                   data={areaData.filter(d => d.value > 0)} 
                   cx="50%" 
-                  cy="50%" 
-                  labelLine={false} 
-                  label={({name, value}) => value > 0 ? `${name}: ${value}` : ''} 
+                  cy="45%" 
+                  innerRadius={60}
                   outerRadius={100} 
                   fill="#8884d8" 
                   dataKey="value"
+                  labelLine={false}
+                  label={({ value, percentage }) => `${value} (${percentage}%)`}
                 >
                   {areaData.filter(d => d.value > 0).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]}/>
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569', 
-                    borderRadius: '8px', 
-                    color: '#e2e8f0',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                  }}
-                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                  contentStyle={tooltipStyle}
+                  formatter={(value, name, props) => [`${value} (${props.payload.percentage}%)`, name]}
                 />
                 <Legend 
                   verticalAlign="bottom" 
-                  height={36} 
-                  wrapperStyle={{ color: '#e2e8f0', fontSize: 11 }}
-                  formatter={(value) => <span className="break-words">{value}</span>}
+                  height={50} 
+                  wrapperStyle={{ fontSize: 11 }}
                 />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-slate-500">Sem dados</div>
+            <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>
           )}
         </div>
 
-        {/* Origem dos Candidatos (Top) */}
-        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
-          <h3 className="font-bold text-lg text-white mb-4">Origem dos Candidatos</h3>
+        {/* Origem dos Candidatos - DONUT */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Origem dos Candidatos</h3>
           {originData.length > 0 && originData.some(d => d.value > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie 
                   data={originData.filter(d => d.value > 0)} 
                   cx="50%" 
-                  cy="50%" 
-                  labelLine={false} 
-                  label={({name, value}) => value > 0 ? `${name}: ${value}` : ''} 
+                  cy="45%" 
+                  innerRadius={60}
                   outerRadius={100} 
                   fill="#8884d8" 
                   dataKey="value"
+                  labelLine={false}
+                  label={({ value, percentage }) => `${value} (${percentage}%)`}
                 >
                   {originData.filter(d => d.value > 0).map((entry, index) => (
                     <Cell key={`cell-origin-${index}`} fill={COLORS[index % COLORS.length]}/>
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569', 
-                    borderRadius: '8px', 
-                    color: '#e2e8f0',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                  }}
-                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                  contentStyle={tooltipStyle}
+                  formatter={(value, name, props) => [`${value} (${props.payload.percentage}%)`, name]}
                 />
                 <Legend 
                   verticalAlign="bottom" 
-                  height={36} 
-                  wrapperStyle={{ color: '#e2e8f0', fontSize: 11 }}
-                  formatter={(value) => <span className="break-words">{value}</span>}
+                  height={50} 
+                  wrapperStyle={{ fontSize: 11 }}
                 />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-slate-500">Sem dados</div>
+            <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>
           )}
         </div>
 
-        {/* Top 5 Cidades */}
-        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
-          <h3 className="font-bold text-lg text-white mb-4">Candidatos por Cidade</h3>
+        {/* Top 5 Cidades - Ordenado do maior para o menor */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Candidatos por Cidade (Top 5)</h3>
           {cityData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={cityData} layout="vertical" margin={{top: 5, right: 30, left: 200, bottom: 5}}>
@@ -292,77 +373,55 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                 <XAxis type="number" stroke="#94a3b8"/>
                 <YAxis type="category" dataKey="name" stroke="#94a3b8" width={190} tick={{fontSize: 12}}/>
                 <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569', 
-                    borderRadius: '8px', 
-                    color: '#e2e8f0',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                  }}
+                  contentStyle={tooltipStyle}
                   cursor={{ fill: 'rgba(255,255,255,0.1)' }}
                 />
                 <Bar 
                   dataKey="value" 
                   fill="#00BCD4" 
                   radius={[0, 8, 8, 0]}
-                  onMouseEnter={(e) => {
-                    if (e) e.target.style.fill = '#26c6da';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (e) e.target.style.fill = '#00BCD4';
-                  }}
+                  label={{ position: 'right', fill: '#94a3b8', fontSize: 12 }}
                 />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-slate-500">Sem dados</div>
+            <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>
           )}
         </div>
 
-        {/* Status de Vagas */}
-        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
-          <h3 className="font-bold text-lg text-white mb-4">Status das Vagas</h3>
+        {/* Status de Vagas - Barras Verticais */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Status das Vagas</h3>
           {jobStats.open > 0 || jobStats.filled > 0 || jobStats.closed > 0 ? (
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart>
-              <Pie
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart 
                 data={[
-                  { name: 'Abertas', value: jobStats.open },
-                  { name: 'Preenchidas', value: jobStats.filled },
-                  { name: 'Fechadas', value: jobStats.closed }
-                  ].filter(d => d.value > 0)}
-                cx="50%"
-                cy="48%"
-                labelLine={false}
-                  label={({name, value}) => value > 0 ? `${name}: ${value}` : ''}
-                outerRadius={110}
-                fill="#8884d8"
-                dataKey="value"
+                  { name: 'Abertas', value: jobStats.open, fill: '#FBBC04' },
+                  { name: 'Preenchidas', value: jobStats.filled, fill: '#34A853' },
+                  { name: 'Fechadas', value: jobStats.closed, fill: '#9E9E9E' }
+                ]} 
+                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
               >
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
+                <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 12 }}/>
+                <YAxis stroke="#94a3b8"/>
+                <Tooltip 
+                  contentStyle={tooltipStyle}
+                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
+                />
+                <Bar 
+                  dataKey="value" 
+                  radius={[8, 8, 0, 0]}
+                  label={{ position: 'top', fill: '#94a3b8', fontSize: 14, fontWeight: 'bold' }}
+                >
                   <Cell fill="#FBBC04"/>
                   <Cell fill="#34A853"/>
                   <Cell fill="#9E9E9E"/>
-              </Pie>
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569', 
-                    borderRadius: '8px', 
-                    color: '#e2e8f0',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                  }}
-                  cursor={{ fill: 'rgba(255,255,255,0.1)' }}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36} 
-                  wrapperStyle={{ color: '#e2e8f0', fontSize: 11 }}
-                  formatter={(value) => <span className="break-words">{value}</span>}
-                />
-            </PieChart>
-          </ResponsiveContainer>
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           ) : (
-            <div className="h-[320px] flex items-center justify-center text-slate-500">Sem dados</div>
+            <div className="h-[280px] flex items-center justify-center text-gray-500">Sem dados</div>
           )}
         </div>
       </div>
@@ -822,6 +881,7 @@ export default function App() {
   const [route, setRoute] = useState(getRouteFromURL());
   const activeTab = route.page;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Para ocultar menu em desktop
 
   // Sincronizar URL com mudanças de rota e inicializar settingsTab se necessário
   useEffect(() => {
@@ -1132,7 +1192,7 @@ export default function App() {
     <div className="flex min-h-screen bg-brand-dark font-sans text-slate-200 overflow-hidden">
       
       {/* SIDEBAR PRINCIPAL */}
-      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-transform ${isSidebarOpen?'translate-x-0':'-translate-x-full'} lg:translate-x-0`}>
+      <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${!isSidebarCollapsed ? 'lg:translate-x-0' : 'lg:-translate-x-full'}`}>
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
            <div className="flex items-center gap-2">
              <img 
@@ -1161,21 +1221,33 @@ export default function App() {
       </div>
 
       {/* CONTEÚDO PRINCIPAL */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden lg:pl-64">
-        <header className="h-16 border-b border-brand-border bg-brand-card flex items-center justify-between px-4 z-20">
+      <div className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 ${!isSidebarCollapsed ? 'lg:pl-64' : 'lg:pl-0'}`}>
+        <header className="h-16 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between px-4 z-20">
            <div className="flex items-center gap-2">
-             <button onClick={()=>setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-brand-hover rounded transition-colors">
-               {isSidebarOpen ? <ChevronLeft size={20} className="text-slate-400"/> : <Menu size={20} className="text-slate-400"/>}
+             {/* Botão mobile */}
+             <button 
+               onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+               className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+             >
+               <Menu size={20} className="text-gray-600 dark:text-gray-400"/>
              </button>
-           <h2 className="text-lg font-bold text-white ml-2 lg:ml-0">
+             {/* Botão desktop - ocultar/mostrar menu */}
+             <button 
+               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+               className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+               title={isSidebarCollapsed ? 'Mostrar menu' : 'Ocultar menu'}
+             >
+               {isSidebarCollapsed ? <Menu size={20} className="text-gray-600 dark:text-gray-400"/> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-400"/>}
+             </button>
+           <h2 className="text-lg font-bold text-gray-900 dark:text-white ml-2">
               {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
            </h2>
            </div>
            <div className="flex items-center gap-3">
-              <button onClick={() => setIsFilterSidebarOpen(true)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-brand-cyan font-bold px-3 py-1.5 rounded border border-slate-700 hover:border-brand-cyan transition-colors">
-                 <Filter size={16}/> Filtros Avançados
+              <button onClick={() => setIsFilterSidebarOpen(true)} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
+                 <Filter size={16}/> Filtros
               </button>
-              <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-brand-cyan rounded border border-slate-700 hover:border-brand-cyan transition-colors">
+              <button onClick={toggleTheme} className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded border border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
                  {isDark ? <Sun size={18}/> : <Moon size={18}/>}
               </button>
            </div>
