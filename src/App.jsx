@@ -4,7 +4,7 @@ import {
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
   CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ExternalLink,
-  MessageSquare, History, ArrowRight, Palette, Copy, Info
+  MessageSquare, History, ArrowRight, Palette, Copy, Info, BarChart3, HelpCircle
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -1275,7 +1275,9 @@ export default function App() {
   // Sistema de Rotas usando URL
   const getRouteFromURL = () => {
     const params = new URLSearchParams(window.location.search);
-    const page = params.get('page') || 'dashboard';
+    let page = params.get('page') || 'dashboard';
+    // Mapear 'pipeline' antigo para 'candidates' (compatibilidade)
+    if (page === 'pipeline') page = 'candidates';
     return {
       page,
       modal: params.get('modal') || null,
@@ -1324,6 +1326,12 @@ export default function App() {
   }, []);
 
   const setActiveTab = (tab) => {
+    // Se for uma tab dentro do grupo Vagas, mantém o grupo expandido
+    if (['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(tab)) {
+      updateURL({ page: tab });
+    } else {
+      updateURL({ page: tab });
+    }
     updateURL({ page: tab });
     setRoute(prev => ({ ...prev, page: tab }));
   };
@@ -1961,6 +1969,18 @@ export default function App() {
     const candidate = candidates.find(c => c.id === cId);
     if (!candidate || candidate.status === newStage || !ALL_STATUSES.includes(newStage)) return;
 
+    // Validar se precisa de candidatura (a partir de "Considerado")
+    const stagesRequiringApplication = PIPELINE_STAGES.slice(PIPELINE_STAGES.indexOf('Considerado'));
+    const needsApplication = stagesRequiringApplication.includes(newStage);
+    if (needsApplication) {
+      const candidateApplication = applications.find(a => a.candidateId === cId);
+      const hasJobId = candidate.jobId;
+      if (!candidateApplication && !hasJobId) {
+        showToast('É necessário vincular o candidato a uma vaga antes de avançar para esta etapa. Abra o candidato e vincule a uma vaga.', 'error');
+        return;
+      }
+    }
+
     const missingFields = computeMissingFields(candidate, newStage);
     const isConclusion = CLOSING_STATUSES.includes(newStage);
 
@@ -2132,12 +2152,63 @@ export default function App() {
            </div>
            <button onClick={()=>setIsSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"><X/></button>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
-           {[{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'pipeline', label: 'Pipeline de Talentos', icon: Filter }, { id: 'jobs', label: 'Gestão de Vagas', icon: Briefcase }, { id: 'applications', label: 'Candidaturas', icon: FileText }, { id: 'settings', label: 'Configurações', icon: Settings }].map(i => (
-             <button key={i.id} onClick={() => { setActiveTab(i.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === i.id ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
-               <i.icon size={18}/> {i.label}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+           {/* Dashboard */}
+           <button onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <LayoutDashboard size={18}/> Dashboard
+           </button>
+           
+           {/* Candidatos */}
+           <button onClick={() => { setActiveTab('candidates'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'candidates' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <Users size={18}/> Candidatos
+           </button>
+           
+           {/* Vagas - com submenu */}
+           <div>
+             <button onClick={() => { setActiveTab(activeTab === 'jobs' ? 'jobs' : 'jobs'); setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+               <div className="flex items-center gap-3">
+                 <Briefcase size={18}/> Vagas
+               </div>
+               <ChevronRight size={16} className={`transition-transform ${['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'rotate-90' : ''}`}/>
              </button>
-           ))}
+             {['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) && (
+               <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-4">
+                 <button onClick={() => { setActiveTab('jobs'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'jobs' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                   Vagas
+                 </button>
+                 <button onClick={() => { setActiveTab('applications'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'applications' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                   Candidaturas
+                 </button>
+                 <button onClick={() => { setActiveTab('companies'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'companies' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                   Empresas
+                 </button>
+                 <button onClick={() => { setActiveTab('positions'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'positions' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                   Cargos
+                 </button>
+                 <button onClick={() => { setActiveTab('sectors'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'sectors' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                   Setores
+                 </button>
+                 <button onClick={() => { setActiveTab('cities'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'cities' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                   Cidades
+                 </button>
+               </div>
+             )}
+           </div>
+           
+           {/* Relatórios */}
+           <button onClick={() => { setActiveTab('reports'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'reports' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <BarChart3 size={18}/> Relatórios
+           </button>
+           
+           {/* Configurações */}
+           <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <Settings size={18}/> Configurações
+           </button>
+           
+           {/* Ajuda */}
+           <button onClick={() => { setActiveTab('help'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'help' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <HelpCircle size={18}/> Ajuda
+           </button>
         </nav>
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex items-center justify-between">
            <div className="text-xs text-slate-400 truncate w-32">{user.email}</div>
@@ -2683,25 +2754,74 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                        <th className="p-4 w-10"><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.length>0 && selectedIds.length===processedData.length} onChange={handleSelectAll}/></th>
                        <th className="p-4">Nome</th>
                        <th className="p-4">Status</th>
+                       <th className="p-4">Candidatura</th>
                        <th className="p-4">Vaga</th>
                        <th className="p-4">Empresa</th>
                        <th className="p-4">Cidade</th>
+                       <th className="p-4">Email</th>
+                       <th className="p-4">Telefone</th>
                        <th className="p-4">Área</th>
+                       <th className="p-4">CNH</th>
+                       <th className="p-4">Fonte</th>
+                       <th className="p-4">Cadastro</th>
                        <th className="p-4">Ações</th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-brand-border bg-brand-card/20">
                      {paginatedListData.map(c => {
                        const candidateJob = jobs.find(j=>j.id===c.jobId);
+                       const candidateApplication = applications.find(a => a.candidateId === c.id);
+                       const isNew = (() => {
+                         const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+                         const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
+                         return daysAgo <= 7; // Novo se cadastrado nos últimos 7 dias
+                       })();
+                       const hasApplication = candidateApplication || candidateJob;
+                       const isInscrito = (c.status || 'Inscrito') === 'Inscrito';
+                       const needsApplication = !isInscrito && !hasApplication; // A partir de Considerado precisa ter candidatura
+                       
                        return (
-                         <tr key={c.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50 dark:hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                         <tr key={c.id} className={`hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors ${needsApplication ? 'bg-yellow-50 dark:bg-yellow-900/10 border-l-4 border-yellow-500' : ''}`}>
                            <td className="p-4"><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)}/></td>
-                           <td className="p-4 font-bold text-white dark:text-white cursor-pointer break-words" onClick={() => onEdit(c)}>{c.fullName}</td>
+                           <td className="p-4">
+                             <div className="flex items-center gap-2">
+                               <span className="font-bold text-white dark:text-white cursor-pointer break-words" onClick={() => onEdit(c)}>{c.fullName || 'Sem nome'}</span>
+                               {isNew && (
+                                 <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse">NOVO</span>
+                               )}
+                             </div>
+                           </td>
                            <td className="p-4"><span className={`px-2 py-0.5 rounded text-xs border break-words ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span></td>
-                           <td className="p-4 text-xs break-words">{candidateJob?.title || 'N/A'}</td>
-                           <td className="p-4 text-xs break-words">{candidateJob?.company || 'N/A'}</td>
+                           <td className="p-4">
+                             {hasApplication ? (
+                               <div className="flex flex-col gap-1">
+                                 <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Vinculado</span>
+                                 {candidateApplication && (
+                                   <span className="text-xs text-gray-500">{candidateApplication.jobTitle}</span>
+                                 )}
+                               </div>
+                             ) : isInscrito ? (
+                               <span className="text-xs text-gray-500">Sem candidatura</span>
+                             ) : (
+                               <span className="text-xs text-red-600 dark:text-red-400 font-medium">⚠ Precisa vincular</span>
+                             )}
+                           </td>
+                           <td className="p-4 text-xs break-words">{candidateJob?.title || candidateApplication?.jobTitle || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words">{candidateJob?.company || candidateApplication?.jobCompany || 'N/A'}</td>
                            <td className="p-4 text-xs break-words">{c.city || 'N/A'}</td>
-                           <td className="p-4 text-xs break-words">{c.interestAreas || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words truncate max-w-[200px]" title={c.email}>{c.email || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words">{c.phone || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words truncate max-w-[150px]" title={c.interestAreas}>{c.interestAreas || 'N/A'}</td>
+                           <td className="p-4 text-xs">{c.hasLicense === 'Sim' ? '✓' : c.hasLicense === 'Não' ? '✗' : 'N/A'}</td>
+                           <td className="p-4 text-xs break-words truncate max-w-[120px]" title={c.source}>{c.source || 'N/A'}</td>
+                           <td className="p-4 text-xs">
+                             {(() => {
+                               const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+                               if (!ts) return 'N/A';
+                               const date = new Date(ts * 1000);
+                               return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                             })()}
+                           </td>
                            <td className="p-4"><button onClick={() => onEdit(c)} className="hover:text-gray-600 dark:text-gray-400 transition-colors"><Edit3 size={16}/></button></td>
                          </tr>
                        );
