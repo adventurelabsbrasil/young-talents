@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Mail, History, Database, Layout, UploadCloud, Download, 
-  Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X, Building2
+  Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X, Building2, Layers
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
+import DataManager from './DataManager';
 import { 
   collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp
 } from 'firebase/firestore';
@@ -54,6 +55,7 @@ export default function SettingsPage({
   const isAdmin = currentUserRole === 'admin';
 
   const tabs = [
+    { id: 'dados', label: 'Dados Base', icon: Layers },
     { id: 'campos', label: 'Gerenciamento de Campos', icon: Database },
     { id: 'pipeline', label: 'Configuração do Pipeline', icon: Layout },
     { id: 'import', label: 'Importar / Exportar', icon: UploadCloud },
@@ -103,6 +105,7 @@ export default function SettingsPage({
 
       {/* Conteúdo das Abas */}
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+        {activeTab === 'dados' && <DataManager onShowToast={onShowToast} />}
         {activeTab === 'campos' && <FieldsManager candidateFields={candidateFields} />}
         {activeTab === 'pipeline' && <PipelineManager />}
         {activeTab === 'companies' && <CompaniesManager onShowToast={onShowToast} />}

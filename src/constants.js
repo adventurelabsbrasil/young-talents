@@ -141,13 +141,73 @@ export const CSV_FIELD_MAPPING_OPTIONS = CANDIDATE_FIELDS.map(f => ({
 
 // Campos da Vaga
 export const JOB_FIELDS = [
-  { key: 'title', csvLabel: 'Título', displayName: 'Título', type: 'text', required: true },
-  { key: 'company', csvLabel: 'Empresa', displayName: 'Empresa', type: 'select', required: true },
-  { key: 'city', csvLabel: 'Cidade da vaga', displayName: 'Cidade', type: 'select' },
-  { key: 'interestArea', csvLabel: 'Área de interesse', displayName: 'Área', type: 'select' },
-  { key: 'description', csvLabel: 'Descrição', displayName: 'Descrição', type: 'textarea' },
-  { key: 'requirements', csvLabel: 'Requisitos', displayName: 'Requisitos', type: 'textarea' },
-  { key: 'salary', csvLabel: 'Faixa salarial', displayName: 'Salário', type: 'text' },
-  { key: 'status', csvLabel: 'Status', displayName: 'Status', type: 'select', required: true },
-  { key: 'type', csvLabel: 'Tipo', displayName: 'Tipo', type: 'select' },
+  // Identificação
+  { key: 'title', csvLabel: 'Título', displayName: 'Título da Vaga', type: 'text', required: true, category: 'identificacao' },
+  { key: 'code', csvLabel: 'Código', displayName: 'Código', type: 'text', category: 'identificacao' },
+  
+  // Localização e Estrutura
+  { key: 'company', csvLabel: 'Empresa', displayName: 'Empresa/Unidade', type: 'select', required: true, category: 'estrutura' },
+  { key: 'city', csvLabel: 'Cidade da vaga', displayName: 'Cidade', type: 'select', required: true, category: 'estrutura' },
+  { key: 'interestArea', csvLabel: 'Área de interesse', displayName: 'Área', type: 'select', category: 'estrutura' },
+  { key: 'sector', csvLabel: 'Setor', displayName: 'Setor', type: 'select', category: 'estrutura' },
+  { key: 'position', csvLabel: 'Cargo', displayName: 'Cargo', type: 'select', category: 'estrutura' },
+  { key: 'function', csvLabel: 'Função', displayName: 'Função', type: 'select', category: 'estrutura' },
+  
+  // Detalhes da Vaga
+  { key: 'description', csvLabel: 'Descrição', displayName: 'Descrição', type: 'textarea', category: 'detalhes' },
+  { key: 'requirements', csvLabel: 'Requisitos', displayName: 'Requisitos', type: 'textarea', category: 'detalhes' },
+  { key: 'benefits', csvLabel: 'Benefícios', displayName: 'Benefícios', type: 'textarea', category: 'detalhes' },
+  { key: 'salary', csvLabel: 'Faixa salarial', displayName: 'Salário', type: 'text', category: 'detalhes' },
+  { key: 'workModel', csvLabel: 'Modelo de trabalho', displayName: 'Modelo', type: 'select', category: 'detalhes' }, // Presencial, Híbrido, Remoto
+  { key: 'workload', csvLabel: 'Carga horária', displayName: 'Carga Horária', type: 'text', category: 'detalhes' },
+  { key: 'contractType', csvLabel: 'Tipo de contrato', displayName: 'Tipo Contrato', type: 'select', category: 'detalhes' }, // CLT, PJ, Estágio, etc
+  
+  // Gestão
+  { key: 'vacancies', csvLabel: 'Número de vagas', displayName: 'Nº Vagas', type: 'number', category: 'gestao' },
+  { key: 'priority', csvLabel: 'Prioridade', displayName: 'Prioridade', type: 'select', category: 'gestao' }, // Alta, Média, Baixa
+  { key: 'deadline', csvLabel: 'Prazo', displayName: 'Prazo', type: 'date', category: 'gestao' },
+  { key: 'recruiter', csvLabel: 'Recrutador responsável', displayName: 'Recrutador', type: 'text', category: 'gestao' },
+  { key: 'hiringManager', csvLabel: 'Gestor contratante', displayName: 'Gestor', type: 'text', category: 'gestao' },
+  { key: 'status', csvLabel: 'Status', displayName: 'Status', type: 'select', required: true, category: 'gestao' },
+  
+  // Metadados
+  { key: 'createdAt', csvLabel: 'Criado em', displayName: 'Criado em', type: 'datetime', category: 'sistema' },
+  { key: 'updatedAt', csvLabel: 'Atualizado em', displayName: 'Atualizado em', type: 'datetime', category: 'sistema' },
 ];
+
+// Campos da Candidatura (Application) - Vínculo Candidato + Vaga
+export const APPLICATION_FIELDS = [
+  // Identificação
+  { key: 'candidateId', displayName: 'Candidato', type: 'reference', required: true },
+  { key: 'candidateName', displayName: 'Nome do Candidato', type: 'text' },
+  { key: 'candidateEmail', displayName: 'Email do Candidato', type: 'email' },
+  { key: 'jobId', displayName: 'Vaga', type: 'reference', required: true },
+  { key: 'jobTitle', displayName: 'Título da Vaga', type: 'text' },
+  
+  // Dados da Vaga (snapshot no momento da candidatura)
+  { key: 'company', displayName: 'Empresa/Unidade', type: 'text' },
+  { key: 'city', displayName: 'Cidade da Vaga', type: 'text' },
+  { key: 'area', displayName: 'Área', type: 'text' },
+  { key: 'sector', displayName: 'Setor', type: 'text' },
+  { key: 'position', displayName: 'Cargo', type: 'text' },
+  { key: 'function', displayName: 'Função', type: 'text' },
+  
+  // Status e Progresso
+  { key: 'status', displayName: 'Status', type: 'select', required: true }, // Inscrito, Considerado, etc
+  { key: 'appliedAt', displayName: 'Data da Candidatura', type: 'datetime' },
+  { key: 'source', displayName: 'Origem', type: 'text' }, // Como chegou à vaga
+  
+  // Notas e Observações
+  { key: 'notes', displayName: 'Notas', type: 'array' },
+  { key: 'rating', displayName: 'Avaliação', type: 'number' }, // 1-5 estrelas
+  { key: 'feedback', displayName: 'Feedback Final', type: 'textarea' },
+];
+
+// Modelos de trabalho
+export const WORK_MODELS = ['Presencial', 'Híbrido', 'Remoto'];
+
+// Tipos de contrato
+export const CONTRACT_TYPES = ['CLT', 'PJ', 'Estágio', 'Temporário', 'Freelancer', 'Trainee'];
+
+// Prioridades
+export const PRIORITIES = ['Alta', 'Média', 'Baixa'];
