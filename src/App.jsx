@@ -64,7 +64,7 @@ const db = getFirestore(app);
 // --- COMPONENTES AUXILIARES ---
 
 // Dashboard com Gráficos
-const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
+const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusMovements = [] }) => {
   // Dados para gráficos - ordenados por status do pipeline
   const statusData = useMemo(() => {
     const counts = {};
@@ -76,24 +76,59 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [filteredCandidates]);
 
-  // Calcular taxas de conversão entre etapas
+  // Calcular taxas de conversão BASEADAS NAS MOVIMENTAÇÕES REAIS
+  // Conta quantos candidatos fizeram a transição de uma etapa para outra
   const conversionRates = useMemo(() => {
     const stages = [...PIPELINE_STAGES, 'Contratado'];
     const rates = [];
-    for (let i = 0; i < stages.length - 1; i++) {
-      const current = filteredCandidates.filter(c => c.status === stages[i]).length;
-      const next = filteredCandidates.filter(c => c.status === stages[i + 1]).length;
-      const rate = current > 0 ? ((next / current) * 100).toFixed(1) : 0;
-      rates.push({
-        from: stages[i],
-        to: stages[i + 1],
-        rate: parseFloat(rate),
-        fromCount: current,
-        toCount: next
-      });
+    
+    // Se temos movimentações registradas, usa elas para calcular
+    if (statusMovements.length > 0) {
+      for (let i = 0; i < stages.length - 1; i++) {
+        const fromStage = stages[i];
+        const toStage = stages[i + 1];
+        
+        // Conta movimentações que SAÍRAM desta etapa
+        const movedFrom = statusMovements.filter(m => m.previousStatus === fromStage).length;
+        // Conta movimentações que foram PARA a próxima etapa
+        const movedTo = statusMovements.filter(m => m.previousStatus === fromStage && m.newStatus === toStage).length;
+        
+        // Também considera os que estão atualmente nesta etapa
+        const currentInStage = filteredCandidates.filter(c => (c.status || 'Inscrito') === fromStage).length;
+        const totalPassed = movedFrom + currentInStage;
+        
+        const rate = totalPassed > 0 ? ((movedTo / totalPassed) * 100).toFixed(1) : 0;
+        
+        rates.push({
+          from: fromStage,
+          to: toStage,
+          rate: parseFloat(rate),
+          fromCount: totalPassed,
+          toCount: movedTo,
+          hasMovements: true
+        });
+      }
+    } else {
+      // Fallback: cálculo simplificado baseado no status atual (menos preciso)
+      for (let i = 0; i < stages.length - 1; i++) {
+        const current = filteredCandidates.filter(c => c.status === stages[i]).length;
+        const next = filteredCandidates.filter(c => c.status === stages[i + 1]).length;
+        const rate = current > 0 ? ((next / current) * 100).toFixed(1) : 0;
+        rates.push({
+          from: stages[i],
+          to: stages[i + 1],
+          rate: parseFloat(rate),
+          fromCount: current,
+          toCount: next,
+          hasMovements: false
+        });
+      }
     }
     return rates;
-  }, [filteredCandidates]);
+  }, [filteredCandidates, statusMovements]);
+
+  // Total de movimentações registradas (para mostrar indicador)
+  const totalMovements = statusMovements.length;
 
   // Dados com taxas de conversão para o gráfico de status
   const statusDataWithConversion = useMemo(() => {
@@ -1000,6 +1035,7 @@ export default function App() {
   const [schooling, setSchooling] = useState([]);
   const [marital, setMarital] = useState([]);
   const [tags, setTags] = useState([]);
+  const [statusMovements, setStatusMovements] = useState([]); // Log de movimentações de status
 
   // Modais - sincronizados com URL
   const isJobModalOpen = route.modal === 'job';
@@ -1083,6 +1119,8 @@ export default function App() {
       onSnapshot(query(collection(db, 'schooling_levels')), s => setSchooling(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'marital_statuses')), s => setMarital(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'tags')), s => setTags(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      // Log de movimentações de status para calcular taxas de conversão
+      onSnapshot(query(collection(db, 'statusMovements')), s => setStatusMovements(s.docs.map(d => ({id:d.id, ...d.data()})))),
     ];
     return () => unsubs.forEach(u => u());
   }, [user]);
@@ -1159,13 +1197,13 @@ export default function App() {
   };
 
   // Função para registrar histórico de ações
-  const recordActionHistory = async ({ action, collection, recordsAffected, details = {} }) => {
+  const recordActionHistory = async ({ action, col, recordsAffected, details = {} }) => {
     if (!user || !user.email) return;
     
     try {
       await addDoc(collection(db, 'actionHistory'), {
         action,
-        collection,
+        collection: col,
         recordsAffected,
         userEmail: user.email,
         userName: user.displayName || user.email,
@@ -1179,6 +1217,31 @@ export default function App() {
     }
   };
 
+  // Função para registrar log de movimentação de status do candidato
+  const recordStatusMovement = async (candidateId, candidateName, previousStatus, newStatus) => {
+    if (!user || !user.email) return;
+    
+    const isClosingStatus = CLOSING_STATUSES.includes(newStatus);
+    
+    try {
+      await addDoc(collection(db, 'statusMovements'), {
+        candidateId,
+        candidateName: candidateName || 'Candidato',
+        previousStatus: previousStatus || 'Inscrito',
+        newStatus,
+        isClosingStatus,
+        userEmail: user.email,
+        userName: user.displayName || user.email,
+        timestamp: serverTimestamp(),
+        createdAt: serverTimestamp()
+      });
+      console.log(`[Log] Movimentação registrada: ${candidateName} de "${previousStatus || 'Inscrito'}" para "${newStatus}"`);
+    } catch (error) {
+      console.error('Erro ao registrar movimentação de status:', error);
+      // Não interrompe a operação principal se o log falhar
+    }
+  };
+
   const computeMissingFields = (candidate, nextStatus) => {
     const required = STAGE_REQUIRED_FIELDS[nextStatus] || [];
     return required.filter((field) => {
@@ -1188,7 +1251,7 @@ export default function App() {
   };
 
   // --- LÓGICA DE MOVIMENTO DE CARDS COM VALIDAÇÃO ---
-  const handleDragEnd = (cId, newStage) => {
+  const handleDragEnd = async (cId, newStage) => {
     const candidate = candidates.find(c => c.id === cId);
     if (!candidate || candidate.status === newStage || !ALL_STATUSES.includes(newStage)) return;
 
@@ -1207,7 +1270,12 @@ export default function App() {
     }
 
     // Movimentação direta quando não há pendências
-    updateDoc(doc(db, 'candidates', cId), { status: newStage, updatedAt: serverTimestamp() });
+    const previousStatus = candidate.status || 'Inscrito';
+    await updateDoc(doc(db, 'candidates', cId), { status: newStage, updatedAt: serverTimestamp() });
+    
+    // Registra log de movimentação
+    await recordStatusMovement(cId, candidate.fullName, previousStatus, newStage);
+    
     showToast('Status atualizado', 'success');
   };
 
@@ -1387,7 +1455,7 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-hidden bg-brand-dark relative">
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} /></div>}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>handleDeleteGeneric('candidates', id)}/></div>}
@@ -1399,13 +1467,15 @@ export default function App() {
 
       {/* MODAIS GLOBAIS - CORRIGIDO PASSAGEM DE PROPS */}
       {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={closeJobModal} onSave={d => handleSaveGeneric('jobs', d, closeJobModal)} options={optionsProps} isSaving={isSaving} />}
-      {editingCandidate && <CandidateModal candidate={editingCandidate} onClose={() => setEditingCandidate(null)} onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} options={optionsProps} isSaving={isSaving} onAdvanceStage={(candidate, newStage) => {
+      {editingCandidate && <CandidateModal candidate={editingCandidate} onClose={() => setEditingCandidate(null)} onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} options={optionsProps} isSaving={isSaving} onAdvanceStage={async (candidate, newStage) => {
         const missingFields = computeMissingFields(candidate, newStage);
         const isConclusion = CLOSING_STATUSES.includes(newStage);
         if (isConclusion || missingFields.length > 0) {
           setPendingTransition({ candidate, toStage: newStage, missingFields, isConclusion });
         } else {
-          updateDoc(doc(db, 'candidates', candidate.id), { status: newStage, updatedAt: serverTimestamp() });
+          const previousStatus = candidate.status || 'Inscrito';
+          await updateDoc(doc(db, 'candidates', candidate.id), { status: newStage, updatedAt: serverTimestamp() });
+          await recordStatusMovement(candidate.id, candidate.fullName, previousStatus, newStage);
           showToast('Status atualizado', 'success');
         }
       }} />}
@@ -1415,7 +1485,7 @@ export default function App() {
         <TransitionModal 
           transition={pendingTransition} 
           onClose={() => setPendingTransition(null)} 
-          onConfirm={d => {
+          onConfirm={async d => {
             const payload = {
               id: pendingTransition.candidate.id,
               ...d,
@@ -1425,6 +1495,16 @@ export default function App() {
             if (pendingTransition.isConclusion) {
               payload.closedAt = serverTimestamp();
             }
+            
+            // Registra log de movimentação ANTES de salvar
+            const previousStatus = pendingTransition.candidate.status || 'Inscrito';
+            await recordStatusMovement(
+              pendingTransition.candidate.id, 
+              pendingTransition.candidate.fullName || d.fullName, 
+              previousStatus, 
+              pendingTransition.toStage
+            );
+            
             handleSaveGeneric('candidates', payload, () => setPendingTransition(null));
           }} 
           cities={cities} 

@@ -152,3 +152,4 @@ E atualize também o `Code.gs` com a mesma lógica.
 - Acentos são ignorados na comparação (ex: `Bagé` = `Bage`)
 
 
+
