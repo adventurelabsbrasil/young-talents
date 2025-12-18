@@ -301,22 +301,22 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
       {/* KPIs Principais - Material Design Colors */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates)} className="cursor-pointer bg-gradient-to-br from-[#4285F4]/20 to-[#4285F4]/10 p-6 rounded-xl border border-[#4285F4]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#4285F4]/20">
-          <h3 className="text-gray-600 dark:text-slate-400 text-sm font-semibold">Total de Candidatos</h3>
+          <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Total de Candidatos</h3>
           <p className="text-3xl font-bold text-[#4285F4] mt-2">{candidateStats.total}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">{candidateStats.active} em processo</p>
         </div>
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Contratado'))} className="cursor-pointer bg-gradient-to-br from-[#34A853]/20 to-[#34A853]/10 p-6 rounded-xl border border-[#34A853]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#34A853]/20">
-          <h3 className="text-gray-600 dark:text-slate-400 text-sm font-semibold">Contratados</h3>
+          <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Contratados</h3>
           <p className="text-3xl font-bold text-[#34A853] mt-2">{candidateStats.hired}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Taxa geral: {overallConversionRate}%</p>
         </div>
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id)))} className="cursor-pointer bg-gradient-to-br from-[#FBBC04]/20 to-[#FBBC04]/10 p-6 rounded-xl border border-[#FBBC04]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#FBBC04]/20">
-          <h3 className="text-gray-600 dark:text-slate-400 text-sm font-semibold">Vagas Abertas</h3>
+          <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Vagas Abertas</h3>
           <p className="text-3xl font-bold text-[#FBBC04] mt-2">{jobStats.open}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">{jobStats.filled} preenchidas</p>
         </div>
         <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Reprovado'))} className="cursor-pointer bg-gradient-to-br from-[#EA4335]/20 to-[#EA4335]/10 p-6 rounded-xl border border-[#EA4335]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#EA4335]/20">
-          <h3 className="text-gray-600 dark:text-slate-400 text-sm font-semibold">Reprovados</h3>
+          <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Reprovados</h3>
           <p className="text-3xl font-bold text-[#EA4335] mt-2">{candidateStats.rejected}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.rejected / candidateStats.total) * 100).toFixed(1) : 0}%</p>
         </div>
@@ -360,7 +360,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
           const needsReturn = !c.returnSent || c.returnSent === 'Pendente' || c.returnSent === 'Não';
           return isSelectionStage && needsReturn;
         }))} className="cursor-pointer bg-gradient-to-br from-[#9C27B0]/20 to-[#9C27B0]/10 p-4 rounded-xl border border-[#9C27B0]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#9C27B0]/20">
-          <div className="text-gray-600 dark:text-slate-400 text-sm">Faltam dar retorno</div>
+          <div className="text-gray-700 dark:text-gray-300 text-sm">Faltam dar retorno</div>
           <div className="text-2xl font-bold text-[#9C27B0] mt-2">{missingReturnCount}</div>
           <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
         </div>
@@ -402,7 +402,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
                         {isToday && <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-0.5 rounded">HOJE</span>}
                         {isTomorrow && <span className="ml-2 text-xs bg-yellow-500 text-white px-2 py-0.5 rounded">AMANHÃ</span>}
                       </h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
                         {interview.type} {interview.jobTitle && `• ${interview.jobTitle}`}
                       </p>
                     </div>
@@ -665,7 +665,7 @@ const LoginScreen = ({ onLogin }) => (
         </div>
       
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Young Talents ATS</h1>
-      <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Sistema de Gestão de Talentos</p>
+      <p className="text-gray-700 dark:text-gray-300 text-sm mb-6">Sistema de Gestão de Talentos</p>
       
       <button 
         onClick={onLogin} 
@@ -680,7 +680,7 @@ const LoginScreen = ({ onLogin }) => (
         Entrar com Google
       </button>
       
-      <p className="text-xs text-gray-400 mt-6">© 2025 Young Empreendimentos</p>
+      <p className="text-xs text-gray-600 dark:text-gray-400 mt-6">© 2025 Young Empreendimentos</p>
     </div>
   </div>
 );
@@ -764,7 +764,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
       <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 z-50 p-6 shadow-2xl transform transition-transform duration-300 overflow-y-auto flex flex-col">
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-bold text-gray-900 dark:text-white text-lg flex items-center gap-2"><Filter size={20}/> Filtros Avançados</h3>
-          <button onClick={onClose}><X className="text-slate-400 hover:text-white" /></button>
+          <button onClick={onClose}><X className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white" /></button>
         </div>
         
         {/* Filtros Ativos - Badges */}
@@ -788,7 +788,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
           
           return (
             <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Filtros Ativos:</div>
+              <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Filtros Ativos:</div>
               <div className="flex flex-wrap gap-2">
                 {activeFilters.map((filter, idx) => (
                   <div key={idx} className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs">
@@ -836,7 +836,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
             {showCustomPeriod && (
               <div className="space-y-2 mt-2">
                 <div>
-                  <label className="text-xs text-slate-400 mb-1 block">Data inicial</label>
+                  <label className="text-xs text-gray-700 dark:text-gray-300 mb-1 block">Data inicial</label>
                   <input
                     type="date"
                     className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -845,7 +845,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                   />
           </div>
                 <div>
-                  <label className="text-xs text-slate-400 mb-1 block">Data final</label>
+                  <label className="text-xs text-gray-700 dark:text-gray-300 mb-1 block">Data final</label>
                   <input
                     type="date"
                     className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -1060,7 +1060,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
              return (
                <div key={field.value} className="space-y-2">
                  <div className="flex justify-between items-center">
-                 <label className="text-xs font-bold text-slate-400 uppercase">{field.label.replace(':', '')}</label>
+                 <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">{field.label.replace(':', '')}</label>
                    {hasOptions && (
                      <button
                        onClick={() => toggleExpanded(field.value)}
@@ -1973,13 +1973,13 @@ export default function App() {
     if (!candidate || candidate.status === newStage || !ALL_STATUSES.includes(newStage)) return;
 
     // Validar se precisa de candidatura (a partir de "Considerado")
+    // IMPORTANTE: Usar apenas applications como fonte de verdade, não candidate.jobId
     const stagesRequiringApplication = PIPELINE_STAGES.slice(PIPELINE_STAGES.indexOf('Considerado'));
     const needsApplication = stagesRequiringApplication.includes(newStage);
     if (needsApplication) {
-      const candidateApplication = applications.find(a => a.candidateId === cId);
-      const hasJobId = candidate.jobId;
-      if (!candidateApplication && !hasJobId) {
-        showToast('É necessário vincular o candidato a uma vaga antes de avançar para esta etapa. Abra o candidato e vincule a uma vaga.', 'error');
+      const candidateApplications = applications.filter(a => a.candidateId === cId);
+      if (candidateApplications.length === 0) {
+        showToast('É necessário vincular o candidato a uma vaga antes de avançar para esta etapa. Use o botão "Vincular a Vaga" no perfil do candidato.', 'error');
         return;
       }
     }
@@ -2005,22 +2005,27 @@ export default function App() {
     // Registra log de movimentação
     await recordStatusMovement(cId, candidate.fullName, previousStatus, newStage);
     
-    // Sincroniza status nas aplicações se for status de fechamento
-    if (CLOSING_STATUSES.includes(newStage)) {
-      const candidateApplications = applications.filter(app => app.candidateId === cId);
-      if (candidateApplications.length > 0) {
-        const batch = writeBatch(db);
-        candidateApplications.forEach(app => {
-          const appRef = doc(db, 'applications', app.id);
-          batch.update(appRef, {
-            status: newStage,
-            updatedAt: serverTimestamp(),
-            closedAt: serverTimestamp(),
-            closedReason: newStage
-          });
-        });
-        await batch.commit();
-      }
+    // Sincroniza status em TODAS as aplicações do candidato (não apenas fechamento)
+    const candidateApplications = applications.filter(app => app.candidateId === cId);
+    if (candidateApplications.length > 0) {
+      const batch = writeBatch(db);
+      candidateApplications.forEach(app => {
+        const appRef = doc(db, 'applications', app.id);
+        const updateData = {
+          status: newStage,
+          lastActivity: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        
+        // Se for status de fechamento, adiciona campos de fechamento
+        if (CLOSING_STATUSES.includes(newStage)) {
+          updateData.closedAt = serverTimestamp();
+          updateData.closedReason = newStage;
+        }
+        
+        batch.update(appRef, updateData);
+      });
+      await batch.commit();
     }
     
     showToast('Status atualizado', 'success');
@@ -2282,6 +2287,9 @@ export default function App() {
         interviews={interviews}
         onScheduleInterview={(candidate) => setInterviewModalData({ candidate })}
         allCandidates={candidates}
+        applications={applications}
+        onCreateApplication={createApplication}
+        jobs={jobs}
         onAddNote={async (candidateId, noteText) => {
           const candidateRef = doc(db, 'candidates', candidateId);
           const candidateDoc = candidates.find(c => c.id === candidateId);
@@ -2779,14 +2787,15 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                    </thead>
                    <tbody className="divide-y divide-brand-border bg-brand-card/20">
                      {paginatedListData.map(c => {
-                       const candidateJob = jobs.find(j=>j.id===c.jobId);
-                       const candidateApplication = applications.find(a => a.candidateId === c.id);
+                       // USAR APENAS applications como fonte de verdade
+                       const candidateApplications = applications.filter(a => a.candidateId === c.id);
+                       const primaryApplication = candidateApplications[0]; // Primeira candidatura como principal
                        const isNew = (() => {
                          const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
                          const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
                          return daysAgo <= 7; // Novo se cadastrado nos últimos 7 dias
                        })();
-                       const hasApplication = candidateApplication || candidateJob;
+                       const hasApplication = candidateApplications.length > 0;
                        const isInscrito = (c.status || 'Inscrito') === 'Inscrito';
                        const needsApplication = !isInscrito && !hasApplication; // A partir de Considerado precisa ter candidatura
                        
@@ -2805,25 +2814,27 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                            <td className="p-4">
                              {hasApplication ? (
                                <div className="flex flex-col gap-1">
-                                 <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Vinculado</span>
-                                 {candidateApplication && (
-                                   <span className="text-xs text-gray-500">{candidateApplication.jobTitle}</span>
+                                 <span className="text-xs text-green-700 dark:text-green-300 font-medium">
+                                   ✓ {candidateApplications.length > 1 ? `${candidateApplications.length} candidaturas` : 'Vinculado'}
+                                 </span>
+                                 {primaryApplication && (
+                                   <span className="text-xs text-gray-700 dark:text-gray-300">{primaryApplication.jobTitle}</span>
                                  )}
                                </div>
                              ) : isInscrito ? (
-                               <span className="text-xs text-gray-500">Sem candidatura</span>
+                               <span className="text-xs text-gray-600 dark:text-gray-400">Sem candidatura</span>
                              ) : (
-                               <span className="text-xs text-red-600 dark:text-red-400 font-medium">⚠ Precisa vincular</span>
+                               <span className="text-xs text-red-700 dark:text-red-300 font-medium">⚠ Precisa vincular</span>
                              )}
                            </td>
-                           <td className="p-4 text-xs break-words">{candidateJob?.title || candidateApplication?.jobTitle || 'N/A'}</td>
-                           <td className="p-4 text-xs break-words">{candidateJob?.company || candidateApplication?.jobCompany || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words">{primaryApplication?.jobTitle || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words">{primaryApplication?.jobCompany || 'N/A'}</td>
                            <td className="p-4 text-xs break-words">{c.city || 'N/A'}</td>
-                           <td className="p-4 text-xs break-words truncate max-w-[200px]" title={c.email}>{c.email || 'N/A'}</td>
-                           <td className="p-4 text-xs break-words">{c.phone || 'N/A'}</td>
-                           <td className="p-4 text-xs break-words truncate max-w-[150px]" title={c.interestAreas}>{c.interestAreas || 'N/A'}</td>
-                           <td className="p-4 text-xs">{c.hasLicense === 'Sim' ? '✓' : c.hasLicense === 'Não' ? '✗' : 'N/A'}</td>
-                           <td className="p-4 text-xs break-words truncate max-w-[120px]" title={c.source}>{c.source || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words truncate max-w-[200px] text-gray-700 dark:text-gray-300" title={c.email}>{c.email || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words text-gray-700 dark:text-gray-300">{c.phone || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words truncate max-w-[150px] text-gray-700 dark:text-gray-300" title={c.interestAreas}>{c.interestAreas || 'N/A'}</td>
+                           <td className="p-4 text-xs text-gray-700 dark:text-gray-300">{c.hasLicense === 'Sim' ? '✓' : c.hasLicense === 'Não' ? '✗' : 'N/A'}</td>
+                           <td className="p-4 text-xs break-words truncate max-w-[120px] text-gray-700 dark:text-gray-300" title={c.source}>{c.source || 'N/A'}</td>
                            <td className="p-4 text-xs">
                              {(() => {
                                const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
@@ -2832,7 +2843,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                                return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
                              })()}
                            </td>
-                           <td className="p-4"><button onClick={() => onEdit(c)} className="hover:text-gray-600 dark:text-gray-400 transition-colors"><Edit3 size={16}/></button></td>
+                           <td className="p-4"><button onClick={() => onEdit(c)} className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"><Edit3 size={16}/></button></td>
                          </tr>
                        );
                      })}
@@ -2934,35 +2945,43 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
          </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
           {displayedCandidates.length > 0 ? displayedCandidates.map(c => {
-          const candidateJob = jobs.find(j => j.id === c.jobId);
+          // USAR APENAS applications como fonte de verdade
+          const candidateApplications = applications.filter(a => a.candidateId === c.id);
+          const primaryApplication = candidateApplications[0];
+          const primaryJob = primaryApplication ? jobs.find(j => j.id === primaryApplication.jobId) : null;
           return (
           <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-200 dark:border-gray-700'}`}>
             <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
             
             {/* Cabeçalho com resumo */}
             <div className="pl-6 mb-2 border-b border-gray-200 dark:border-gray-700/50 pb-2">
-              <h4 className="font-bold text-white text-sm break-words mb-1">{c.fullName}</h4>
+              <h4 className="font-bold text-gray-900 dark:text-white text-sm break-words mb-1">{c.fullName}</h4>
               <div className="text-xs space-y-0.5">
-                {candidateJob && (
-                  <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                    <Briefcase size={10}/> <span className="break-words">{candidateJob.title}</span>
+                {primaryJob && (
+                  <div className="text-blue-700 dark:text-blue-300 flex items-center gap-1 font-medium">
+                    <Briefcase size={10}/> <span className="break-words">{primaryJob.title}</span>
+                    {candidateApplications.length > 1 && (
+                      <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-[10px]">
+                        +{candidateApplications.length - 1}
+                      </span>
+                    )}
                   </div>
                 )}
-                <div className="text-slate-300 flex items-center gap-1">
+                <div className="text-gray-700 dark:text-gray-300 flex items-center gap-1">
                   <span className={`px-1.5 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span>
                 </div>
                 {c.city && (
-                  <div className="text-slate-400 flex items-center gap-1">
+                  <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
                     <MapPin size={10}/> <span className="break-words">{c.city}</span>
                   </div>
                 )}
                 {c.interestAreas && (
-                  <div className="text-slate-400 flex items-center gap-1">
+                  <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
                     <Building2 size={10}/> <span className="break-words">{c.interestAreas}</span>
                   </div>
                 )}
-                {candidateJob && candidateJob.company && (
-                  <div className="text-slate-400 flex items-center gap-1">
+                {primaryJob && primaryJob.company && (
+                  <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
                     <Building2 size={10}/> <span className="break-words">{candidateJob.company}</span>
                   </div>
                 )}
@@ -4489,7 +4508,7 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
   );
 };
 
-const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage, statusMovements = [], onAddNote, interviews = [], onScheduleInterview, allCandidates = [] }) => {
+const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage, statusMovements = [], onAddNote, interviews = [], onScheduleInterview, allCandidates = [], applications = [], onCreateApplication, jobs = [] }) => {
   // Normaliza cidade ao carregar candidato
   const normalizedCandidate = candidate?.city ? { ...candidate, city: normalizeCity(candidate.city) } : candidate;
   const [d, setD] = useState({ ...normalizedCandidate });
@@ -4805,20 +4824,76 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
           )}
           {activeSection === 'processo' && (
             <div className="grid grid-cols-2 gap-6">
+              {/* Candidaturas Vinculadas */}
               <div className="mb-3 col-span-2">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Vaga Associada</label>
-                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.jobId || ''} onChange={e=>setD({...d, jobId:e.target.value})}>
-                  <option value="">Nenhuma vaga (Banco de Talentos)</option>
-                  {options.jobs && options.jobs.filter(j => j.status === 'Aberta').map(j => (
-                    <option key={j.id} value={j.id}>
-                      {j.title} - {j.company} {j.city ? `(${j.city})` : ''}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-400 mt-1">Associe o candidato a uma vaga específica ou deixe em branco para banco de talentos</p>
-                <p className="text-xs text-yellow-400 mt-2">
-                  💡 <strong>Dica:</strong> Use o menu "Avançar Etapa do Processo" na aba Pessoal para alterar o status do candidato
-                </p>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-bold text-gray-900 dark:text-white uppercase">Candidaturas Vinculadas</label>
+                    {onCreateApplication && (
+                      <button
+                        onClick={async () => {
+                          // Abre modal simples para selecionar vaga
+                          const availableJobs = (options.jobs || jobs || []).filter(j => j.status === 'Aberta');
+                          if (availableJobs.length === 0) {
+                            window.alert('Não há vagas abertas disponíveis.');
+                            return;
+                          }
+                          const jobList = availableJobs.map((j, idx) => 
+                            `${idx + 1}. ${j.title} - ${j.company}${j.city ? ` (${j.city})` : ''}`
+                          ).join('\n');
+                          const jobId = window.prompt(`Selecione uma vaga:\n\n${jobList}\n\nDigite o número da vaga:`);
+                          if (jobId && candidate?.id) {
+                            const selectedJob = availableJobs[parseInt(jobId) - 1];
+                            if (selectedJob) {
+                              await onCreateApplication(candidate.id, selectedJob.id);
+                              window.alert('Candidatura criada com sucesso!');
+                            } else {
+                              window.alert('Número inválido.');
+                            }
+                          }
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                      >
+                        <Plus size={16}/> Vincular a Nova Vaga
+                      </button>
+                    )}
+                  </div>
+                  {(() => {
+                    const candidateApplications = applications.filter(a => a.candidateId === candidate?.id);
+                    if (candidateApplications.length === 0) {
+                      return (
+                        <div className="text-center py-4 text-gray-600 dark:text-gray-400 text-sm">
+                          <p>Nenhuma candidatura vinculada ainda.</p>
+                          <p className="text-xs mt-1">Clique em "Vincular a Nova Vaga" para criar uma candidatura.</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {candidateApplications.map(app => {
+                          const job = (options.jobs || jobs || []).find(j => j.id === app.jobId);
+                          return (
+                            <div key={app.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <h5 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                    {job?.title || app.jobTitle || 'Vaga não encontrada'}
+                                  </h5>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    {job?.company || app.jobCompany || ''} {job?.city ? `• ${job.city}` : ''}
+                                  </p>
+                                  <span className={`inline-block mt-2 px-2 py-0.5 rounded text-xs border ${STATUS_COLORS[app.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>
+                                    {app.status || 'Inscrito'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="mb-3">
                 <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Onde encontrou (Fonte)</label>
