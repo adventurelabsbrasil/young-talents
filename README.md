@@ -148,9 +148,10 @@ VITE_FIREBASE_APP_ID=seu_app_id
 
 ## 📚 Documentação
 
-- [TESTE_COMPLETO.md](./TESTE_COMPLETO.md) - Guia completo de teste com Hunter
+- [GUIA_APPS_SCRIPT.md](./GUIA_APPS_SCRIPT.md) - **Guia completo de configuração do Google Apps Script** (Forms → Firebase)
+- [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Guia de importação de dados via CSV
+- [GUIA_NORMALIZACAO_CIDADES.md](./GUIA_NORMALIZACAO_CIDADES.md) - Regras de normalização de cidades
 - [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Solução de problemas de autenticação
-- [TECHNICAL_CHANGES.md](./TECHNICAL_CHANGES.md) - Mudanças técnicas realizadas
 
 ## 🛠️ Scripts Disponíveis
 

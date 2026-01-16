@@ -2584,7 +2584,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
 
   const processedData = useMemo(() => {
      // Filtrar registros deletados (soft delete)
-     let data = candidates.filter(c => !c.deletedAt);
+     let data = Array.isArray(candidates) ? candidates.filter(c => !c.deletedAt) : [];
      if (statusFilter === 'active') data = data.filter(c => PIPELINE_STAGES.includes(c.status) || !c.status);
      else if (statusFilter === 'hired') data = data.filter(c => c.status === 'Contratado');
      else if (statusFilter === 'rejected') data = data.filter(c => c.status === 'Reprovado');
@@ -2648,20 +2648,27 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   const kanbanDataByStage = useMemo(() => {
     const byStage = {};
     PIPELINE_STAGES.forEach(stage => {
-      const stageCandidates = processedData.filter(c => (c.status || 'Inscrito') === stage);
+      const stageCandidates = Array.isArray(processedData) 
+        ? processedData.filter(c => (c.status || 'Inscrito') === stage)
+        : [];
       const start = (currentPage - 1) * kanbanItemsPerPage;
       const end = start + kanbanItemsPerPage;
       byStage[stage] = {
-        all: stageCandidates,
-        displayed: stageCandidates.slice(start, end),
-        total: stageCandidates.length
+        all: stageCandidates || [],
+        displayed: (stageCandidates || []).slice(start, end),
+        total: (stageCandidates || []).length
       };
     });
     return byStage;
   }, [processedData, currentPage, kanbanItemsPerPage]);
   
-  const totalPages = Math.ceil(processedData.length / itemsPerPage);
-  const kanbanTotalPages = Math.ceil(Math.max(...PIPELINE_STAGES.map(s => kanbanDataByStage[s]?.total || 0)) / kanbanItemsPerPage);
+  const totalPages = Math.ceil((processedData?.length || 0) / itemsPerPage);
+  const kanbanTotalPages = Math.ceil(
+    Math.max(
+      ...PIPELINE_STAGES.map(s => kanbanDataByStage[s]?.total || 0),
+      0
+    ) / kanbanItemsPerPage
+  ) || 1;
 
   return (
      <div className="flex flex-col h-full relative">
@@ -2995,7 +3002,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
                 )}
                 {primaryJob && primaryJob.company && (
                   <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                    <Building2 size={10}/> <span className="break-words">{candidateJob.company}</span>
+                    <Building2 size={10}/> <span className="break-words">{primaryJob.company}</span>
                   </div>
                 )}
               </div>
