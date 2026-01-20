@@ -87,9 +87,38 @@ function mapearFormularioParaCandidato(responses) {
     return Array.isArray(responses[key]) ? responses[key][0].trim() : String(responses[key]).trim();
   };
   
-  // Metadados
-  candidato.createdAt = new Date().toISOString();
-  candidato.original_timestamp = get('Carimbo de data/hora') || candidato.createdAt;
+  // Metadados - IMPORTANTE: Converter para timestamp do Firestore
+  const agora = new Date();
+  const timestampOriginal = get('Carimbo de data/hora');
+  
+  // Converte data/hora original para timestamp (se for string, parseia)
+  let originalDate = agora;
+  if (timestampOriginal) {
+    try {
+      originalDate = new Date(timestampOriginal);
+      if (isNaN(originalDate.getTime())) {
+        originalDate = agora; // Fallback se não conseguir parsear
+      }
+    } catch (e) {
+      originalDate = agora;
+    }
+  }
+  
+  // Converte para segundos desde epoch (formato Firestore)
+  const originalTimestampSeconds = Math.floor(originalDate.getTime() / 1000);
+  const createdAtSeconds = Math.floor(agora.getTime() / 1000);
+  
+  // Formato Firestore timestamp: { timestampValue: "2024-01-19T10:30:00.000Z" }
+  candidato.original_timestamp = {
+    timestampValue: originalDate.toISOString()
+  };
+  candidato.createdAt = {
+    timestampValue: agora.toISOString()
+  };
+  
+  // Metadados adicionais
+  candidato.origin = "forms_automation";
+  candidato.createdBy = "Google Forms Automation";
   
   // Identificação e Contato
   candidato.fullName = get('Nome completo:');
@@ -240,7 +269,9 @@ function verificarCandidatoExistente(email) {
 function enviarCandidatoParaFirebase(candidato) {
   try {
     // Gera ID único baseado em email + timestamp para evitar duplicatas
-    const uniqueString = (candidato.email || "sem_email") + "_" + (candidato.original_timestamp || candidato.createdAt);
+    // Extrai string do timestamp para gerar ID único
+    const timestampStr = candidato.original_timestamp?.timestampValue || candidato.createdAt?.timestampValue || new Date().toISOString();
+    const uniqueString = (candidato.email || "sem_email") + "_" + timestampStr;
     const docId = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, uniqueString));
     
     // Converte dados para formato Firestore
@@ -570,7 +601,8 @@ function importarEmLotes() {
         // Isso torna a importação muito mais rápida
         
         // Gera ID único para o documento (baseado em email + timestamp)
-        const uniqueString = (candidato.email || "sem_email") + "_" + (candidato.original_timestamp || candidato.createdAt || "sem_data");
+        const timestampStr = candidato.original_timestamp?.timestampValue || candidato.createdAt?.timestampValue || new Date().toISOString();
+        const uniqueString = (candidato.email || "sem_email") + "_" + timestampStr;
         const docId = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, uniqueString));
         
         // Converte para formato Firestore
@@ -579,12 +611,23 @@ function importarEmLotes() {
           const value = candidato[key];
           if (value === null || value === undefined || value === "") continue;
           
-          if (Array.isArray(value)) {
+          // Trata timestamps do Firestore
+          if (key === 'original_timestamp' || key === 'createdAt') {
+            if (value.timestampValue) {
+              fields[key] = { timestampValue: value.timestampValue };
+            } else if (typeof value === 'string') {
+              fields[key] = { timestampValue: value };
+            } else {
+              fields[key] = { timestampValue: new Date().toISOString() };
+            }
+          } else if (Array.isArray(value)) {
             fields[key] = { arrayValue: { values: value.map(v => ({ stringValue: String(v) })) } };
           } else if (typeof value === 'number') {
             fields[key] = { integerValue: value };
           } else if (typeof value === 'boolean') {
             fields[key] = { booleanValue: value };
+          } else if (typeof value === 'object' && value.timestampValue) {
+            fields[key] = { timestampValue: value.timestampValue };
           } else {
             fields[key] = { stringValue: String(value) };
           }
@@ -652,11 +695,34 @@ function rowToCandidateObject(row, headers) {
     return (index > -1 && row[index]) ? String(row[index]).trim() : "";
   };
 
+  // Metadados - IMPORTANTE: Converter para timestamp do Firestore
+  const agora = new Date();
+  const timestampOriginal = get('Carimbo de data/hora');
+  
+  // Converte data/hora original para timestamp
+  let originalDate = agora;
+  if (timestampOriginal) {
+    try {
+      originalDate = new Date(timestampOriginal);
+      if (isNaN(originalDate.getTime())) {
+        originalDate = agora;
+      }
+    } catch (e) {
+      originalDate = agora;
+    }
+  }
+  
   const candidato = {
     // Metadados
     external_id: get('COD') || "",
-    createdAt: new Date().toISOString(),
-    original_timestamp: get('Carimbo de data/hora') || new Date().toISOString(),
+    createdAt: {
+      timestampValue: agora.toISOString()
+    },
+    original_timestamp: {
+      timestampValue: originalDate.toISOString()
+    },
+    origin: "batch_script",
+    createdBy: "Batch Import Script",
     
     // Identificação e Contato
     fullName: get('Nome completo:'),

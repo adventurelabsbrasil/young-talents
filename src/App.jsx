@@ -83,6 +83,22 @@ const Dashboard = ({
   const [customDateStart, setCustomDateStart] = useState('');
   const [customDateEnd, setCustomDateEnd] = useState('');
   
+  // Função auxiliar para converter timestamp para segundos (suporta múltiplos formatos)
+  const getTimestampSeconds = (tsField) => {
+    if (!tsField) return 0;
+    if (typeof tsField === 'string') {
+      const date = new Date(tsField);
+      return isNaN(date.getTime()) ? 0 : date.getTime() / 1000;
+    }
+    if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
+    if (tsField.toDate) return tsField.toDate().getTime() / 1000;
+    if (tsField.timestampValue) {
+      const date = new Date(tsField.timestampValue);
+      return isNaN(date.getTime()) ? 0 : date.getTime() / 1000;
+    }
+    return 0;
+  };
+  
   // Filtrar candidatos por período para scorecards
   const filteredCandidatesByPeriod = useMemo(() => {
     if (periodFilter === 'all') return filteredCandidates;
@@ -90,7 +106,7 @@ const Dashboard = ({
       const startDate = new Date(customDateStart).getTime() / 1000;
       const endDate = new Date(customDateEnd).getTime() / 1000 + 86400;
       return filteredCandidates.filter(c => {
-        const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+        const ts = getTimestampSeconds(c.original_timestamp) || getTimestampSeconds(c.createdAt);
         if (!ts) return false;
         return ts >= startDate && ts <= endDate;
       });
@@ -107,7 +123,7 @@ const Dashboard = ({
     const cutoff = now - (periods[periodFilter] || 0);
     
     return filteredCandidates.filter(c => {
-      const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+      const ts = getTimestampSeconds(c.original_timestamp) || getTimestampSeconds(c.createdAt);
       if (!ts) return false;
       return ts >= cutoff;
     });
@@ -2737,23 +2753,31 @@ export default function App() {
       '90d': 90 * 24 * 60 * 60,
     };
 
+    // Função auxiliar para converter timestamp para segundos (suporta múltiplos formatos)
+    const getTimestampSeconds = (tsField) => {
+      if (!tsField) return null;
+      if (typeof tsField === 'string') {
+        const date = new Date(tsField);
+        return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+      }
+      if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
+      if (tsField.toDate) return tsField.toDate().getTime() / 1000;
+      if (tsField.timestampValue) {
+        const date = new Date(tsField.timestampValue);
+        return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+      }
+      return null;
+    };
+    
     // Função para obter timestamp do candidato (original_timestamp ou createdAt)
     const getCandidateTimestamp = (c) => {
       // Prioriza original_timestamp (data de cadastro original do formulário)
-      if (c.original_timestamp) {
-        if (typeof c.original_timestamp === 'string') {
-          return new Date(c.original_timestamp).getTime() / 1000;
-        } else if (c.original_timestamp.seconds || c.original_timestamp._seconds) {
-          return c.original_timestamp.seconds || c.original_timestamp._seconds;
-        } else if (c.original_timestamp.toDate) {
-          return c.original_timestamp.toDate().getTime() / 1000;
-        }
-      }
+      const originalTs = getTimestampSeconds(c.original_timestamp);
+      if (originalTs) return originalTs;
+      
       // Fallback para createdAt
-      if (c.createdAt?.seconds || c.createdAt?._seconds) {
-        return c.createdAt.seconds || c.createdAt._seconds;
-      }
-      return null;
+      const createdTs = getTimestampSeconds(c.createdAt);
+      return createdTs;
     };
 
     Object.keys(filters).forEach(key => {
@@ -2991,7 +3015,7 @@ export default function App() {
       <FilterSidebar isOpen={isFilterSidebarOpen} onClose={() => setIsFilterSidebarOpen(false)} filters={filters} setFilters={setFilters} clearFilters={() => setFilters(initialFilters)} options={optionsProps} candidates={candidates} />
 
       {/* MODAIS GLOBAIS - CORRIGIDO PASSAGEM DE PROPS */}
-      {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={closeJobModal} onSave={d => handleSaveGeneric('jobs', d, closeJobModal)} options={optionsProps} isSaving={isSaving} />}
+      {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={closeJobModal} onSave={d => handleSaveGeneric('jobs', d, closeJobModal)} options={optionsProps} isSaving={isSaving} candidates={candidates} />}
       {editingCandidate && <CandidateModal 
         candidate={editingCandidate} 
         onClose={() => setEditingCandidate(null)} 
@@ -3387,8 +3411,66 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
          );
      }
      data.sort((a, b) => {
-         if (localSort === 'recent') return (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0);
-         if (localSort === 'oldest') return (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0);
+         if (localSort === 'recent') {
+           const getTs = (c) => {
+             if (c.original_timestamp) {
+               if (typeof c.original_timestamp === 'string') {
+                 const d = new Date(c.original_timestamp);
+                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+               }
+               if (c.original_timestamp.seconds || c.original_timestamp._seconds) return c.original_timestamp.seconds || c.original_timestamp._seconds;
+               if (c.original_timestamp.toDate) return c.original_timestamp.toDate().getTime() / 1000;
+               if (c.original_timestamp.timestampValue) {
+                 const d = new Date(c.original_timestamp.timestampValue);
+                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+               }
+             }
+             if (c.createdAt) {
+               if (typeof c.createdAt === 'string') {
+                 const d = new Date(c.createdAt);
+                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+               }
+               if (c.createdAt.seconds || c.createdAt._seconds) return c.createdAt.seconds || c.createdAt._seconds;
+               if (c.createdAt.toDate) return c.createdAt.toDate().getTime() / 1000;
+               if (c.createdAt.timestampValue) {
+                 const d = new Date(c.createdAt.timestampValue);
+                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+               }
+             }
+             return 0;
+           };
+           return (getTs(b) || 0) - (getTs(a) || 0);
+         }
+         if (localSort === 'oldest') {
+           const getTs = (c) => {
+             if (c.original_timestamp) {
+               if (typeof c.original_timestamp === 'string') {
+                 const d = new Date(c.original_timestamp);
+                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+               }
+               if (c.original_timestamp.seconds || c.original_timestamp._seconds) return c.original_timestamp.seconds || c.original_timestamp._seconds;
+               if (c.original_timestamp.toDate) return c.original_timestamp.toDate().getTime() / 1000;
+               if (c.original_timestamp.timestampValue) {
+                 const d = new Date(c.original_timestamp.timestampValue);
+                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+               }
+             }
+             if (c.createdAt) {
+               if (typeof c.createdAt === 'string') {
+                 const d = new Date(c.createdAt);
+                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+               }
+               if (c.createdAt.seconds || c.createdAt._seconds) return c.createdAt.seconds || c.createdAt._seconds;
+               if (c.createdAt.toDate) return c.createdAt.toDate().getTime() / 1000;
+               if (c.createdAt.timestampValue) {
+                 const d = new Date(c.createdAt.timestampValue);
+                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+               }
+             }
+             return 0;
+           };
+           return (getTs(a) || 0) - (getTs(b) || 0);
+         }
          if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
          if (localSort === 'za') return (b.fullName||'').localeCompare(a.fullName||'');
          return 0;
@@ -3610,7 +3692,21 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                        const candidateApplications = applications.filter(a => a.candidateId === c.id);
                        const primaryApplication = candidateApplications[0]; // Primeira candidatura como principal
                        const isNew = (() => {
-                         const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+                         const getTs = (tsField) => {
+                           if (!tsField) return 0;
+                           if (typeof tsField === 'string') {
+                             const d = new Date(tsField);
+                             return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+                           }
+                           if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
+                           if (tsField.toDate) return tsField.toDate().getTime() / 1000;
+                           if (tsField.timestampValue) {
+                             const d = new Date(tsField.timestampValue);
+                             return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+                           }
+                           return 0;
+                         };
+                         const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
                          const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
                          return daysAgo <= 7; // Novo se cadastrado nos últimos 7 dias
                        })();
@@ -3787,7 +3883,21 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
           const primaryJob = primaryApplication ? jobs.find(j => j.id === primaryApplication.jobId) : null;
           // Verificar se candidato é novo (menos de 7 dias)
           const isNew = (() => {
-            const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+            const getTs = (tsField) => {
+              if (!tsField) return 0;
+              if (typeof tsField === 'string') {
+                const d = new Date(tsField);
+                return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+              }
+              if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
+              if (tsField.toDate) return tsField.toDate().getTime() / 1000;
+              if (tsField.timestampValue) {
+                const d = new Date(tsField.timestampValue);
+                return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+              }
+              return 0;
+            };
+            const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
             if (!ts) return false;
             const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
             return daysAgo <= 7;
@@ -3928,21 +4038,31 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
   const [customDateEnd, setCustomDateEnd] = useState('');
   const [showFilters, setShowFilters] = useState(false); // Painel de filtros colapsável
 
-  // Função para obter timestamp do candidato (original_timestamp ou createdAt)
-  const getCandidateTimestamp = (c) => {
-    if (c.original_timestamp) {
-      if (typeof c.original_timestamp === 'string') {
-        return new Date(c.original_timestamp).getTime() / 1000;
-      } else if (c.original_timestamp.seconds || c.original_timestamp._seconds) {
-        return c.original_timestamp.seconds || c.original_timestamp._seconds;
-      } else if (c.original_timestamp.toDate) {
-        return c.original_timestamp.toDate().getTime() / 1000;
-      }
+  // Função auxiliar para converter timestamp para segundos (suporta múltiplos formatos)
+  const getTimestampSeconds = (tsField) => {
+    if (!tsField) return null;
+    if (typeof tsField === 'string') {
+      const date = new Date(tsField);
+      return isNaN(date.getTime()) ? null : date.getTime() / 1000;
     }
-    if (c.createdAt?.seconds || c.createdAt?._seconds) {
-      return c.createdAt.seconds || c.createdAt._seconds;
+    if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
+    if (tsField.toDate) return tsField.toDate().getTime() / 1000;
+    if (tsField.timestampValue) {
+      const date = new Date(tsField.timestampValue);
+      return isNaN(date.getTime()) ? null : date.getTime() / 1000;
     }
     return null;
+  };
+  
+  // Função para obter timestamp do candidato (original_timestamp ou createdAt)
+  const getCandidateTimestamp = (c) => {
+    // Prioriza original_timestamp (data de cadastro original do formulário)
+    const originalTs = getTimestampSeconds(c.original_timestamp);
+    if (originalTs) return originalTs;
+    
+    // Fallback para createdAt
+    const createdTs = getTimestampSeconds(c.createdAt);
+    return createdTs;
   };
 
   const processedData = useMemo(() => {
@@ -4269,7 +4389,21 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.source || 'N/A'}</td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">
                     {(() => {
-                      const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+                      const getTs = (tsField) => {
+                        if (!tsField) return 0;
+                        if (typeof tsField === 'string') {
+                          const d = new Date(tsField);
+                          return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+                        }
+                        if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
+                        if (tsField.toDate) return tsField.toDate().getTime() / 1000;
+                        if (tsField.timestampValue) {
+                          const d = new Date(tsField.timestampValue);
+                          return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+                        }
+                        return 0;
+                      };
+                      const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
                       if (!ts) return 'N/A';
                       const date = new Date(ts * 1000);
                       return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -5243,7 +5377,7 @@ const UrlField = ({ label, field, value, onChange, placeholder = "Cole a URL aqu
   );
 };
 
-const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
+const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates = [] }) => {
   const [d, setD] = useState(() => {
     if (job?.id) {
       return { ...job };
@@ -5428,6 +5562,36 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
       }
     }
   }, [d.company, options.companies]);
+
+  // Buscar cidades únicas dos candidatos cadastrados
+  const candidateCities = useMemo(() => {
+    const citiesSet = new Set();
+    candidates.forEach(c => {
+      if (c.city && c.city.trim()) {
+        citiesSet.add(c.city.trim());
+      }
+    });
+    return Array.from(citiesSet).sort();
+  }, [candidates]);
+  
+  // Buscar áreas de interesse únicas dos candidatos cadastrados
+  const candidateInterestAreas = useMemo(() => {
+    const areasSet = new Set();
+    candidates.forEach(c => {
+      if (c.interestAreas) {
+        // interestAreas pode ser string separada por vírgula ou array
+        const areas = typeof c.interestAreas === 'string' 
+          ? c.interestAreas.split(',').map(a => a.trim()).filter(Boolean)
+          : Array.isArray(c.interestAreas) ? c.interestAreas : [];
+        areas.forEach(area => {
+          if (area && area.trim()) {
+            areasSet.add(area.trim());
+          }
+        });
+      }
+    });
+    return Array.from(areasSet).sort();
+  }, [candidates]);
 
   if (!isOpen) return null;
 
