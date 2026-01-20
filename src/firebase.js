@@ -16,9 +16,15 @@ const firebaseConfig = {
 };
 
 // Validação das variáveis de ambiente
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+const hasRequiredConfig = firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.authDomain;
+if (!hasRequiredConfig) {
   console.error('[Firebase] Erro: Variáveis de ambiente não configuradas corretamente.');
-  console.error('[Firebase] Verifique se todas as variáveis VITE_FIREBASE_* estão definidas.');
+  console.error('[Firebase] Config:', {
+    hasApiKey: !!firebaseConfig.apiKey,
+    hasProjectId: !!firebaseConfig.projectId,
+    hasAuthDomain: !!firebaseConfig.authDomain
+  });
+  console.error('[Firebase] Verifique se todas as variáveis VITE_FIREBASE_* estão definidas no Vercel.');
 }
 
 // Inicializa Firebase App (idempotente - pode ser chamado múltiplas vezes)
@@ -27,13 +33,17 @@ let auth;
 let db;
 
 try {
+  if (!hasRequiredConfig) {
+    throw new Error('Configuração do Firebase incompleta. Verifique as variáveis de ambiente no Vercel.');
+  }
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (error) {
   console.error('[Firebase] Erro ao inicializar Firebase:', error);
-  // Em caso de erro, ainda exporta objetos vazios para evitar crash
-  throw new Error('Falha ao inicializar Firebase. Verifique as variáveis de ambiente.');
+  // Não lança erro aqui para permitir que a aplicação carregue
+  // A aplicação deve tratar o erro de forma mais amigável
+  // Em produção, isso deve mostrar uma mensagem de erro ao usuário
 }
 
 // Exporta para uso em toda a aplicação
