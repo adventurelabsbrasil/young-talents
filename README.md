@@ -186,20 +186,41 @@ npm run lint     # Verificar linting
 
 \`\`\`
 src/
-├── App.jsx                 # Aplicação principal
-├── firebase.js             # Configuração centralizada do Firebase
-├── constants.js            # Constantes (Pipeline stages, cores, etc)
-├── ThemeContext.jsx        # Context para tema dark/light
+├── App.jsx                      # Aplicação principal com rotas
+├── main.jsx                     # Entry point com BrowserRouter
+├── firebase.js                  # Configuração centralizada do Firebase
+├── constants.js                 # Constantes (Pipeline stages, cores, etc)
+├── ThemeContext.jsx             # Context para tema dark/light
 ├── components/
-│   ├── SettingsPage.jsx   # Página de configurações
-│   ├── DataManager.jsx    # Gerenciamento de dados base
+│   ├── CandidateProfilePage.jsx # Página de perfil do candidato (/candidate/:id)
+│   ├── SettingsPage.jsx         # Página de configurações
+│   ├── DataManager.jsx          # Gerenciamento de dados base
+│   ├── ApplicationsPage.jsx     # Página de candidaturas
+│   ├── ReportsPage.jsx          # Página de relatórios
+│   ├── HelpPage.jsx             # Página de ajuda
 │   └── modals/
-│       ├── TransitionModal.jsx      # Modal de transição entre etapas
-│       ├── JobsCandidateModal.jsx   # Modal de candidatos de vagas
-│       └── CsvImportModal.jsx       # Modal de importação CSV
-├── utils/                  # Utilitários (normalização, validação)
-├── assets/                 # Imagens e assets
-└── index.css              # Estilos globais
+│       ├── TransitionModal.jsx          # Modal de transição entre etapas
+│       ├── JobsCandidateModal.jsx       # Modal de candidatos de vagas
+│       ├── CsvImportModal.jsx           # Modal de importação CSV
+│       ├── DashboardCandidatesModal.jsx  # Modal de candidatos do dashboard
+│       └── InterviewModal.jsx           # Modal de agendamento de entrevistas
+├── utils/                       # Utilitários
+│   ├── cityNormalizer.js        # Normalização de cidades
+│   ├── interestAreaNormalizer.js # Normalização de áreas de interesse
+│   ├── sourceNormalizer.js      # Normalização de fontes
+│   ├── validation.js            # Validações de formulários
+│   └── matching.js              # Sistema de match candidato-vaga
+├── assets/                      # Imagens e assets
+└── index.css                    # Estilos globais
+
+assets/
+├── .APPSCRIPT.txt               # Script oficial do Google Apps Script
+└── legacy/
+    └── Code.gs                  # Script legado (não usar)
+
+docs/
+├── ROTAS_E_NAVEGACAO.md         # Documentação de rotas e navegação
+└── arquivado/                   # Documentação histórica arquivada
 \`\`\`
 
 ## 🎯 Tecnologias
