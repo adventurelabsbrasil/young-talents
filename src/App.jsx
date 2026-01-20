@@ -2897,6 +2897,24 @@ export default function App() {
 
   const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags, userRoles, user };
 
+  // Verificar se Firebase foi inicializado corretamente
+  if (!auth || !db) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
+        <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md">
+          <AlertCircle className="mx-auto mb-4 text-red-600 dark:text-red-400" size={48} />
+          <h2 className="text-xl font-bold text-red-900 dark:text-red-200 mb-2">Erro de Configuração</h2>
+          <p className="text-red-700 dark:text-red-300 mb-4">
+            Firebase não foi inicializado corretamente. Verifique as variáveis de ambiente no Vercel.
+          </p>
+          <p className="text-sm text-red-600 dark:text-red-400">
+            Abra o console do navegador (F12) para mais detalhes.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (authLoading) return <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400"><Loader2 className="animate-spin mr-2"/> Carregando...</div>;
   if (!user) return <LoginScreen onLogin={handleGoogleLogin} onEmailLogin={handleEmailLogin} onForgotPassword={handleForgotPassword} />;
 
