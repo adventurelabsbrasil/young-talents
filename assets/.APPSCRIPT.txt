@@ -142,6 +142,11 @@ function mapearFormularioParaCandidato(responses) {
   // Tags
   candidato.tags = ["Novo Inscrito"];
   
+  // Metadados de origem e criação
+  candidato.origin = "forms_automation"; // Origem: automação do Google Forms (gatilho submitForm)
+  candidato.createdBy = "system"; // Sistema (automação)
+  candidato.responsibleUser = ""; // Vazio para automação, será preenchido manualmente se necessário
+  
   return candidato;
 }
 
@@ -698,7 +703,13 @@ function rowToCandidateObject(row, headers) {
     status: "Inscrito",
     
     // Tags
-    tags: ["Importado CSV"]
+    tags: ["Importado CSV"],
+    
+    // Metadados de origem e criação
+    origin: "batch_script", // Origem: script de importação em lote (appscript)
+    createdBy: "system", // Sistema (script)
+    responsibleUser: "", // Vazio para importação em lote
+    imported: true
   };
 
   return candidato;
