@@ -45,6 +45,7 @@ import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail, f
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from './utils/interestAreaNormalizer';
+import { calculateMatchScore, findMatchingJobs, findMatchingCandidates, getMatchBadgeColor, getMatchBadgeText } from './utils/matching';
 
 // Material Design Colors (Google)
 const MATERIAL_COLORS = [
@@ -238,7 +239,11 @@ const Dashboard = ({
 
   const areaData = useMemo(() => {
     const areas = {};
-    filteredCandidatesByPeriod.forEach(c => {
+    // Usar filteredCandidates quando período é 'all' ou quando não há dados no período filtrado
+    const candidatesToUse = periodFilter === 'all' || filteredCandidatesByPeriod.length === 0 
+      ? filteredCandidates 
+      : filteredCandidatesByPeriod;
+    candidatesToUse.forEach(c => {
       if (c.interestAreas) {
         // Dividir áreas por vírgula e contar individualmente
         const areasList = c.interestAreas.split(',').map(a => a.trim()).filter(a => a);
@@ -247,7 +252,7 @@ const Dashboard = ({
         });
       }
     });
-    const total = filteredCandidates.length;
+    const total = candidatesToUse.length;
     return Object.entries(areas)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -256,12 +261,16 @@ const Dashboard = ({
         value,
         percentage: total > 0 ? ((value / total) * 100).toFixed(1) : 0
       }));
-  }, [filteredCandidates]);
+  }, [filteredCandidatesByPeriod, filteredCandidates, periodFilter]);
 
   // Cidades ordenadas do maior para o menor
   const cityData = useMemo(() => {
     const cities = {};
-    filteredCandidatesByPeriod.forEach(c => {
+    // Usar filteredCandidates quando período é 'all' ou quando não há dados no período filtrado
+    const candidatesToUse = periodFilter === 'all' || filteredCandidatesByPeriod.length === 0 
+      ? filteredCandidates 
+      : filteredCandidatesByPeriod;
+    candidatesToUse.forEach(c => {
       if (c.city) {
         cities[c.city] = (cities[c.city] || 0) + 1;
       }
@@ -270,14 +279,18 @@ const Dashboard = ({
       .sort((a, b) => b[1] - a[1]) // Ordenar do maior para o menor
       .slice(0, 5)
       .map(([name, value]) => ({ name, value }));
-  }, [filteredCandidates]);
+  }, [filteredCandidatesByPeriod, filteredCandidates, periodFilter]);
 
   const originData = useMemo(() => {
     const origins = {};
-    filteredCandidatesByPeriod.forEach(c => {
+    // Usar filteredCandidates quando período é 'all' ou quando não há dados no período filtrado
+    const candidatesToUse = periodFilter === 'all' || filteredCandidatesByPeriod.length === 0 
+      ? filteredCandidates 
+      : filteredCandidatesByPeriod;
+    candidatesToUse.forEach(c => {
       if (c.source) origins[c.source] = (origins[c.source] || 0) + 1;
     });
-    const total = filteredCandidates.length;
+    const total = candidatesToUse.length;
     return Object.entries(origins)
       .sort((a, b) => b[1] - a[1])
       .slice(0,5)
@@ -286,7 +299,7 @@ const Dashboard = ({
         value,
         percentage: total > 0 ? ((value / total) * 100).toFixed(1) : 0
       }));
-  }, [filteredCandidates]);
+  }, [filteredCandidatesByPeriod, filteredCandidates, periodFilter]);
 
   const missingReturnCount = useMemo(() => {
     return filteredCandidatesByPeriod.filter(c => {
@@ -466,11 +479,16 @@ const Dashboard = ({
 
       {/* Card rápido: falta dar retorno */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c => {
-          const isSelectionStage = c.status === 'Seleção' || c.status === 'Selecionado';
-          const needsReturn = !c.returnSent || c.returnSent === 'Pendente' || c.returnSent === 'Não';
-          return isSelectionStage && needsReturn;
-        }))} className="cursor-pointer bg-gradient-to-br from-[#9C27B0]/20 to-[#9C27B0]/10 p-4 rounded-xl border border-[#9C27B0]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#9C27B0]/20">
+        <div onClick={() => {
+          if (onOpenCandidates) {
+            setDashboardModalTitle('Faltam dar retorno');
+            onOpenCandidates(filteredCandidates.filter(c => {
+              const isSelectionStage = c.status === 'Seleção' || c.status === 'Selecionado';
+              const needsReturn = !c.returnSent || c.returnSent === 'Pendente' || c.returnSent === 'Não';
+              return isSelectionStage && needsReturn;
+            }));
+          }
+        }} className="cursor-pointer bg-gradient-to-br from-[#9C27B0]/20 to-[#9C27B0]/10 p-4 rounded-xl border border-[#9C27B0]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#9C27B0]/20">
           <div className="text-gray-700 dark:text-gray-300 text-sm">Faltam dar retorno</div>
           <div className="text-2xl font-bold text-[#9C27B0] mt-2">{missingReturnCount}</div>
           <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
@@ -1943,6 +1961,8 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
   const [dashboardModalCandidates, setDashboardModalCandidates] = useState(null);
+  const [dashboardModalTitle, setDashboardModalTitle] = useState('');
+  const [highlightedCandidateId, setHighlightedCandidateId] = useState(null);
   const [interviewModalData, setInterviewModalData] = useState(null); // { candidate, job, application }
 
   // Helpers para abrir modais com URL
@@ -2076,6 +2096,17 @@ export default function App() {
             const existingRoles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             const existingRole = existingRoles.find(r => r.email === loggedUser.email);
             
+            // Verificar se o usuário tem permissão para acessar o sistema
+            // Se não existe na lista de userRoles e não é o primeiro usuário, negar acesso
+            const isFirstUser = existingRoles.length === 0;
+            
+            if (!existingRole && !isFirstUser) {
+              // Usuário não autorizado - fazer logout
+              await signOut(auth);
+              showToast('Acesso negado. Entre em contato com o administrador para solicitar acesso.', 'error');
+              return;
+            }
+            
             if (existingRole) {
               // Atualizar nome e foto do Google se diferentes
               if (existingRole.name !== loggedUser.displayName || existingRole.photo !== loggedUser.photoURL) {
@@ -2086,13 +2117,12 @@ export default function App() {
                 });
               }
             } else {
-              // Criar registro para novo usuário (admin se primeiro usuário, senão viewer)
-              const isFirstUser = existingRoles.length === 0;
+              // Criar registro para primeiro usuário (admin)
               await addDoc(collection(db, 'userRoles'), {
                 email: loggedUser.email,
                 name: loggedUser.displayName || '',
                 photo: loggedUser.photoURL || '',
-                role: isFirstUser ? 'admin' : 'viewer', // Primeiro usuário é admin
+                role: 'admin', // Primeiro usuário é admin
                 createdAt: serverTimestamp(),
                 lastLogin: serverTimestamp()
               });
@@ -2818,6 +2848,7 @@ export default function App() {
           }}
           onCreateApplication={createApplication}
           onScheduleInterview={(candidate) => setInterviewModalData({ candidate })}
+          onStatusChange={handleDragEnd}
         />
       } />
       <Route path="*" element={
@@ -2943,8 +2974,8 @@ export default function App() {
 
         <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
-           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" />}
-           {activeTab === 'candidates' && <TalentBankView candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} />}
+           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" highlightedCandidateId={highlightedCandidateId} />}
+           {activeTab === 'candidates' && <TalentBankView candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} onStatusChange={handleDragEnd} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('candidates')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'applications' && <ApplicationsPage applications={applications} candidates={candidates} jobs={jobs} companies={companies} onUpdateApplicationStatus={updateApplicationStatus} onRemoveApplication={removeApplication} onAddApplicationNote={addApplicationNote} onEditCandidate={openCandidateProfile} onViewJob={openJobCandidatesModal} onCreateApplication={createApplication} />}
            {activeTab === 'companies' && <MasterDataManager collection="companies" title="Empresas" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={companies} onShowToast={showToast} />}
@@ -3225,12 +3256,20 @@ export default function App() {
         onEditCandidate={openCandidateProfile}
       />
       {dashboardModalCandidates && (
-        <JobCandidatesModal 
+        <DashboardCandidatesModal 
           isOpen={true} 
-          onClose={() => setDashboardModalCandidates(null)} 
-          job={{ title: 'Resultados do Dashboard', id: 'dashboard' }} 
+          onClose={() => {
+            setDashboardModalCandidates(null);
+            setDashboardModalTitle('');
+          }} 
+          title={dashboardModalTitle || 'Candidatos do Dashboard'}
           candidates={dashboardModalCandidates}
-          applications={[]}
+          onViewProfile={openCandidateProfile}
+          onViewPipeline={(candidate) => {
+            setHighlightedCandidateId(candidate.id);
+            setActiveTab('pipeline');
+            // Scroll para o candidato destacado será feito no PipelineView
+          }}
         />
       )}
       
@@ -3262,7 +3301,7 @@ export default function App() {
 }
 
 // --- PIPELINE VIEW ---
-const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies, applications = [], interviews = [], forceViewMode = null }) => {
+const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies, applications = [], interviews = [], forceViewMode = null, highlightedCandidateId = null }) => {
   const [viewMode, setViewMode] = useState(forceViewMode || 'kanban'); 
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
@@ -3273,6 +3312,23 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   const [statusFilter, setStatusFilter] = useState('active'); // active, hired, rejected
   const [pipelineStatusFilter, setPipelineStatusFilter] = useState('all'); // Filtro específico por etapa
   const [jobFilter, setJobFilter] = useState('all');
+  
+  // Scroll para o candidato destacado quando ele aparecer
+  useEffect(() => {
+    if (highlightedCandidateId) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`candidate-${highlightedCandidateId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Remove o destaque após 5 segundos
+          setTimeout(() => {
+            // O destaque será removido quando highlightedCandidateId mudar
+          }, 5000);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedCandidateId]);
   const [companyFilter, setCompanyFilter] = useState('all');
   const [cityFilter, setCityFilter] = useState('all');
   const [showColorPicker, setShowColorPicker] = useState(false); // Para mostrar/ocultar o seletor de cores
@@ -3532,8 +3588,9 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                    <thead className="bg-brand-card text-white font-bold sticky top-0 z-10 shadow-sm">
                      <tr>
                        <th className="p-4 w-10"><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.length>0 && selectedIds.length===processedData.length} onChange={handleSelectAll}/></th>
+                       <th className="p-4 w-16">NOVO</th>
                        <th className="p-4">Nome</th>
-                       <th className="p-4">Status</th>
+                       <th className="p-4 min-w-[160px]">Status</th>
                        <th className="p-4">Candidatura</th>
                        <th className="p-4">Vaga</th>
                        <th className="p-4">Empresa</th>
@@ -3572,7 +3629,24 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                                )}
                              </div>
                            </td>
-                           <td className="p-4"><span className={`px-2 py-0.5 rounded text-xs border break-words ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span></td>
+                           <td className="p-4 min-w-[160px]">
+                             {onDragEnd ? (
+                               <select
+                                 value={c.status || 'Inscrito'}
+                                 onChange={(e) => onDragEnd(c.id, e.target.value)}
+                                 className={`px-2 py-1 rounded text-xs border font-medium cursor-pointer transition-colors ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'} hover:opacity-80`}
+                                 onClick={(e) => e.stopPropagation()}
+                               >
+                                 {ALL_STATUSES.map(status => (
+                                   <option key={status} value={status} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                                     {status}
+                                   </option>
+                                 ))}
+                               </select>
+                             ) : (
+                               <span className={`px-2 py-0.5 rounded text-xs border break-words ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span>
+                             )}
+                           </td>
                            <td className="p-4">
                              {hasApplication ? (
                                <div className="flex flex-col gap-1">
@@ -3657,7 +3731,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   );
 };
 
-const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displayCount, jobs, applications = [], onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker, onLoadMore, onReset }) => {
+const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displayCount, jobs, applications = [], onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker, onLoadMore, onReset, highlightedCandidateId = null, allJobs = [] }) => {
   const [columnColor, setColumnColor] = useState(() => {
     const saved = localStorage.getItem(`kanban-color-${stage}`);
     return saved || STATUS_COLORS[stage];
@@ -3711,12 +3785,28 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
           const candidateApplications = applications.filter(a => a.candidateId === c.id);
           const primaryApplication = candidateApplications[0];
           const primaryJob = primaryApplication ? jobs.find(j => j.id === primaryApplication.jobId) : null;
+          // Verificar se candidato é novo (menos de 7 dias)
+          const isNew = (() => {
+            const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+            if (!ts) return false;
+            const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
+            return daysAgo <= 7;
+          })();
           return (
-          <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-200 dark:border-gray-700'}`}>
+          <div key={c.id} id={`candidate-${c.id}`} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-200 dark:border-gray-700'} ${isNew ? 'border-l-4 border-l-green-500' : ''} ${highlightedCandidateId === c.id ? 'ring-4 ring-yellow-400 ring-opacity-75 animate-pulse border-yellow-400' : ''}`}>
             <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
             
+            {/* Flag NOVO fixa */}
+            {isNew && (
+              <div className="absolute top-2 left-8 z-10">
+                <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full animate-pulse">
+                  NOVO
+                </span>
+              </div>
+            )}
+            
             {/* Cabeçalho com resumo */}
-            <div className="pl-6 mb-2 border-b border-gray-200 dark:border-gray-700/50 pb-2">
+            <div className={`mb-2 border-b border-gray-200 dark:border-gray-700/50 pb-2 ${isNew ? 'pl-12' : 'pl-6'}`}>
               <h4 className="font-bold text-gray-900 dark:text-white text-sm break-words mb-1">{c.fullName}</h4>
               <div className="text-xs space-y-0.5">
                 {primaryJob && (
@@ -3729,8 +3819,31 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
                     )}
                   </div>
                 )}
-                <div className="text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                  <span className={`px-1.5 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {onDragEnd ? (
+                    <select
+                      value={c.status || 'Inscrito'}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        onDragEnd(c.id, e.target.value);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`px-1.5 py-0.5 rounded text-xs border font-medium cursor-pointer transition-colors text-white ${STATUS_COLORS[c.status] || 'bg-slate-700 border-slate-600'} hover:opacity-80`}
+                    >
+                      {ALL_STATUSES.map(status => (
+                        <option key={status} value={status} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className={`px-1.5 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span>
+                  )}
+                  {matchingJobs.length > 0 && (
+                    <span className={`px-1.5 py-0.5 rounded text-xs border font-medium ${getMatchBadgeColor(topMatch?.matchLevel || 'low')}`} title={`${matchingJobs.length} vaga(s) com match. Melhor match: ${topMatch?.matchScore || 0}%`}>
+                      {matchingJobs.length} match
+                    </span>
+                  )}
                 </div>
                 {c.city && (
                   <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
@@ -3750,7 +3863,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
               </div>
             </div>
             
-            <div className="grid grid-cols-1 gap-1 pl-6">
+            <div className={`grid grid-cols-1 gap-1 ${isNew ? 'pl-12' : 'pl-6'}`}>
               <div className="text-xs text-slate-400 truncate flex gap-1"><Mail size={10}/> {c.email || 'N/D'}</div>
               <div className="text-xs text-slate-400 truncate flex gap-1">📞 {c.phone || 'N/D'}</div>
               {c.score && <div className="text-xs text-blue-600 dark:text-blue-400 font-bold">Match: {c.score}%</div>}
@@ -3804,7 +3917,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
 };
 
 // --- BANCO DE TALENTOS (TABELA COMPLETA) ---
-const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = [] }) => {
+const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = [], onStatusChange }) => {
   const [itemsPerPage, setItemsPerPage] = useState(10); // Padrão alterado para 10
   const [currentPage, setCurrentPage] = useState(1);
   const [localSearch, setLocalSearch] = useState('');
@@ -3993,57 +4106,73 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
           </div>
         </div>
 
-        {/* Painel de Filtros Expandido */}
+        {/* Painel de Filtros Expandido - Melhorado com mais espaçamento */}
         {showFilters && (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Categoria: Data */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <CalendarCheck size={16} className="text-blue-600 dark:text-blue-400" />
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Data de Criação</label>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+            <div className="space-y-6">
+              {/* Seção: Filtros de Data */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <CalendarCheck size={18} className="text-blue-600 dark:text-blue-400" />
+                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Filtros de Data</h3>
                 </div>
-                <select
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
-                  value={dateFilter}
-                  onChange={e => {
-                    setDateFilter(e.target.value);
-                    if (e.target.value !== 'custom') {
-                      setCustomDateStart('');
-                      setCustomDateEnd('');
-                    }
-                  }}
-                >
-                  <option value="all">Todas as datas</option>
-                  <option value="today">Hoje</option>
-                  <option value="7d">Últimos 7 dias</option>
-                  <option value="30d">Últimos 30 dias</option>
-                  <option value="90d">Últimos 90 dias</option>
-                  <option value="custom">Período personalizado</option>
-                </select>
-                {dateFilter === 'custom' && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <input
-                      type="date"
-                      className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
-                      value={customDateStart}
-                      onChange={e => setCustomDateStart(e.target.value)}
-                      placeholder="Data inicial"
-                    />
-                    <span className="text-gray-600 dark:text-gray-400 text-sm">até</span>
-                    <input
-                      type="date"
-                      className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
-                      value={customDateEnd}
-                      onChange={e => setCustomDateEnd(e.target.value)}
-                      placeholder="Data final"
-                    />
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                      Período de Criação
+                    </label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                      value={dateFilter}
+                      onChange={e => {
+                        setDateFilter(e.target.value);
+                        if (e.target.value !== 'custom') {
+                          setCustomDateStart('');
+                          setCustomDateEnd('');
+                        }
+                      }}
+                    >
+                      <option value="all">Todas as datas</option>
+                      <option value="today">Hoje</option>
+                      <option value="7d">Últimos 7 dias</option>
+                      <option value="30d">Últimos 30 dias</option>
+                      <option value="90d">Últimos 90 dias</option>
+                      <option value="custom">Período personalizado</option>
+                    </select>
                   </div>
-                )}
+                  {dateFilter === 'custom' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Período Personalizado
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Data inicial</label>
+                          <input
+                            type="date"
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                            value={customDateStart}
+                            onChange={e => setCustomDateStart(e.target.value)}
+                          />
+                        </div>
+                        <span className="text-gray-400 dark:text-gray-500 text-sm mt-6">até</span>
+                        <div className="flex-1">
+                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Data final</label>
+                          <input
+                            type="date"
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                            value={customDateEnd}
+                            onChange={e => setCustomDateEnd(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Botão para limpar filtros */}
-              <div className="flex items-end">
+              {/* Seção: Ações */}
+              <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   onClick={() => {
                     setDateFilter('all');
@@ -4051,9 +4180,9 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                     setCustomDateEnd('');
                     setLocalSearch('');
                   }}
-                  className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+                  className="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-medium shadow-sm"
                 >
-                  Limpar Filtros
+                  Limpar Todos os Filtros
                 </button>
               </div>
             </div>
@@ -4065,11 +4194,12 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
         <table className="w-full border-collapse">
           <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
             <tr>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 w-10">
                 <input type="checkbox" className="accent-blue-600 dark:accent-blue-500" />
               </th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 w-16">NOVO</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Nome</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 min-w-[140px]">Status</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 min-w-[160px]">Status</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Email</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Telefone</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Cidade</th>
@@ -4099,22 +4229,37 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                       onChange={() => setSelectedIds(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])}
                     />
                   </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => onEdit(c)}>
-                        {c.fullName || 'Sem nome'}
+                  <td className="p-3 text-center">
+                    {isNew && (
+                      <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse inline-block">
+                        NOVO
                       </span>
-                      {isNew && (
-                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse">
-                          NOVO
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </td>
-                  <td className="p-3 min-w-[140px]">
-                    <span className={`px-2 py-0.5 rounded text-xs border whitespace-nowrap ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>
-                      {c.status || 'Inscrito'}
+                  <td className="p-3">
+                    <span className="font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => onEdit(c)}>
+                      {c.fullName || 'Sem nome'}
                     </span>
+                  </td>
+                  <td className="p-3 min-w-[160px]">
+                    {onStatusChange ? (
+                      <select
+                        value={c.status || 'Inscrito'}
+                        onChange={(e) => onStatusChange(c.id, e.target.value)}
+                        className={`px-2 py-1 rounded text-xs border font-medium cursor-pointer transition-colors ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'} hover:opacity-80`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {ALL_STATUSES.map(status => (
+                          <option key={status} value={status} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className={`px-2 py-0.5 rounded text-xs border whitespace-nowrap ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>
+                        {c.status || 'Inscrito'}
+                      </span>
+                    )}
                   </td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.email || 'N/A'}</td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.phone || 'N/A'}</td>
@@ -4268,17 +4413,41 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
     return activeJobs;
   }, [activeTab, statusFilter, cityFilter, companyFilter, periodFilter, jobs, jobsByPeriod]);
   
-  const renderJobCard = (j) => (
+  // Calcular matches para todas as vagas abertas
+  const jobMatches = useMemo(() => {
+    const matches = {};
+    const openJobs = jobs.filter(j => j.status === 'Aberta' && !j.deletedAt);
+    openJobs.forEach(job => {
+      const matchingCandidates = findMatchingCandidates(job, candidates);
+      matches[job.id] = {
+        count: matchingCandidates.length,
+        topMatch: matchingCandidates[0] || null,
+        allMatches: matchingCandidates
+      };
+    });
+    return matches;
+  }, [jobs, candidates]);
+
+  const renderJobCard = (j) => {
+    const matchInfo = jobMatches[j.id] || { count: 0, topMatch: null, allMatches: [] };
+    return (
     <div key={j.id} className="bg-brand-card p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg group hover:border-brand-cyan/50 transition-colors">
       <div className="flex justify-between mb-4">
-        <select 
-          className="text-xs px-2 py-1 rounded border bg-transparent outline-none cursor-pointer text-gray-600 dark:text-gray-400 border-brand-cyan/30 hover:bg-brand-cyan/10 transition-colors" 
-          value={j.status} 
-          onChange={(e) => onToggleStatus('jobs', {id: j.id, status: e.target.value})} 
-          onClick={(e) => e.stopPropagation()}
-        >
-          {JOB_STATUSES.map(s => <option key={s} value={s} className="bg-brand-card">{s}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <select 
+            className="text-xs px-2 py-1 rounded border bg-transparent outline-none cursor-pointer text-gray-600 dark:text-gray-400 border-brand-cyan/30 hover:bg-brand-cyan/10 transition-colors" 
+            value={j.status} 
+            onChange={(e) => onToggleStatus('jobs', {id: j.id, status: e.target.value})} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            {JOB_STATUSES.map(s => <option key={s} value={s} className="bg-brand-card">{s}</option>)}
+          </select>
+          {j.status === 'Aberta' && matchInfo.count > 0 && (
+            <span className={`px-2 py-1 rounded text-xs font-medium border ${getMatchBadgeColor(matchInfo.topMatch?.matchLevel || 'low')}`}>
+              {matchInfo.count} match{matchInfo.count !== 1 ? 'es' : ''}
+            </span>
+          )}
+        </div>
         <button onClick={() => onEdit(j)} className="text-slate-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
           <Edit3 size={16}/>
         </button>
@@ -4301,7 +4470,8 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
         </p>
       </div>
     </div>
-  );
+    );
+  };
   
   return (
     <div className="space-y-6">

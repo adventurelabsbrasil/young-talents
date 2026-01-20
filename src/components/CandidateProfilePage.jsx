@@ -11,7 +11,7 @@ import {
   doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot,
   serverTimestamp, addDoc
 } from 'firebase/firestore';
-import { PIPELINE_STAGES, STATUS_COLORS, CLOSING_STATUSES } from '../constants';
+import { PIPELINE_STAGES, STATUS_COLORS, CLOSING_STATUSES, ALL_STATUSES } from '../constants';
 import { normalizeCity, getMainCitiesOptions } from '../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from '../utils/interestAreaNormalizer';
@@ -25,7 +25,8 @@ export default function CandidateProfilePage({
   statusMovements = [],
   onUpdateCandidate,
   onCreateApplication,
-  onScheduleInterview
+  onScheduleInterview,
+  onStatusChange
 }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -499,12 +500,48 @@ export default function CandidateProfilePage({
                 </h2>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status Atual</p>
-                    <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${
-                      STATUS_COLORS[candidate.status] || 'bg-slate-600 text-white'
-                    }`}>
-                      {candidate.status || 'Inscrito'}
-                    </span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Status Atual</p>
+                    {isEditing ? (
+                      <select
+                        value={editData.status || candidate.status || 'Inscrito'}
+                        onChange={(e) => {
+                          handleFieldChange('status', e.target.value);
+                          // Se onStatusChange estiver disponível, chama imediatamente
+                          if (onStatusChange && e.target.value !== (candidate.status || 'Inscrito')) {
+                            onStatusChange(candidate.id, e.target.value);
+                          }
+                        }}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors cursor-pointer ${
+                          STATUS_COLORS[editData.status || candidate.status] || 'bg-slate-600 text-white border-slate-600'
+                        } hover:opacity-80`}
+                      >
+                        {ALL_STATUSES.map(status => (
+                          <option key={status} value={status} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    ) : onStatusChange ? (
+                      <select
+                        value={candidate.status || 'Inscrito'}
+                        onChange={(e) => onStatusChange(candidate.id, e.target.value)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors cursor-pointer ${
+                          STATUS_COLORS[candidate.status] || 'bg-slate-600 text-white border-slate-600'
+                        } hover:opacity-80`}
+                      >
+                        {ALL_STATUSES.map(status => (
+                          <option key={status} value={status} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${
+                        STATUS_COLORS[candidate.status] || 'bg-slate-600 text-white'
+                      }`}>
+                        {candidate.status || 'Inscrito'}
+                      </span>
+                    )}
                   </div>
                   {candidate.source && (
                     <div>
