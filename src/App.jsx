@@ -34,6 +34,7 @@ import SettingsPage from './components/SettingsPage';
 import InterviewModal from './components/modals/InterviewModal';
 import CsvImportModal from './components/modals/CsvImportModal';
 import JobCandidatesModal from './components/modals/JobsCandidateModal';
+import DashboardCandidatesModal from './components/modals/DashboardCandidatesModal';
 import ApplicationsPage from './components/ApplicationsPage';
 import ReportsPage from './components/ReportsPage';
 import HelpPage from './components/HelpPage';
