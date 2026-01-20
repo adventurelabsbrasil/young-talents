@@ -877,10 +877,82 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
   });
   const [showCustomPeriod, setShowCustomPeriod] = React.useState(filters.createdAtPreset === 'custom');
   const [expandedFilters, setExpandedFilters] = React.useState({});
+  const [lastSearchTexts, setLastSearchTexts] = React.useState({});
   
   React.useEffect(() => {
     setShowCustomPeriod(filters.createdAtPreset === 'custom');
   }, [filters.createdAtPreset]);
+
+  // Pré-selecionar automaticamente resultados filtrados quando há busca
+  React.useEffect(() => {
+    const fieldsWithSearch = ['city', 'interestAreas', 'source', 'schoolingLevel', 'tags'];
+    const timeouts = [];
+    
+    fieldsWithSearch.forEach(field => {
+      const searchText = searchTexts[field];
+      const lastSearch = lastSearchTexts[field];
+      
+      // Só pré-seleciona se o texto mudou e há resultados
+      if (searchText && searchText !== lastSearch && searchText.length > 0) {
+        // Aguarda um pequeno delay para evitar múltiplas atualizações
+        const timeoutId = setTimeout(() => {
+          // Busca as opções filtradas
+          let filteredOptions = [];
+          
+          if (field === 'city') {
+            const allOptions = (options.cities && options.cities.length > 0) 
+              ? options.cities.map(c => ({id: c.id, name: c.name})) 
+              : Array.from(new Set(candidates.map(x => x.city).filter(Boolean))).map((n, i) => ({id: i, name: n}));
+            filteredOptions = filterBySearch(sortAlphabetically(allOptions), searchText);
+          } else if (field === 'interestAreas') {
+            const allOptions = (options.interestAreas && options.interestAreas.length > 0) 
+              ? options.interestAreas.map(i => ({id: i.id, name: i.name})) 
+              : Array.from(new Set(candidates.map(x => x.interestAreas).filter(Boolean))).map((n, i) => ({id: i, name: n}));
+            filteredOptions = filterBySearch(sortAlphabetically(allOptions), searchText);
+          } else if (field === 'source') {
+            const allOptions = (options.origins && options.origins.length > 0) 
+              ? options.origins.map(o => ({id: o.id, name: o.name})) 
+              : Array.from(new Set(candidates.map(x => x.source).filter(Boolean))).map((n, i) => ({id: i, name: n}));
+            filteredOptions = filterBySearch(sortAlphabetically(allOptions), searchText);
+          } else if (field === 'schoolingLevel') {
+            const allOptions = (options.schooling && options.schooling.length > 0) 
+              ? options.schooling.map(s => ({id: s.id, name: s.name})) 
+              : Array.from(new Set(candidates.map(x => x.schoolingLevel).filter(Boolean))).map((n, i) => ({id: i, name: n}));
+            filteredOptions = filterBySearch(sortAlphabetically(allOptions), searchText);
+          } else if (field === 'tags') {
+            const allTags = new Set();
+            candidates.forEach(c => {
+              if (c.tags && Array.isArray(c.tags)) {
+                c.tags.forEach(tag => allTags.add(tag));
+              }
+              if (c.importTag) allTags.add(c.importTag);
+            });
+            const allOptions = sortAlphabetically(Array.from(allTags).map((t, i) => ({ id: i, name: t })));
+            filteredOptions = filterBySearch(allOptions, searchText);
+          }
+          
+          // Pré-seleciona os resultados filtrados
+          if (filteredOptions.length > 0) {
+            const matchingNames = filteredOptions.map(o => o.name);
+            const currentValues = Array.isArray(filters[field]) ? filters[field] : (filters[field] && filters[field] !== 'all' ? [filters[field]] : []);
+            const newValues = [...new Set([...currentValues, ...matchingNames])];
+            setFilters(prev => ({
+              ...prev,
+              [field]: newValues.length > 0 ? newValues : 'all'
+            }));
+          }
+          
+          setLastSearchTexts(prev => ({ ...prev, [field]: searchText }));
+        }, 500); // Delay de 500ms para evitar múltiplas atualizações
+        
+        timeouts.push(timeoutId);
+      }
+    });
+    
+    return () => {
+      timeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    };
+  }, [searchTexts, filters, options, candidates, lastSearchTexts]);
   
   if (!isOpen) return null;
   
@@ -918,6 +990,36 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
       ...filters,
       [field]: newValues.length > 0 ? newValues : 'all'
     });
+  };
+
+  // Função para marcar todos os resultados filtrados
+  const handleSelectAllFiltered = (field, filteredOptions) => {
+    const matchingNames = filteredOptions.map(o => o.name);
+    const currentValues = Array.isArray(filters[field]) ? filters[field] : (filters[field] && filters[field] !== 'all' ? [filters[field]] : []);
+    const newValues = [...new Set([...currentValues, ...matchingNames])];
+    setFilters({
+      ...filters,
+      [field]: newValues.length > 0 ? newValues : 'all'
+    });
+  };
+
+  // Função para desmarcar todos os resultados filtrados
+  const handleDeselectAllFiltered = (field, filteredOptions) => {
+    const matchingNames = filteredOptions.map(o => o.name);
+    const currentValues = Array.isArray(filters[field]) ? filters[field] : (filters[field] && filters[field] !== 'all' ? [filters[field]] : []);
+    const newValues = currentValues.filter(v => !matchingNames.includes(v));
+    setFilters({
+      ...filters,
+      [field]: newValues.length > 0 ? newValues : 'all'
+    });
+  };
+
+  // Função para verificar se todos os resultados filtrados estão selecionados
+  const areAllFilteredSelected = (field, filteredOptions) => {
+    if (!filteredOptions || filteredOptions.length === 0) return false;
+    const currentValues = Array.isArray(filters[field]) ? filters[field] : (filters[field] && filters[field] !== 'all' ? [filters[field]] : []);
+    const matchingNames = filteredOptions.map(o => o.name);
+    return matchingNames.every(name => currentValues.includes(name));
   };
 
   // Função para verificar se um valor está selecionado
@@ -1256,20 +1358,37 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                        className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                        placeholder={`Buscar ${field.label.replace(':', '').toLowerCase()}...`}
                        value={searchTexts[field.value] || ''}
-                       onChange={e => setSearchTexts({...searchTexts, [field.value]: e.target.value})}
+                       onChange={e => {
+                         const searchValue = e.target.value;
+                         setSearchTexts({...searchTexts, [field.value]: searchValue});
+                       }}
+                       onKeyDown={(e) => {
+                         // Ao pressionar Enter, pré-seleciona todos os resultados filtrados
+                         if (e.key === 'Enter' && searchTexts[field.value] && optionsList.length > 0) {
+                           e.preventDefault();
+                           handleSelectAllFiltered(field.value, optionsList);
+                         }
+                       }}
                      />
-                     {field.value === 'interestAreas' && searchTexts.interestAreas && optionsList.length > 0 && (
-                       <button
-                         onClick={() => {
-                           const matchingNames = optionsList.map(o => o.name);
-                           const currentValues = Array.isArray(filters.interestAreas) ? filters.interestAreas : (filters.interestAreas && filters.interestAreas !== 'all' ? [filters.interestAreas] : []);
-                           const newValues = [...new Set([...currentValues, ...matchingNames])];
-                           setFilters({...filters, interestAreas: newValues.length > 0 ? newValues : 'all'});
-                         }}
-                         className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
-                       >
-                         Selecionar Todos ({optionsList.length}) que contêm "{searchTexts.interestAreas}"
-                       </button>
+                     {searchTexts[field.value] && optionsList.length > 0 && (
+                       <div className="mt-2 flex gap-2">
+                         <button
+                           onClick={() => handleSelectAllFiltered(field.value, optionsList)}
+                           className={`flex-1 px-3 py-1.5 text-white text-xs font-medium rounded transition-colors ${
+                             areAllFilteredSelected(field.value, optionsList)
+                               ? 'bg-green-600 hover:bg-green-700'
+                               : 'bg-blue-600 hover:bg-blue-700'
+                           }`}
+                         >
+                           {areAllFilteredSelected(field.value, optionsList) ? '✓ Todos Selecionados' : `Marcar Todos (${optionsList.length})`}
+                         </button>
+                         <button
+                           onClick={() => handleDeselectAllFiltered(field.value, optionsList)}
+                           className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
+                         >
+                           Desmarcar Todos
+                         </button>
+                       </div>
                      )}
                    </div>
                  )}
@@ -1381,8 +1500,42 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                   className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-2"
                   placeholder="Buscar tags..."
                   value={searchTexts.tags || ''}
-                  onChange={e => setSearchTexts({...searchTexts, tags: e.target.value})}
+                  onChange={e => {
+                    const searchValue = e.target.value;
+                    setSearchTexts({...searchTexts, tags: searchValue});
+                    
+                    // Pré-selecionar automaticamente os resultados filtrados
+                    if (searchValue && filteredTags.length > 0) {
+                      const matchingNames = filteredTags.map(t => t.name);
+                      const currentValues = Array.isArray(filters.tags) ? filters.tags : (filters.tags && filters.tags !== 'all' ? [filters.tags] : []);
+                      const newValues = [...new Set([...currentValues, ...matchingNames])];
+                      setFilters({
+                        ...filters,
+                        tags: newValues.length > 0 ? newValues : 'all'
+                      });
+                    }
+                  }}
                 />
+                {searchTexts.tags && filteredTags.length > 0 && (
+                  <div className="mb-2 flex gap-2">
+                    <button
+                      onClick={() => handleSelectAllFiltered('tags', filteredTags)}
+                      className={`flex-1 px-3 py-1.5 text-white text-xs font-medium rounded transition-colors ${
+                        areAllFilteredSelected('tags', filteredTags)
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
+                    >
+                      {areAllFilteredSelected('tags', filteredTags) ? '✓ Todos Selecionados' : `Marcar Todos (${filteredTags.length})`}
+                    </button>
+                    <button
+                      onClick={() => handleDeselectAllFiltered('tags', filteredTags)}
+                      className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
+                    >
+                      Desmarcar Todos
+                    </button>
+                  </div>
+                )}
                 {expandedFilters.tags ? (
                   <div className="max-h-48 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
                     <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
