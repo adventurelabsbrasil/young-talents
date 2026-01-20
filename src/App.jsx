@@ -1902,6 +1902,7 @@ export default function App() {
 
   // Inicializar URL se necessário
   useEffect(() => {
+    // Redirecionar rota raiz para dashboard
     if (location.pathname === '/' || location.pathname === '') {
       navigate('/dashboard', { replace: true });
     }

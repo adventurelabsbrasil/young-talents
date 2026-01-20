@@ -153,10 +153,14 @@ VITE_FIREBASE_APP_ID=seu_app_id
 
 ### 🔧 Para Desenvolvedores / Administradores
 
+#### Navegação e Rotas
+- [docs/ROTAS_E_NAVEGACAO.md](./docs/ROTAS_E_NAVEGACAO.md) - **Guia completo de rotas e navegação** - Todas as URLs e slugs do sistema
+
 #### Configuração e Integração
 - [GUIA_APPS_SCRIPT.md](./GUIA_APPS_SCRIPT.md) - **Configuração do Google Apps Script** (Forms → Firebase)
   - Script oficial: `assets/.APPSCRIPT.txt`
-  - ⚠️ **Nota:** O arquivo `Code.gs` na raiz é **LEGADO** - não usar
+  - ⚠️ **Nota:** O arquivo `Code.gs` em `assets/legacy/` é **LEGADO** - não usar
+- [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md) - Como criar usuário administrador no Firebase
 
 #### Importação e Normalização de Dados
 - [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Guia de importação de dados via CSV/XLSX
@@ -166,9 +170,8 @@ VITE_FIREBASE_APP_ID=seu_app_id
 - [CONFIGURACAO_VERCEL.md](./CONFIGURACAO_VERCEL.md) - Configuração de variáveis de ambiente no Vercel
 - [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Solução de problemas de autenticação Google
 
-#### Documentação Técnica (Histórico)
-- [TECHNICAL_CHANGES.md](./TECHNICAL_CHANGES.md) - Registro de mudanças técnicas
-- [TESTE_COMPLETO.md](./TESTE_COMPLETO.md) - Plano de testes e checklist
+#### Documentação Arquivada
+- [docs/arquivado/](./docs/arquivado/) - Documentos históricos e de teste arquivados
 
 ## 🛠️ Scripts Disponíveis
 
@@ -229,7 +232,20 @@ Proprietário - Young Talents
 
 ## 🔧 Melhorias e Correções Recentes
 
-### ✨ Funcionalidades Adicionadas
+### ✨ Funcionalidades Adicionadas (v2.1.0)
+- ✅ **Página de Perfil do Candidato**: Página dedicada (`/candidate/:id`) com dashboard, abas e histórico completo
+- ✅ **Sistema de Match**: Cálculo automático de compatibilidade entre candidatos e vagas
+- ✅ **Dashboard Interativo**: Scorecards clicáveis que abrem modais com listas de candidatos
+- ✅ **Sistema de Permissões**: Controle de acesso por roles (admin, recruiter, viewer)
+- ✅ **Login Email/Senha**: Autenticação tradicional além do Google Login
+- ✅ **Filtros Inteligentes**: Busca e seleção em massa para filtros multi-seleção
+- ✅ **Data de Criação**: Exibida em tabelas e cards da pipeline
+- ✅ **Paginação "Load More"**: Sistema de carregamento progressivo no Kanban
+- ✅ **Validação de Movimentação**: Avisos ao tentar mover candidato sem candidatura vinculada
+- ✅ **Cidades dos Candidatos**: Priorização de cidades existentes no cadastro de vagas
+- ✅ **Gráficos Melhorados**: Animações, gradientes, legendas clicáveis e tooltips com melhor contraste
+
+### ✨ Funcionalidades Anteriores (v2.0.0)
 - ✅ **Menu de Avanço de Etapa**: Menu destacado no formulário de candidato para avançar etapas rapidamente
 - ✅ **Coluna de Data de Cadastro**: Adicionada na tabela de banco de talentos com ordenação
 - ✅ **Cadastro de Empresas Completo**: Com campos de cidade e área de interesse
@@ -240,7 +256,12 @@ Proprietário - Young Talents
 - ✅ **Histórico de Ações**: Sistema completo de rastreamento de operações
 - ✅ **Exportação de Dados**: Exportação de candidatos e vagas em CSV/XLSX
 
-### 🐛 Correções
+### 🐛 Correções Recentes
+- ✅ **Modal do Dashboard**: Corrigido tela escura ao clicar em scorecards
+- ✅ **Timestamps do AppScript**: Melhorada conversão para formato Firestore correto
+- ✅ **Leitura de Timestamps**: Suporte para múltiplos formatos do Firebase SDK
+- ✅ **Página de Vagas**: Simplificada com botão centralizado e dropdown em vez de abas
+- ✅ **Validação de Status**: Avisos ao tentar avançar etapa sem candidatura vinculada
 - ✅ **Filtros de Período**: Corrigido funcionamento com campo createdAt
 - ✅ **Soft Delete**: Registros deletados não aparecem mais nas listas
 - ✅ **Contraste Visual**: Tags, etapas e cabeçalhos com melhor visibilidade
@@ -253,5 +274,5 @@ Proprietário - Young Talents
 
 **Status:** ✅ Pronto para Produção
 
-**Versão:** 2.0.0  
-**Última atualização:** Dezembro 2025
+**Versão:** 2.1.0  
+**Última atualização:** Janeiro 2025
