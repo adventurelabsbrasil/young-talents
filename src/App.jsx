@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
@@ -77,11 +77,53 @@ const Dashboard = ({
 }) => {
   // Garante que sempre exista uma variável local `applications`
   const applications = applicationsProp || [];
-  const [periodFilter, setPeriodFilter] = useState('7d'); // Filtro de período para gráficos
+  const [periodFilter, setPeriodFilter] = useState('today'); // Filtro de período para gráficos (padrão: Hoje)
+  const [showCustomPeriod, setShowCustomPeriod] = useState(false);
+  const [customDateStart, setCustomDateStart] = useState('');
+  const [customDateEnd, setCustomDateEnd] = useState('');
   
+  // Filtrar candidatos por período para scorecards
+  const filteredCandidatesByPeriod = useMemo(() => {
+    if (periodFilter === 'all') return filteredCandidates;
+    if (periodFilter === 'custom' && customDateStart && customDateEnd) {
+      const startDate = new Date(customDateStart).getTime() / 1000;
+      const endDate = new Date(customDateEnd).getTime() / 1000 + 86400;
+      return filteredCandidates.filter(c => {
+        const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+        if (!ts) return false;
+        return ts >= startDate && ts <= endDate;
+      });
+    }
+    
+    const now = Date.now() / 1000;
+    const periods = {
+      'today': 1 * 24 * 60 * 60,
+      '7d': 7 * 24 * 60 * 60,
+      '30d': 30 * 24 * 60 * 60,
+      '90d': 90 * 24 * 60 * 60
+    };
+    
+    const cutoff = now - (periods[periodFilter] || 0);
+    
+    return filteredCandidates.filter(c => {
+      const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+      if (!ts) return false;
+      return ts >= cutoff;
+    });
+  }, [filteredCandidates, periodFilter, customDateStart, customDateEnd]);
+
   // Filtrar statusMovements por período
   const filteredMovements = useMemo(() => {
     if (!periodFilter || periodFilter === 'all') return statusMovements;
+    if (periodFilter === 'custom' && customDateStart && customDateEnd) {
+      const startDate = new Date(customDateStart).getTime();
+      const endDate = new Date(customDateEnd).getTime() + 86400000;
+      return statusMovements.filter(m => {
+        const ts = m.timestamp?.seconds || m.timestamp?._seconds || 0;
+        const timestampMs = ts * 1000;
+        return timestampMs >= startDate && timestampMs <= endDate;
+      });
+    }
     
     const now = Date.now();
     const periods = {
@@ -97,7 +139,7 @@ const Dashboard = ({
       const ts = m.timestamp?.seconds || m.timestamp?._seconds || 0;
       return ts * 1000 >= cutoff;
     });
-  }, [statusMovements, periodFilter]);
+  }, [statusMovements, periodFilter, customDateStart, customDateEnd]);
   
   // Próximas entrevistas (apenas futuras e não canceladas)
   const upcomingInterviews = useMemo(() => {
@@ -117,16 +159,16 @@ const Dashboard = ({
       })
       .slice(0, 5); // Mostrar apenas as 5 próximas
   }, [interviews]);
-  // Dados para gráficos - ordenados por status do pipeline
+  // Dados para gráficos - ordenados por status do pipeline (usando candidatos filtrados por período)
   const statusData = useMemo(() => {
     const counts = {};
     PIPELINE_STAGES.forEach(stage => {
-      counts[stage] = filteredCandidates.filter(c => (c.status || 'Inscrito') === stage).length;
+      counts[stage] = filteredCandidatesByPeriod.filter(c => (c.status || 'Inscrito') === stage).length;
     });
-    counts['Contratado'] = filteredCandidates.filter(c => c.status === 'Contratado').length;
-    counts['Reprovado'] = filteredCandidates.filter(c => c.status === 'Reprovado').length;
+    counts['Contratado'] = filteredCandidatesByPeriod.filter(c => c.status === 'Contratado').length;
+    counts['Reprovado'] = filteredCandidatesByPeriod.filter(c => c.status === 'Reprovado').length;
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [filteredCandidates]);
+  }, [filteredCandidatesByPeriod]);
 
   // Calcular taxas de conversão BASEADAS NAS MOVIMENTAÇÕES REAIS
   // Conta quantos candidatos fizeram a transição de uma etapa para outra
@@ -145,8 +187,8 @@ const Dashboard = ({
         // Conta movimentações que foram PARA a próxima etapa (filtradas por período)
         const movedTo = filteredMovements.filter(m => m.previousStatus === fromStage && m.newStatus === toStage).length;
         
-        // Também considera os que estão atualmente nesta etapa
-        const currentInStage = filteredCandidates.filter(c => (c.status || 'Inscrito') === fromStage).length;
+        // Também considera os que estão atualmente nesta etapa (usando candidatos filtrados por período)
+        const currentInStage = filteredCandidatesByPeriod.filter(c => (c.status || 'Inscrito') === fromStage).length;
         const totalPassed = movedFrom + currentInStage;
         
         const rate = totalPassed > 0 ? ((movedTo / totalPassed) * 100).toFixed(1) : 0;
@@ -163,8 +205,8 @@ const Dashboard = ({
     } else {
       // Fallback: cálculo simplificado baseado no status atual (menos preciso)
       for (let i = 0; i < stages.length - 1; i++) {
-        const current = filteredCandidates.filter(c => c.status === stages[i]).length;
-        const next = filteredCandidates.filter(c => c.status === stages[i + 1]).length;
+        const current = filteredCandidatesByPeriod.filter(c => c.status === stages[i]).length;
+        const next = filteredCandidatesByPeriod.filter(c => c.status === stages[i + 1]).length;
         const rate = current > 0 ? ((next / current) * 100).toFixed(1) : 0;
         rates.push({
           from: stages[i],
@@ -177,7 +219,7 @@ const Dashboard = ({
       }
     }
     return rates;
-  }, [filteredCandidates, filteredMovements]);
+  }, [filteredCandidatesByPeriod, filteredMovements]);
 
   // Total de movimentações registradas (para mostrar indicador)
   const totalMovements = filteredMovements.length;
@@ -196,7 +238,7 @@ const Dashboard = ({
 
   const areaData = useMemo(() => {
     const areas = {};
-    filteredCandidates.forEach(c => {
+    filteredCandidatesByPeriod.forEach(c => {
       if (c.interestAreas) {
         // Dividir áreas por vírgula e contar individualmente
         const areasList = c.interestAreas.split(',').map(a => a.trim()).filter(a => a);
@@ -219,7 +261,7 @@ const Dashboard = ({
   // Cidades ordenadas do maior para o menor
   const cityData = useMemo(() => {
     const cities = {};
-    filteredCandidates.forEach(c => {
+    filteredCandidatesByPeriod.forEach(c => {
       if (c.city) {
         cities[c.city] = (cities[c.city] || 0) + 1;
       }
@@ -232,7 +274,7 @@ const Dashboard = ({
 
   const originData = useMemo(() => {
     const origins = {};
-    filteredCandidates.forEach(c => {
+    filteredCandidatesByPeriod.forEach(c => {
       if (c.source) origins[c.source] = (origins[c.source] || 0) + 1;
     });
     const total = filteredCandidates.length;
@@ -247,7 +289,7 @@ const Dashboard = ({
   }, [filteredCandidates]);
 
   const missingReturnCount = useMemo(() => {
-    return filteredCandidates.filter(c => {
+    return filteredCandidatesByPeriod.filter(c => {
       const isSelectionStage = c.status === 'Seleção' || c.status === 'Selecionado';
       const needsReturn = !c.returnSent || c.returnSent === 'Pendente' || c.returnSent === 'Não';
       return isSelectionStage && needsReturn;
@@ -261,10 +303,10 @@ const Dashboard = ({
   };
 
   const candidateStats = {
-    total: filteredCandidates.length,
-    hired: filteredCandidates.filter(c => c.status === 'Contratado').length,
-    rejected: filteredCandidates.filter(c => c.status === 'Reprovado').length,
-    active: filteredCandidates.filter(c => PIPELINE_STAGES.includes(c.status || 'Inscrito')).length,
+    total: filteredCandidatesByPeriod.length,
+    hired: filteredCandidatesByPeriod.filter(c => c.status === 'Contratado').length,
+    rejected: filteredCandidatesByPeriod.filter(c => c.status === 'Reprovado').length,
+    active: filteredCandidatesByPeriod.filter(c => PIPELINE_STAGES.includes(c.status || 'Inscrito')).length,
   };
 
   // Taxa de conversão geral (Inscrito -> Contratado)
@@ -277,13 +319,46 @@ const Dashboard = ({
     return `${value} (${percentage}%)`;
   };
 
-  // Tooltip customizado
+  // Tooltip customizado com melhor contraste para light e dark mode
   const tooltipStyle = {
-    backgroundColor: '#1e293b', 
-    border: '1px solid #475569', 
+    backgroundColor: 'rgba(15, 23, 42, 0.95)', // slate-900 com opacidade
+    border: '2px solid #3b82f6', // blue-500
     borderRadius: '8px', 
-    color: '#e2e8f0',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+    color: '#f1f5f9', // slate-100 - texto claro
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)',
+    padding: '12px',
+    fontSize: '14px',
+    fontWeight: '500'
+  };
+
+  // Estados para controlar visibilidade das séries (legendas clicáveis)
+  const [visibleAreaSeries, setVisibleAreaSeries] = useState(new Set());
+  const [visibleOriginSeries, setVisibleOriginSeries] = useState(new Set());
+
+  // Função para gerar gradientes SVG
+  const generateGradient = (id, color1, color2) => {
+    return (
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color1} stopOpacity={1} />
+          <stop offset="100%" stopColor={color2} stopOpacity={1} />
+        </linearGradient>
+      </defs>
+    );
+  };
+
+  // Função para obter cor com gradiente ou sólida
+  const getGradientColor = (baseColor, index) => {
+    const gradients = {
+      '#4285F4': ['#4285F4', '#1a56db'], // Blue
+      '#34A853': ['#34A853', '#15803d'], // Green
+      '#FBBC04': ['#FBBC04', '#d97706'], // Yellow
+      '#EA4335': ['#EA4335', '#dc2626'], // Red
+      '#00BCD4': ['#00BCD4', '#0891b2'], // Cyan
+      '#9C27B0': ['#9C27B0', '#7c3aed'], // Purple
+    };
+    const [light, dark] = gradients[baseColor] || [baseColor, baseColor];
+    return `url(#gradient-${index})`;
   };
 
   return (
@@ -294,15 +369,43 @@ const Dashboard = ({
           <label className="text-sm text-gray-600 dark:text-gray-400">Período:</label>
           <select
             value={periodFilter}
-            onChange={e => setPeriodFilter(e.target.value)}
+            onChange={e => {
+              const value = e.target.value;
+              setPeriodFilter(value);
+              setShowCustomPeriod(value === 'custom');
+              if (value !== 'custom') {
+                setCustomDateStart('');
+                setCustomDateEnd('');
+              }
+            }}
             className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           >
-            <option value="all">Todo o período</option>
             <option value="today">Hoje</option>
+            <option value="all">Todo o período</option>
             <option value="7d">Últimos 7 dias</option>
             <option value="30d">Últimos 30 dias</option>
             <option value="90d">Últimos 90 dias</option>
+            <option value="custom">Período personalizado</option>
           </select>
+          {showCustomPeriod && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customDateStart}
+                onChange={e => setCustomDateStart(e.target.value)}
+                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                placeholder="Data inicial"
+              />
+              <span className="text-gray-600 dark:text-gray-400">até</span>
+              <input
+                type="date"
+                value={customDateEnd}
+                onChange={e => setCustomDateEnd(e.target.value)}
+                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                placeholder="Data final"
+              />
+            </div>
+          )}
         </div>
       </div>
       
@@ -484,6 +587,12 @@ const Dashboard = ({
           {statusData.some(d => d.value > 0) ? (
             <ResponsiveContainer width="100%" height={380}>
               <BarChart data={statusDataWithConversion} layout="vertical" margin={{ top: 5, right: 80, left: 180, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="gradient-status" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#4285F4" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#1a56db" stopOpacity={1} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
                 <XAxis type="number" stroke="#94a3b8" />
                 <YAxis type="category" dataKey="name" stroke="#94a3b8" width={170} tick={{ fontSize: 12 }}/>
@@ -500,8 +609,11 @@ const Dashboard = ({
                 />
                 <Bar 
                   dataKey="value" 
-                  fill="#4285F4" 
+                  fill="url(#gradient-status)" 
                   radius={[0, 8, 8, 0]}
+                  isAnimationActive={true}
+                  animationBegin={0}
+                  animationDuration={800}
                   label={{ 
                     position: 'right', 
                     fill: '#94a3b8', 
@@ -525,8 +637,27 @@ const Dashboard = ({
           {areaData.length > 0 && areaData.some(d => d.value > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
+                <defs>
+                  {areaData.filter(d => d.value > 0).map((entry, index) => {
+                    const baseColor = COLORS[index % COLORS.length];
+                    const gradients = {
+                      '#4285F4': ['#4285F4', '#1a56db'],
+                      '#34A853': ['#34A853', '#15803d'],
+                      '#FBBC04': ['#FBBC04', '#d97706'],
+                      '#EA4335': ['#EA4335', '#dc2626'],
+                      '#00BCD4': ['#00BCD4', '#0891b2'],
+                    };
+                    const [light, dark] = gradients[baseColor] || [baseColor, baseColor];
+                    return (
+                      <linearGradient key={`gradient-area-${index}`} id={`gradient-area-${index}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={light} stopOpacity={1} />
+                        <stop offset="100%" stopColor={dark} stopOpacity={1} />
+                      </linearGradient>
+                    );
+                  })}
+                </defs>
                 <Pie 
-                  data={areaData.filter(d => d.value > 0)} 
+                  data={areaData.filter(d => d.value > 0 && (visibleAreaSeries.size === 0 || visibleAreaSeries.has(d.name)))} 
                   cx="50%" 
                   cy="45%" 
                   innerRadius={60}
@@ -535,10 +666,20 @@ const Dashboard = ({
                   dataKey="value"
                   labelLine={false}
                   label={({ value, percentage }) => `${value} (${percentage}%)`}
+                  isAnimationActive={true}
+                  animationBegin={0}
+                  animationDuration={800}
                 >
-                  {areaData.filter(d => d.value > 0).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]}/>
-                  ))}
+                  {areaData.filter(d => d.value > 0).map((entry, index) => {
+                    const isVisible = visibleAreaSeries.size === 0 || visibleAreaSeries.has(entry.name);
+                    return (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={isVisible ? `url(#gradient-area-${index})` : '#e5e7eb'}
+                        opacity={isVisible ? 1 : 0.3}
+                      />
+                    );
+                  })}
                 </Pie>
                 <Tooltip 
                   contentStyle={tooltipStyle}
@@ -547,7 +688,19 @@ const Dashboard = ({
                 <Legend 
                   verticalAlign="bottom" 
                   height={50} 
-                  wrapperStyle={{ fontSize: 11 }}
+                  wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
+                  onClick={(e) => {
+                    const name = e.value;
+                    setVisibleAreaSeries(prev => {
+                      const newSet = new Set(prev);
+                      if (newSet.has(name)) {
+                        newSet.delete(name);
+                      } else {
+                        newSet.add(name);
+                      }
+                      return newSet;
+                    });
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -562,8 +715,27 @@ const Dashboard = ({
           {originData.length > 0 && originData.some(d => d.value > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
+                <defs>
+                  {originData.filter(d => d.value > 0).map((entry, index) => {
+                    const baseColor = COLORS[index % COLORS.length];
+                    const gradients = {
+                      '#4285F4': ['#4285F4', '#1a56db'],
+                      '#34A853': ['#34A853', '#15803d'],
+                      '#FBBC04': ['#FBBC04', '#d97706'],
+                      '#EA4335': ['#EA4335', '#dc2626'],
+                      '#00BCD4': ['#00BCD4', '#0891b2'],
+                    };
+                    const [light, dark] = gradients[baseColor] || [baseColor, baseColor];
+                    return (
+                      <linearGradient key={`gradient-origin-${index}`} id={`gradient-origin-${index}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={light} stopOpacity={1} />
+                        <stop offset="100%" stopColor={dark} stopOpacity={1} />
+                      </linearGradient>
+                    );
+                  })}
+                </defs>
                 <Pie 
-                  data={originData.filter(d => d.value > 0)} 
+                  data={originData.filter(d => d.value > 0 && (visibleOriginSeries.size === 0 || visibleOriginSeries.has(d.name)))} 
                   cx="50%" 
                   cy="45%" 
                   innerRadius={60}
@@ -572,10 +744,20 @@ const Dashboard = ({
                   dataKey="value"
                   labelLine={false}
                   label={({ value, percentage }) => `${value} (${percentage}%)`}
+                  isAnimationActive={true}
+                  animationBegin={0}
+                  animationDuration={800}
                 >
-                  {originData.filter(d => d.value > 0).map((entry, index) => (
-                    <Cell key={`cell-origin-${index}`} fill={COLORS[index % COLORS.length]}/>
-                  ))}
+                  {originData.filter(d => d.value > 0).map((entry, index) => {
+                    const isVisible = visibleOriginSeries.size === 0 || visibleOriginSeries.has(entry.name);
+                    return (
+                      <Cell 
+                        key={`cell-origin-${index}`} 
+                        fill={isVisible ? `url(#gradient-origin-${index})` : '#e5e7eb'}
+                        opacity={isVisible ? 1 : 0.3}
+                      />
+                    );
+                  })}
                 </Pie>
                 <Tooltip 
                   contentStyle={tooltipStyle}
@@ -584,7 +766,19 @@ const Dashboard = ({
                 <Legend 
                   verticalAlign="bottom" 
                   height={50} 
-                  wrapperStyle={{ fontSize: 11 }}
+                  wrapperStyle={{ fontSize: 11, cursor: 'pointer' }}
+                  onClick={(e) => {
+                    const name = e.value;
+                    setVisibleOriginSeries(prev => {
+                      const newSet = new Set(prev);
+                      if (newSet.has(name)) {
+                        newSet.delete(name);
+                      } else {
+                        newSet.add(name);
+                      }
+                      return newSet;
+                    });
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -599,6 +793,12 @@ const Dashboard = ({
           {cityData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={cityData} layout="vertical" margin={{top: 5, right: 30, left: 200, bottom: 5}}>
+                <defs>
+                  <linearGradient id="gradient-city" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#00BCD4" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#0891b2" stopOpacity={1} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
                 <XAxis type="number" stroke="#94a3b8"/>
                 <YAxis type="category" dataKey="name" stroke="#94a3b8" width={190} tick={{fontSize: 12}}/>
@@ -608,9 +808,18 @@ const Dashboard = ({
                 />
                 <Bar 
                   dataKey="value" 
-                  fill="#00BCD4" 
+                  fill="url(#gradient-city)" 
                   radius={[0, 8, 8, 0]}
-                  label={{ position: 'right', fill: '#94a3b8', fontSize: 12 }}
+                  isAnimationActive={true}
+                  animationBegin={0}
+                  animationDuration={800}
+                  label={{ 
+                    position: 'inside', 
+                    fill: '#ffffff', 
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    formatter: (value) => value
+                  }}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -632,6 +841,20 @@ const Dashboard = ({
                 ]} 
                 margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
               >
+                <defs>
+                  <linearGradient id="gradient-jobs-open" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#FBBC04" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#d97706" stopOpacity={1} />
+                  </linearGradient>
+                  <linearGradient id="gradient-jobs-filled" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34A853" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#15803d" stopOpacity={1} />
+                  </linearGradient>
+                  <linearGradient id="gradient-jobs-closed" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#9E9E9E" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#6b7280" stopOpacity={1} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
                 <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 12 }}/>
                 <YAxis stroke="#94a3b8"/>
@@ -640,13 +863,16 @@ const Dashboard = ({
                   cursor={{ fill: 'rgba(255,255,255,0.1)' }}
                 />
                 <Bar 
-                dataKey="value"
+                  dataKey="value"
                   radius={[8, 8, 0, 0]}
+                  isAnimationActive={true}
+                  animationBegin={0}
+                  animationDuration={800}
                   label={{ position: 'top', fill: '#94a3b8', fontSize: 14, fontWeight: 'bold' }}
                 >
-                  <Cell fill="#FBBC04"/>
-                  <Cell fill="#34A853"/>
-                  <Cell fill="#9E9E9E"/>
+                  <Cell fill="url(#gradient-jobs-open)"/>
+                  <Cell fill="url(#gradient-jobs-filled)"/>
+                  <Cell fill="url(#gradient-jobs-closed)"/>
                 </Bar>
               </BarChart>
           </ResponsiveContainer>
@@ -1605,64 +1831,59 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   
   // Sistema de Rotas usando URL
-  const getRouteFromURL = () => {
-    const params = new URLSearchParams(window.location.search);
-    let page = params.get('page') || 'dashboard';
-    return {
-      page,
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Mapear pathname para activeTab
+  const getActiveTabFromPath = () => {
+    const path = location.pathname;
+    if (path === '/' || path === '') return 'dashboard';
+    const slug = path.replace(/^\//, '').split('/')[0];
+    const validTabs = ['dashboard', 'pipeline', 'candidates', 'jobs', 'applications', 'companies', 'positions', 'sectors', 'cities', 'reports', 'help', 'settings'];
+    return validTabs.includes(slug) ? slug : 'dashboard';
+  };
+
+  const [route, setRoute] = useState({
+    page: getActiveTabFromPath(),
+    modal: new URLSearchParams(location.search).get('modal') || null,
+    id: new URLSearchParams(location.search).get('id') || null,
+    settingsTab: new URLSearchParams(location.search).get('settingsTab') || null
+  });
+  
+  const activeTab = route.page;
+  
+  // Sincronizar com mudanças de URL
+  useEffect(() => {
+    const newTab = getActiveTabFromPath();
+    const params = new URLSearchParams(location.search);
+    setRoute({
+      page: newTab,
       modal: params.get('modal') || null,
       id: params.get('id') || null,
-      settingsTab: params.get('settingsTab') || (page === 'settings' ? 'campos' : null)
-    };
-  };
-
-  const updateURL = (updates) => {
-    const params = new URLSearchParams(window.location.search);
-    Object.keys(updates).forEach(key => {
-      if (updates[key]) {
-        params.set(key, updates[key]);
-      } else {
-        params.delete(key);
-      }
+      settingsTab: params.get('settingsTab') || null
     });
-    const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
-    window.history.pushState({}, '', newURL);
-  };
-
-  const [route, setRoute] = useState(getRouteFromURL());
-  const activeTab = route.page;
+  }, [location.pathname, location.search]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Para ocultar menu em desktop
 
-  // Sincronizar URL com mudanças de rota e inicializar settingsTab se necessário
+  // Inicializar URL se necessário
   useEffect(() => {
-    const handlePopState = () => {
-      setRoute(getRouteFromURL());
-    };
-    window.addEventListener('popstate', handlePopState);
-    
-    // Inicializar URL se não houver parâmetros
-    if (!window.location.search) {
-      updateURL({ page: activeTab });
+    if (location.pathname === '/' || location.pathname === '') {
+      navigate('/dashboard', { replace: true });
     }
     
     // Inicializar settingsTab na URL se estiver na página de settings
     if (activeTab === 'settings' && !route.settingsTab) {
-      updateURL({ page: activeTab, settingsTab: 'campos' });
+      const params = new URLSearchParams(location.search);
+      params.set('settingsTab', 'campos');
+      navigate(`${location.pathname}?${params.toString()}`, { replace: true });
       setRoute(prev => ({ ...prev, settingsTab: 'campos' }));
     }
-    
-    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const setActiveTab = (tab) => {
-    // Se for uma tab dentro do grupo Vagas, mantém o grupo expandido
-    if (['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(tab)) {
-      updateURL({ page: tab });
-    } else {
-      updateURL({ page: tab });
-    }
-    updateURL({ page: tab });
+    // Navegar para a slug direta
+    navigate(`/${tab}`, { replace: true });
     setRoute(prev => ({ ...prev, page: tab }));
   };
   
@@ -1707,7 +1928,6 @@ export default function App() {
   const isCsvModalOpen = route.modal === 'csv';
   const viewingJob = route.modal === 'job-candidates' && route.id ? jobs.find(j => j.id === route.id) : null;
   const [editingCandidate, setEditingCandidate] = useState(null);
-  const navigate = useNavigate();
   
   // Função para abrir perfil do candidato (redireciona para página dedicada)
   const openCandidateProfile = (candidate) => {
@@ -1728,33 +1948,41 @@ export default function App() {
   // Helpers para abrir modais com URL
   const openJobModal = (job = null) => {
     setEditingJob(job);
-    updateURL({ modal: 'job', id: job?.id || '' });
+    const params = new URLSearchParams(location.search);
+    params.set('modal', 'job');
+    if (job?.id) params.set('id', job.id);
+    navigate(`${location.pathname}?${params.toString()}`);
     setRoute(prev => ({ ...prev, modal: 'job', id: job?.id || '' }));
   };
 
   const closeJobModal = () => {
     setEditingJob(null);
-    updateURL({ modal: null, id: null });
+    navigate(location.pathname);
     setRoute(prev => ({ ...prev, modal: null, id: null }));
   };
 
   const openCsvModal = () => {
-    updateURL({ modal: 'csv' });
+    const params = new URLSearchParams(location.search);
+    params.set('modal', 'csv');
+    navigate(`${location.pathname}?${params.toString()}`);
     setRoute(prev => ({ ...prev, modal: 'csv' }));
   };
 
   const closeCsvModal = () => {
-    updateURL({ modal: null });
+    navigate(location.pathname);
     setRoute(prev => ({ ...prev, modal: null }));
   };
 
   const openJobCandidatesModal = (job) => {
-    updateURL({ modal: 'job-candidates', id: job?.id || '' });
+    const params = new URLSearchParams(location.search);
+    params.set('modal', 'job-candidates');
+    if (job?.id) params.set('id', job.id);
+    navigate(`${location.pathname}?${params.toString()}`);
     setRoute(prev => ({ ...prev, modal: 'job-candidates', id: job?.id || '' }));
   };
 
   const closeJobCandidatesModal = () => {
-    updateURL({ modal: null, id: null });
+    navigate(location.pathname);
     setRoute(prev => ({ ...prev, modal: null, id: null }));
   };
   
@@ -2725,7 +2953,7 @@ export default function App() {
            {activeTab === 'cities' && <MasterDataManager collection="cities" title="Cidades" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={cities} onShowToast={showToast} />}
            {activeTab === 'reports' && <ReportsPage candidates={candidates} jobs={jobs} applications={applications} statusMovements={statusMovements} />}
            {activeTab === 'help' && <HelpPage />}
-           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} currentUserName={user?.displayName} currentUserPhoto={user?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
+           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { const params = new URLSearchParams(location.search); params.set('settingsTab', tab); navigate(`${location.pathname}?${params.toString()}`); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} currentUserName={user?.displayName} currentUserPhoto={user?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
         </div>
       </div>
 
@@ -3119,23 +3347,58 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
     return processedData.slice(start, end);
   }, [processedData, currentPage, itemsPerPage]);
   
-  // Dados paginados para modo kanban (por coluna)
+  // Estado para controlar quantos itens mostrar por coluna no kanban (paginação "ver mais")
+  const [kanbanDisplayCounts, setKanbanDisplayCounts] = useState(() => {
+    const saved = localStorage.getItem('kanban_display_counts');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  });
+
+  // Salvar contadores no localStorage
+  useEffect(() => {
+    localStorage.setItem('kanban_display_counts', JSON.stringify(kanbanDisplayCounts));
+  }, [kanbanDisplayCounts]);
+
+  // Dados paginados para modo kanban (por coluna) - usando "ver mais"
   const kanbanDataByStage = useMemo(() => {
     const byStage = {};
     PIPELINE_STAGES.forEach(stage => {
       const stageCandidates = Array.isArray(processedData) 
         ? processedData.filter(c => (c.status || 'Inscrito') === stage)
         : [];
-      const start = (currentPage - 1) * kanbanItemsPerPage;
-      const end = start + kanbanItemsPerPage;
+      const displayCount = kanbanDisplayCounts[stage] || kanbanItemsPerPage;
       byStage[stage] = {
         all: stageCandidates || [],
-        displayed: (stageCandidates || []).slice(start, end),
-        total: (stageCandidates || []).length
+        displayed: (stageCandidates || []).slice(0, displayCount),
+        total: (stageCandidates || []).length,
+        displayCount: displayCount
       };
     });
     return byStage;
-  }, [processedData, currentPage, kanbanItemsPerPage]);
+  }, [processedData, kanbanItemsPerPage, kanbanDisplayCounts]);
+
+  // Função para carregar mais itens em uma coluna
+  const loadMoreInStage = (stage) => {
+    setKanbanDisplayCounts(prev => ({
+      ...prev,
+      [stage]: (prev[stage] || kanbanItemsPerPage) + kanbanItemsPerPage
+    }));
+  };
+
+  // Função para resetar contador de uma coluna
+  const resetStageCount = (stage) => {
+    setKanbanDisplayCounts(prev => {
+      const newCounts = { ...prev };
+      delete newCounts[stage];
+      return newCounts;
+    });
+  };
   
   const totalPages = Math.ceil((processedData?.length || 0) / itemsPerPage);
   const kanbanTotalPages = Math.ceil(
@@ -3248,6 +3511,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                       allCandidates={kanbanDataByStage[stage]?.all || []}
                       displayedCandidates={kanbanDataByStage[stage]?.displayed || []}
                       total={kanbanDataByStage[stage]?.total || 0}
+                      displayCount={kanbanDataByStage[stage]?.displayCount || kanbanItemsPerPage}
                       jobs={jobs}
                       applications={applications}
                       onDragEnd={onDragEnd} 
@@ -3256,6 +3520,8 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                       selectedIds={selectedIds} 
                       onSelect={handleSelect}
                       showColorPicker={showColorPicker}
+                      onLoadMore={() => loadMoreInStage(stage)}
+                      onReset={() => resetStageCount(stage)}
                     />
                  ))}
                 </div>
@@ -3391,7 +3657,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   );
 };
 
-const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, applications = [], onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker }) => {
+const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displayCount, jobs, applications = [], onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker, onLoadMore, onReset }) => {
   const [columnColor, setColumnColor] = useState(() => {
     const saved = localStorage.getItem(`kanban-color-${stage}`);
     return saved || STATUS_COLORS[stage];
@@ -3505,20 +3771,96 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
           <div className="text-center py-8 text-slate-500 text-xs">Nenhum candidato nesta etapa</div>
         )}
         </div>
+        {/* Botão "Ver mais" se houver mais itens para mostrar */}
+        {displayedCandidates.length < total && (
+          <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onLoadMore();
+              }}
+              className="w-full px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Ver mais ({total - displayedCandidates.length} restantes)
+            </button>
+          </div>
+        )}
+        {/* Botão "Mostrar menos" se houver mais itens exibidos que o padrão */}
+        {displayCount > (displayCount || 10) && displayedCandidates.length >= displayCount && (
+          <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onReset();
+              }}
+              className="w-full px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Mostrar menos
+            </button>
+          </div>
+        )}
       </div>
    );
 };
 
 // --- BANCO DE TALENTOS (TABELA COMPLETA) ---
 const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = [] }) => {
-  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [itemsPerPage, setItemsPerPage] = useState(10); // Padrão alterado para 10
   const [currentPage, setCurrentPage] = useState(1);
   const [localSearch, setLocalSearch] = useState('');
   const [localSort, setLocalSort] = useState('recent');
   const [selectedIds, setSelectedIds] = useState([]);
+  const [dateFilter, setDateFilter] = useState('all'); // Filtro de data de criação
+  const [customDateStart, setCustomDateStart] = useState('');
+  const [customDateEnd, setCustomDateEnd] = useState('');
+  const [showFilters, setShowFilters] = useState(false); // Painel de filtros colapsável
+
+  // Função para obter timestamp do candidato (original_timestamp ou createdAt)
+  const getCandidateTimestamp = (c) => {
+    if (c.original_timestamp) {
+      if (typeof c.original_timestamp === 'string') {
+        return new Date(c.original_timestamp).getTime() / 1000;
+      } else if (c.original_timestamp.seconds || c.original_timestamp._seconds) {
+        return c.original_timestamp.seconds || c.original_timestamp._seconds;
+      } else if (c.original_timestamp.toDate) {
+        return c.original_timestamp.toDate().getTime() / 1000;
+      }
+    }
+    if (c.createdAt?.seconds || c.createdAt?._seconds) {
+      return c.createdAt.seconds || c.createdAt._seconds;
+    }
+    return null;
+  };
 
   const processedData = useMemo(() => {
     let data = candidates.filter(c => !c.deletedAt);
+    
+    // Filtro por data de criação
+    if (dateFilter !== 'all') {
+      const now = Date.now() / 1000;
+      if (dateFilter === 'custom' && customDateStart && customDateEnd) {
+        const startDate = new Date(customDateStart).getTime() / 1000;
+        const endDate = new Date(customDateEnd).getTime() / 1000 + 86400;
+        data = data.filter(c => {
+          const ts = getCandidateTimestamp(c);
+          if (!ts) return false;
+          return ts >= startDate && ts <= endDate;
+        });
+      } else {
+        const periods = {
+          'today': 1 * 24 * 60 * 60,
+          '7d': 7 * 24 * 60 * 60,
+          '30d': 30 * 24 * 60 * 60,
+          '90d': 90 * 24 * 60 * 60
+        };
+        const cutoff = now - (periods[dateFilter] || 0);
+        data = data.filter(c => {
+          const ts = getCandidateTimestamp(c);
+          if (!ts) return false;
+          return ts >= cutoff;
+        });
+      }
+    }
     
     if (localSearch) {
       const s = localSearch.toLowerCase();
@@ -3534,13 +3876,13 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
     
     data.sort((a, b) => {
       if (localSort === 'recent') {
-        const tsA = a.original_timestamp?.seconds || a.original_timestamp?._seconds || a.createdAt?.seconds || a.createdAt?._seconds || 0;
-        const tsB = b.original_timestamp?.seconds || b.original_timestamp?._seconds || b.createdAt?.seconds || b.createdAt?._seconds || 0;
+        const tsA = getCandidateTimestamp(a) || 0;
+        const tsB = getCandidateTimestamp(b) || 0;
         return tsB - tsA;
       }
       if (localSort === 'oldest') {
-        const tsA = a.original_timestamp?.seconds || a.original_timestamp?._seconds || a.createdAt?.seconds || a.createdAt?._seconds || 0;
-        const tsB = b.original_timestamp?.seconds || b.original_timestamp?._seconds || b.createdAt?.seconds || b.createdAt?._seconds || 0;
+        const tsA = getCandidateTimestamp(a) || 0;
+        const tsB = getCandidateTimestamp(b) || 0;
         return tsA - tsB;
       }
       if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
@@ -3549,7 +3891,7 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
     });
     
     return data;
-  }, [candidates, localSearch, localSort]);
+  }, [candidates, localSearch, localSort, dateFilter, customDateStart, customDateEnd]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -3559,41 +3901,164 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
 
   const totalPages = Math.ceil(processedData.length / itemsPerPage);
 
+  // Contar filtros ativos
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (dateFilter !== 'all') count++;
+    if (localSearch) count++;
+    return count;
+  }, [dateFilter, localSearch]);
+
+  // Verificar se candidato é novo (menos de 7 dias)
+  const isCandidateNew = (c) => {
+    const ts = getCandidateTimestamp(c);
+    if (!ts) return false;
+    const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
+    return daysAgo <= 7;
+  };
+
   return (
     <div className="flex flex-col h-full p-6 overflow-hidden bg-white dark:bg-gray-900">
-      <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Banco de Talentos</h2>
-        <div className="flex items-center gap-3">
-          <input
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 w-64"
-            placeholder="Buscar candidatos..."
-            value={localSearch}
-            onChange={e => setLocalSearch(e.target.value)}
-          />
-          <select
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
-            value={localSort}
-            onChange={e => setLocalSort(e.target.value)}
-          >
-            <option value="recent">Mais Recentes</option>
-            <option value="oldest">Mais Antigos</option>
-            <option value="az">A-Z</option>
-            <option value="za">Z-A</option>
-          </select>
-          <select
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
-            value={itemsPerPage}
-            onChange={e => {
-              setItemsPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-          >
-            <option value={10}>10 por página</option>
-            <option value={25}>25 por página</option>
-            <option value={50}>50 por página</option>
-            <option value={100}>100 por página</option>
-          </select>
+      {/* Header com busca e controles principais */}
+      <div className="mb-4 flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Banco de Talentos</h2>
+            {/* Contador de resultados */}
+            <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-semibold">
+              {processedData.length} {processedData.length === 1 ? 'candidato' : 'candidatos'}
+              {activeFiltersCount > 0 && (
+                <span className="ml-2 text-xs">
+                  ({activeFiltersCount} {activeFiltersCount === 1 ? 'filtro ativo' : 'filtros ativos'})
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Busca global */}
+            <div className="relative">
+              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded pl-10 pr-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 w-64"
+                placeholder="Buscar em todo o cadastro..."
+                value={localSearch}
+                onChange={e => setLocalSearch(e.target.value)}
+              />
+            </div>
+            {/* Ordenação */}
+            <select
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+              value={localSort}
+              onChange={e => setLocalSort(e.target.value)}
+            >
+              <option value="recent">Mais Recentes</option>
+              <option value="oldest">Mais Antigos</option>
+              <option value="az">A-Z</option>
+              <option value="za">Z-A</option>
+            </select>
+            {/* Paginação */}
+            <select
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+              value={itemsPerPage}
+              onChange={e => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+            >
+              <option value={10}>10 por página</option>
+              <option value={25}>25 por página</option>
+              <option value={50}>50 por página</option>
+              <option value={100}>100 por página</option>
+              <option value={500}>500 por página</option>
+              <option value={1000}>1000 por página</option>
+              <option value={5000}>5000 por página</option>
+            </select>
+            {/* Botão de filtros */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                showFilters || activeFiltersCount > 0
+                  ? 'bg-blue-600 text-white border border-blue-600'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-500'
+              }`}
+            >
+              <Filter size={16} />
+              Filtros
+              {activeFiltersCount > 0 && (
+                <span className="bg-white/20 dark:bg-gray-900/30 px-2 py-0.5 rounded-full text-xs">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Painel de Filtros Expandido */}
+        {showFilters && (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Categoria: Data */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarCheck size={16} className="text-blue-600 dark:text-blue-400" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Data de Criação</label>
+                </div>
+                <select
+                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                  value={dateFilter}
+                  onChange={e => {
+                    setDateFilter(e.target.value);
+                    if (e.target.value !== 'custom') {
+                      setCustomDateStart('');
+                      setCustomDateEnd('');
+                    }
+                  }}
+                >
+                  <option value="all">Todas as datas</option>
+                  <option value="today">Hoje</option>
+                  <option value="7d">Últimos 7 dias</option>
+                  <option value="30d">Últimos 30 dias</option>
+                  <option value="90d">Últimos 90 dias</option>
+                  <option value="custom">Período personalizado</option>
+                </select>
+                {dateFilter === 'custom' && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="date"
+                      className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                      value={customDateStart}
+                      onChange={e => setCustomDateStart(e.target.value)}
+                      placeholder="Data inicial"
+                    />
+                    <span className="text-gray-600 dark:text-gray-400 text-sm">até</span>
+                    <input
+                      type="date"
+                      className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                      value={customDateEnd}
+                      onChange={e => setCustomDateEnd(e.target.value)}
+                      placeholder="Data final"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Botão para limpar filtros */}
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setDateFilter('all');
+                    setCustomDateStart('');
+                    setCustomDateEnd('');
+                    setLocalSearch('');
+                  }}
+                  className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+                >
+                  Limpar Filtros
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -3604,7 +4069,7 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                 <input type="checkbox" className="accent-blue-600 dark:accent-blue-500" />
               </th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Nome</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Status</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 min-w-[140px]">Status</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Email</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Telefone</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Cidade</th>
@@ -3618,8 +4083,14 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {paginatedData.map(c => {
+              const isNew = isCandidateNew(c);
               return (
-                <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <tr 
+                  key={c.id} 
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                    isNew ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' : ''
+                  }`}
+                >
                   <td className="p-3">
                     <input
                       type="checkbox"
@@ -3629,12 +4100,19 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                     />
                   </td>
                   <td className="p-3">
-                    <span className="font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => onEdit(c)}>
-                      {c.fullName || 'Sem nome'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => onEdit(c)}>
+                        {c.fullName || 'Sem nome'}
+                      </span>
+                      {isNew && (
+                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse">
+                          NOVO
+                        </span>
+                      )}
+                    </div>
                   </td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>
+                  <td className="p-3 min-w-[140px]">
+                    <span className={`px-2 py-0.5 rounded text-xs border whitespace-nowrap ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>
                       {c.status || 'Inscrito'}
                     </span>
                   </td>

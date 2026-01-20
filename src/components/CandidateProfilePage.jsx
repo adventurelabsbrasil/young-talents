@@ -86,13 +86,25 @@ export default function CandidateProfilePage({
     return () => unsubscribe();
   }, [id]);
 
+  // Dados do candidato filtrados
+  const candidateApplications = useMemo(() => {
+    if (!candidate) return [];
+    return applications.filter(a => a.candidateId === candidate.id);
+  }, [candidate, applications]);
+
+  const candidateInterviews = useMemo(() => {
+    if (!candidate) return [];
+    return interviews.filter(i => i.candidateId === candidate.id);
+  }, [candidate, interviews]);
+
+  const candidateMovements = useMemo(() => {
+    if (!candidate) return [];
+    return statusMovements.filter(m => m.candidateId === candidate.id);
+  }, [candidate, statusMovements]);
+
   // Dados calculados para scorecards
   const scorecards = useMemo(() => {
     if (!candidate) return [];
-    
-    const candidateApplications = applications.filter(a => a.candidateId === candidate.id);
-    const candidateInterviews = interviews.filter(i => i.candidateId === candidate.id);
-    const candidateMovements = statusMovements.filter(m => m.candidateId === candidate.id);
     
     const completedInterviews = candidateInterviews.filter(i => 
       i.status === 'Realizada' || i.status === 'Confirmada'
@@ -518,7 +530,10 @@ export default function CandidateProfilePage({
 
         {activeTab === 'personal' && (
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Dados Pessoais</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <User size={20} />
+              Dados Pessoais
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -535,7 +550,454 @@ export default function CandidateProfilePage({
                   <p className="text-gray-900 dark:text-white">{candidate.fullName || 'Não informado'}</p>
                 )}
               </div>
-              {/* Adicionar mais campos pessoais aqui */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <Mail size={16} />
+                  E-mail Principal
+                </label>
+                {isEditing ? (
+                  <input
+                    type="email"
+                    value={editData.email || ''}
+                    onChange={(e) => handleFieldChange('email', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.email || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <Mail size={16} />
+                  E-mail Secundário
+                </label>
+                {isEditing ? (
+                  <input
+                    type="email"
+                    value={editData.email_secondary || ''}
+                    onChange={(e) => handleFieldChange('email_secondary', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.email_secondary || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <Phone size={16} />
+                  Telefone
+                </label>
+                {isEditing ? (
+                  <input
+                    type="tel"
+                    value={editData.phone || ''}
+                    onChange={(e) => handleFieldChange('phone', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.phone || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <MapPin size={16} />
+                  Cidade
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.city || ''}
+                    onChange={(e) => handleFieldChange('city', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.city || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Estado Civil
+                </label>
+                {isEditing ? (
+                  <select
+                    value={editData.maritalStatus || ''}
+                    onChange={(e) => handleFieldChange('maritalStatus', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Selecione</option>
+                    <option value="Solteiro(a)">Solteiro(a)</option>
+                    <option value="Casado(a)">Casado(a)</option>
+                    <option value="Divorciado(a)">Divorciado(a)</option>
+                    <option value="Viúvo(a)">Viúvo(a)</option>
+                    <option value="União Estável">União Estável</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.maritalStatus || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Número de Filhos
+                </label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    min="0"
+                    value={editData.childrenCount || ''}
+                    onChange={(e) => handleFieldChange('childrenCount', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.childrenCount !== undefined ? candidate.childrenCount : 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Foto (URL)
+                </label>
+                {isEditing ? (
+                  <input
+                    type="url"
+                    value={editData.photoUrl || ''}
+                    onChange={(e) => handleFieldChange('photoUrl', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  candidate.photoUrl ? (
+                    <img src={candidate.photoUrl} alt={candidate.fullName} className="w-24 h-24 rounded-lg object-cover" />
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400">Sem foto</p>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'professional' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <Briefcase size={20} />
+              Dados Profissionais
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <Award size={16} />
+                  Áreas de Interesse Profissional
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.interestAreas || ''}
+                    onChange={(e) => handleFieldChange('interestAreas', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    placeholder="Ex: Administração, Vendas, Marketing"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.interestAreas || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                  <GraduationCap size={16} />
+                  Nível de Escolaridade
+                </label>
+                {isEditing ? (
+                  <select
+                    value={editData.schoolingLevel || ''}
+                    onChange={(e) => handleFieldChange('schoolingLevel', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Selecione</option>
+                    <option value="Ensino Fundamental">Ensino Fundamental</option>
+                    <option value="Ensino Médio">Ensino Médio</option>
+                    <option value="Técnico">Técnico</option>
+                    <option value="Superior Incompleto">Superior Incompleto</option>
+                    <option value="Superior Completo">Superior Completo</option>
+                    <option value="Pós-graduação">Pós-graduação</option>
+                    <option value="Mestrado">Mestrado</option>
+                    <option value="Doutorado">Doutorado</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.schoolingLevel || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Formação
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.education || ''}
+                    onChange={(e) => handleFieldChange('education', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.education || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Instituição de Ensino
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.institution || ''}
+                    onChange={(e) => handleFieldChange('institution', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.institution || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Data de Formatura
+                </label>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={editData.graduationDate || ''}
+                    onChange={(e) => handleFieldChange('graduationDate', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.graduationDate ? formatDate(candidate.graduationDate) : 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Cursando Atualmente
+                </label>
+                {isEditing ? (
+                  <select
+                    value={editData.isStudying ? 'Sim' : 'Não'}
+                    onChange={(e) => handleFieldChange('isStudying', e.target.value === 'Sim')}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  >
+                    <option value="Não">Não</option>
+                    <option value="Sim">Sim</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.isStudying ? 'Sim' : 'Não'}</p>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Experiências Anteriores
+                </label>
+                {isEditing ? (
+                  <textarea
+                    value={editData.experience || ''}
+                    onChange={(e) => handleFieldChange('experience', e.target.value)}
+                    rows={4}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{candidate.experience || 'Não informado'}</p>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Cursos e Certificações
+                </label>
+                {isEditing ? (
+                  <textarea
+                    value={editData.courses || ''}
+                    onChange={(e) => handleFieldChange('courses', e.target.value)}
+                    rows={4}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{candidate.courses || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Possui CNH Tipo B
+                </label>
+                {isEditing ? (
+                  <select
+                    value={editData.hasLicense || ''}
+                    onChange={(e) => handleFieldChange('hasLicense', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Selecione</option>
+                    <option value="Sim">Sim</option>
+                    <option value="Não">Não</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.hasLicense || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Currículo (URL)
+                </label>
+                {isEditing ? (
+                  <input
+                    type="url"
+                    value={editData.cvUrl || ''}
+                    onChange={(e) => handleFieldChange('cvUrl', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  candidate.cvUrl ? (
+                    <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2">
+                      Ver Currículo <ExternalLink size={14} />
+                    </a>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400">Não informado</p>
+                  )
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Portfólio (URL)
+                </label>
+                {isEditing ? (
+                  <input
+                    type="url"
+                    value={editData.portfolioUrl || ''}
+                    onChange={(e) => handleFieldChange('portfolioUrl', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  candidate.portfolioUrl ? (
+                    <a href={candidate.portfolioUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2">
+                      Ver Portfólio <ExternalLink size={14} />
+                    </a>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400">Não informado</p>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'process' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <FileText size={20} />
+              Status do Processo
+            </h2>
+            
+            {/* Status Atual */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Status Atual
+              </label>
+              <span className={`inline-block px-4 py-2 rounded-lg text-sm font-medium ${
+                STATUS_COLORS[candidate.status] || 'bg-slate-600 text-white'
+              }`}>
+                {candidate.status || 'Inscrito'}
+              </span>
+            </div>
+
+            {/* Candidaturas */}
+            <div className="mb-6">
+              <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <Briefcase size={18} />
+                Candidaturas ({candidateApplications.length})
+              </h3>
+              {candidateApplications.length > 0 ? (
+                <div className="space-y-3">
+                  {candidateApplications.map((app) => {
+                    const job = jobs.find(j => j.id === app.jobId);
+                    return (
+                      <div key={app.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{job?.title || 'Vaga não encontrada'}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{job?.company || 'Empresa não informada'}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                              Criada em: {formatTimestamp(app.createdAt)}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded text-xs font-medium ${
+                            STATUS_COLORS[app.status] || 'bg-slate-600 text-white'
+                          }`}>
+                            {app.status || 'Inscrito'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">Nenhuma candidatura vinculada</p>
+              )}
+            </div>
+
+            {/* Entrevistas */}
+            <div className="mb-6">
+              <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <Calendar size={18} />
+                Entrevistas ({candidateInterviews.length})
+              </h3>
+              {candidateInterviews.length > 0 ? (
+                <div className="space-y-3">
+                  {candidateInterviews.map((interview) => {
+                    const job = jobs.find(j => j.id === interview.jobId);
+                    return (
+                      <div key={interview.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">
+                              {interview.date} às {interview.time}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{job?.title || 'Vaga não encontrada'}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                              Status: {interview.status || 'Agendada'}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded text-xs font-medium ${
+                            interview.status === 'Realizada' ? 'bg-green-600 text-white' :
+                            interview.status === 'Cancelada' ? 'bg-red-600 text-white' :
+                            'bg-blue-600 text-white'
+                          }`}>
+                            {interview.status || 'Agendada'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">Nenhuma entrevista agendada</p>
+              )}
+            </div>
+
+            {/* Histórico de Movimentações */}
+            <div>
+              <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                <History size={18} />
+                Histórico de Movimentações ({candidateMovements.length})
+              </h3>
+              {candidateMovements.length > 0 ? (
+                <div className="space-y-2">
+                  {candidateMovements.map((movement, idx) => (
+                    <div key={movement.id || idx} className="border-l-4 border-blue-500 pl-4 py-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {movement.previousStatus || 'Inscrito'} → {movement.newStatus}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {formatTimestamp(movement.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">Nenhuma movimentação registrada</p>
+              )}
             </div>
           </div>
         )}
