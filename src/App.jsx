@@ -5671,9 +5671,20 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
                   onChange={e => setD({...d, city: e.target.value})}
                 >
                   <option value="">Selecione...</option>
-                  {options.cities.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
+                  {candidateCities.length > 0 && (
+                    <optgroup label="Cidades dos Candidatos">
+                      {candidateCities.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {options.cities && options.cities.length > 0 && (
+                    <optgroup label="Cidades Cadastradas">
+                      {options.cities.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 <button
                   onClick={() => setShowNewCity(!showNewCity)}
@@ -5862,9 +5873,20 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
                       onChange={e => setD({...d, interestArea: e.target.value})}
                     >
                       <option value="">Selecione...</option>
-                      {options.interestAreas.map(area => (
-                        <option key={area.id} value={area.name}>{area.name}</option>
-                      ))}
+                      {candidateInterestAreas.length > 0 && (
+                        <optgroup label="Áreas dos Candidatos">
+                          {candidateInterestAreas.map(area => (
+                            <option key={area} value={area}>{area}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {options.interestAreas && options.interestAreas.length > 0 && (
+                        <optgroup label="Áreas Cadastradas">
+                          {options.interestAreas.map(area => (
+                            <option key={area.id} value={area.name}>{area.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   </div>
                   <div>
