@@ -3881,6 +3881,11 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
           const candidateApplications = applications.filter(a => a.candidateId === c.id);
           const primaryApplication = candidateApplications[0];
           const primaryJob = primaryApplication ? jobs.find(j => j.id === primaryApplication.jobId) : null;
+          
+          // Calcular matches para este candidato
+          const matchingJobs = allJobs && allJobs.length > 0 ? findMatchingJobs(c, allJobs) : [];
+          const topMatch = matchingJobs.length > 0 ? matchingJobs[0] : null;
+          
           // Verificar se candidato é novo (menos de 7 dias)
           const isNew = (() => {
             const getTs = (tsField) => {
@@ -3949,7 +3954,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
                   ) : (
                     <span className={`px-1.5 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span>
                   )}
-                  {matchingJobs.length > 0 && (
+                  {matchingJobs && matchingJobs.length > 0 && (
                     <span className={`px-1.5 py-0.5 rounded text-xs border font-medium ${getMatchBadgeColor(topMatch?.matchLevel || 'low')}`} title={`${matchingJobs.length} vaga(s) com match. Melhor match: ${topMatch?.matchScore || 0}%`}>
                       {matchingJobs.length} match
                     </span>
