@@ -39,9 +39,11 @@ import ApplicationsPage from './components/ApplicationsPage';
 import ReportsPage from './components/ReportsPage';
 import HelpPage from './components/HelpPage';
 import CandidateProfilePage from './components/CandidateProfilePage';
+import DiagnosticPage from './components/DiagnosticPage';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
+import { getTimestampSeconds, getCandidateTimestamp } from './utils/timestampUtils';
 import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail, formatValidationErrors } from './utils/validation';
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
@@ -84,30 +86,14 @@ const Dashboard = ({
   const [customDateStart, setCustomDateStart] = useState('');
   const [customDateEnd, setCustomDateEnd] = useState('');
   
-  // Função auxiliar para converter timestamp para segundos (suporta múltiplos formatos)
-  const getTimestampSeconds = (tsField) => {
-    if (!tsField) return 0;
-    if (typeof tsField === 'string') {
-      const date = new Date(tsField);
-      return isNaN(date.getTime()) ? 0 : date.getTime() / 1000;
-    }
-    if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
-    if (tsField.toDate) return tsField.toDate().getTime() / 1000;
-    if (tsField.timestampValue) {
-      const date = new Date(tsField.timestampValue);
-      return isNaN(date.getTime()) ? 0 : date.getTime() / 1000;
-    }
-    return 0;
-  };
-  
-  // Filtrar candidatos por período para scorecards
+  // Filtrar candidatos por período para scorecards (usa getCandidateTimestamp: original_timestamp prioridade, depois createdAt)
   const filteredCandidatesByPeriod = useMemo(() => {
     if (periodFilter === 'all') return filteredCandidates;
     if (periodFilter === 'custom' && customDateStart && customDateEnd) {
       const startDate = new Date(customDateStart).getTime() / 1000;
       const endDate = new Date(customDateEnd).getTime() / 1000 + 86400;
       return filteredCandidates.filter(c => {
-        const ts = getTimestampSeconds(c.original_timestamp) || getTimestampSeconds(c.createdAt);
+        const ts = getCandidateTimestamp(c);
         if (!ts) return false;
         return ts >= startDate && ts <= endDate;
       });
@@ -124,7 +110,7 @@ const Dashboard = ({
     const cutoff = now - (periods[periodFilter] || 0);
     
     return filteredCandidates.filter(c => {
-      const ts = getTimestampSeconds(c.original_timestamp) || getTimestampSeconds(c.createdAt);
+      const ts = getCandidateTimestamp(c);
       if (!ts) return false;
       return ts >= cutoff;
     });
@@ -1898,7 +1884,7 @@ export default function App() {
     const path = location.pathname;
     if (path === '/' || path === '') return 'dashboard';
     const slug = path.replace(/^\//, '').split('/')[0];
-    const validTabs = ['dashboard', 'pipeline', 'candidates', 'jobs', 'applications', 'companies', 'positions', 'sectors', 'cities', 'reports', 'help', 'settings'];
+    const validTabs = ['dashboard', 'pipeline', 'candidates', 'jobs', 'applications', 'companies', 'positions', 'sectors', 'cities', 'reports', 'help', 'settings', 'diagnostic'];
     return validTabs.includes(slug) ? slug : 'dashboard';
   };
 
@@ -2790,68 +2776,6 @@ export default function App() {
       '90d': 90 * 24 * 60 * 60,
     };
 
-    // Função auxiliar para converter timestamp para segundos (suporta múltiplos formatos)
-    const getTimestampSeconds = (tsField) => {
-      if (!tsField) return null;
-      
-      // Se for string ISO, converte diretamente
-      if (typeof tsField === 'string') {
-        const date = new Date(tsField);
-        return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-      }
-      
-      // Se for objeto Timestamp do Firebase SDK (tem seconds e toDate)
-      if (tsField.toDate && typeof tsField.toDate === 'function') {
-        try {
-          const date = tsField.toDate();
-          return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-        } catch (e) {
-          // Fallback para seconds se toDate falhar
-        }
-      }
-      
-      // Se tiver seconds (Timestamp do Firebase SDK)
-      if (tsField.seconds !== undefined) {
-        return typeof tsField.seconds === 'number' ? tsField.seconds : null;
-      }
-      
-      // Se tiver _seconds (formato alternativo)
-      if (tsField._seconds !== undefined) {
-        return typeof tsField._seconds === 'number' ? tsField._seconds : null;
-      }
-      
-      // Se tiver timestampValue (formato REST API)
-      if (tsField.timestampValue) {
-        if (typeof tsField.timestampValue === 'string') {
-          const date = new Date(tsField.timestampValue);
-          return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-        }
-        // Se timestampValue for um objeto Timestamp
-        if (tsField.timestampValue.toDate) {
-          try {
-            const date = tsField.timestampValue.toDate();
-            return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-          } catch (e) {}
-        }
-        if (tsField.timestampValue.seconds !== undefined) {
-          return typeof tsField.timestampValue.seconds === 'number' ? tsField.timestampValue.seconds : null;
-        }
-      }
-      
-      return null;
-    };
-    
-    // Função para obter timestamp do candidato (original_timestamp ou createdAt)
-    const getCandidateTimestamp = (c) => {
-      // Prioriza original_timestamp (data de cadastro original do formulário)
-      const originalTs = getTimestampSeconds(c.original_timestamp);
-      if (originalTs) return originalTs;
-      
-      // Fallback para createdAt
-      const createdTs = getTimestampSeconds(c.createdAt);
-      return createdTs;
-    };
-
     Object.keys(filters).forEach(key => {
        if(filters[key] !== 'all' && filters[key] !== '') {
           if (key === 'createdAtPreset' || key === 'customDateStart' || key === 'customDateEnd' || key === 'tags') return;
@@ -3041,6 +2965,11 @@ export default function App() {
            <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
              <Settings size={18}/> Configurações
            </button>
+
+           {/* Diagnóstico */}
+           <button onClick={() => { setActiveTab('diagnostic'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'diagnostic' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <AlertCircle size={18}/> Diagnóstico
+           </button>
            
            {/* Ajuda */}
            <button onClick={() => { setActiveTab('help'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'help' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
@@ -3073,7 +3002,7 @@ export default function App() {
                {isSidebarCollapsed ? <Menu size={20} className="text-gray-600 dark:text-gray-400"/> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-400"/>}
              </button>
            <h2 className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
+              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : activeTab === 'diagnostic' ? 'Diagnóstico' : activeTab === 'reports' ? 'Relatórios' : activeTab === 'help' ? 'Ajuda' : 'Dashboard'}
            </h2>
            </div>
            <div className="flex items-center gap-3">
@@ -3098,6 +3027,7 @@ export default function App() {
            {activeTab === 'cities' && <MasterDataManager collection="cities" title="Cidades" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={cities} onShowToast={showToast} />}
            {activeTab === 'reports' && <ReportsPage candidates={candidates} jobs={jobs} applications={applications} statusMovements={statusMovements} />}
            {activeTab === 'help' && <HelpPage />}
+           {activeTab === 'diagnostic' && <div className="p-6 overflow-y-auto h-full"><DiagnosticPage candidates={candidates} /></div>}
            {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { const params = new URLSearchParams(location.search); params.set('settingsTab', tab); navigate(`${location.pathname}?${params.toString()}`); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} currentUserName={user?.displayName} currentUserPhoto={user?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
         </div>
       </div>
@@ -3498,71 +3428,13 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
            jobs.find(j => j.id === c.jobId)?.title?.toLowerCase().includes(s)
          );
      }
-     data.sort((a, b) => {
-         if (localSort === 'recent') {
-           const getTs = (c) => {
-             if (c.original_timestamp) {
-               if (typeof c.original_timestamp === 'string') {
-                 const d = new Date(c.original_timestamp);
-                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-               }
-               if (c.original_timestamp.seconds || c.original_timestamp._seconds) return c.original_timestamp.seconds || c.original_timestamp._seconds;
-               if (c.original_timestamp.toDate) return c.original_timestamp.toDate().getTime() / 1000;
-               if (c.original_timestamp.timestampValue) {
-                 const d = new Date(c.original_timestamp.timestampValue);
-                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-               }
-             }
-             if (c.createdAt) {
-               if (typeof c.createdAt === 'string') {
-                 const d = new Date(c.createdAt);
-                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-               }
-               if (c.createdAt.seconds || c.createdAt._seconds) return c.createdAt.seconds || c.createdAt._seconds;
-               if (c.createdAt.toDate) return c.createdAt.toDate().getTime() / 1000;
-               if (c.createdAt.timestampValue) {
-                 const d = new Date(c.createdAt.timestampValue);
-                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-               }
-             }
-             return 0;
-           };
-           return (getTs(b) || 0) - (getTs(a) || 0);
-         }
-         if (localSort === 'oldest') {
-           const getTs = (c) => {
-             if (c.original_timestamp) {
-               if (typeof c.original_timestamp === 'string') {
-                 const d = new Date(c.original_timestamp);
-                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-               }
-               if (c.original_timestamp.seconds || c.original_timestamp._seconds) return c.original_timestamp.seconds || c.original_timestamp._seconds;
-               if (c.original_timestamp.toDate) return c.original_timestamp.toDate().getTime() / 1000;
-               if (c.original_timestamp.timestampValue) {
-                 const d = new Date(c.original_timestamp.timestampValue);
-                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-               }
-             }
-             if (c.createdAt) {
-               if (typeof c.createdAt === 'string') {
-                 const d = new Date(c.createdAt);
-                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-               }
-               if (c.createdAt.seconds || c.createdAt._seconds) return c.createdAt.seconds || c.createdAt._seconds;
-               if (c.createdAt.toDate) return c.createdAt.toDate().getTime() / 1000;
-               if (c.createdAt.timestampValue) {
-                 const d = new Date(c.createdAt.timestampValue);
-                 return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-               }
-             }
-             return 0;
-           };
-           return (getTs(a) || 0) - (getTs(b) || 0);
-         }
-         if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
-         if (localSort === 'za') return (b.fullName||'').localeCompare(a.fullName||'');
-         return 0;
-     });
+    data.sort((a, b) => {
+        if (localSort === 'recent') return (getCandidateTimestamp(b) || 0) - (getCandidateTimestamp(a) || 0);
+        if (localSort === 'oldest') return (getCandidateTimestamp(a) || 0) - (getCandidateTimestamp(b) || 0);
+        if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
+        if (localSort === 'za') return (b.fullName||'').localeCompare(a.fullName||'');
+        return 0;
+    });
      return data;
   }, [candidates, statusFilter, localSearch, localSort, pipelineStatusFilter, jobFilter, companyFilter, cityFilter, jobs, applications, interviews]);
   
@@ -3781,61 +3653,8 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                        // USAR APENAS applications como fonte de verdade
                        const candidateApplications = applications.filter(a => a.candidateId === c.id);
                        const primaryApplication = candidateApplications[0]; // Primeira candidatura como principal
-                       const isNew = (() => {
-                         const getTs = (tsField) => {
-                           if (!tsField) return null;
-                           
-                           // Se for string ISO, converte diretamente
-                           if (typeof tsField === 'string') {
-                             const d = new Date(tsField);
-                             return isNaN(d.getTime()) ? null : d.getTime() / 1000;
-                           }
-                           
-                           // Se for objeto Timestamp do Firebase SDK (tem seconds e toDate)
-                           if (tsField.toDate && typeof tsField.toDate === 'function') {
-                             try {
-                               const date = tsField.toDate();
-                               return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-                             } catch (e) {
-                               // Fallback para seconds se toDate falhar
-                             }
-                           }
-                           
-                           // Se tiver seconds (Timestamp do Firebase SDK)
-                           if (tsField.seconds !== undefined) {
-                             return typeof tsField.seconds === 'number' ? tsField.seconds : null;
-                           }
-                           
-                           // Se tiver _seconds (formato alternativo)
-                           if (tsField._seconds !== undefined) {
-                             return typeof tsField._seconds === 'number' ? tsField._seconds : null;
-                           }
-                           
-                           // Se tiver timestampValue (formato REST API)
-                           if (tsField.timestampValue) {
-                             if (typeof tsField.timestampValue === 'string') {
-                               const d = new Date(tsField.timestampValue);
-                               return isNaN(d.getTime()) ? null : d.getTime() / 1000;
-                             }
-                             // Se timestampValue for um objeto Timestamp
-                             if (tsField.timestampValue.toDate) {
-                               try {
-                                 const date = tsField.timestampValue.toDate();
-                                 return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-                               } catch (e) {}
-                             }
-                             if (tsField.timestampValue.seconds !== undefined) {
-                               return typeof tsField.timestampValue.seconds === 'number' ? tsField.timestampValue.seconds : null;
-                             }
-                           }
-                           
-                           return null;
-                         };
-                         const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
-                         if (!ts || ts === 0) return false;
-                         const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
-                         return daysAgo <= 7; // Novo se cadastrado nos últimos 7 dias
-                       })();
+                      const ts = getCandidateTimestamp(c);
+                      const isNew = (ts && ts > 0) && ((Date.now() / 1000 - ts) / (24 * 60 * 60)) <= 7;
                        const hasApplication = candidateApplications.length > 0;
                        const isInscrito = (c.status || 'Inscrito') === 'Inscrito';
                        const needsApplication = !isInscrito && !hasApplication; // A partir de Considerado precisa ter candidatura
@@ -3892,39 +3711,9 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                            <td className="p-4 text-xs break-words truncate max-w-[120px] text-gray-700 dark:text-gray-300" title={c.source}>{c.source || 'N/A'}</td>
                            <td className="p-4 text-xs text-gray-700 dark:text-gray-300">
                              {(() => {
-                               const getTs = (tsField) => {
-                                 if (!tsField) return null;
-                                 if (typeof tsField === 'string') {
-                                   const d = new Date(tsField);
-                                   return isNaN(d.getTime()) ? null : d.getTime() / 1000;
-                                 }
-                                 if (tsField.toDate && typeof tsField.toDate === 'function') {
-                                   try {
-                                     const date = tsField.toDate();
-                                     return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-                                   } catch (e) {}
-                                 }
-                                 if (tsField.seconds !== undefined) return tsField.seconds;
-                                 if (tsField._seconds !== undefined) return tsField._seconds;
-                                 if (tsField.timestampValue) {
-                                   if (typeof tsField.timestampValue === 'string') {
-                                     const d = new Date(tsField.timestampValue);
-                                     return isNaN(d.getTime()) ? null : d.getTime() / 1000;
-                                   }
-                                   if (tsField.timestampValue.toDate) {
-                                     try {
-                                       const date = tsField.timestampValue.toDate();
-                                       return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-                                     } catch (e) {}
-                                   }
-                                   if (tsField.timestampValue.seconds !== undefined) return tsField.timestampValue.seconds;
-                                 }
-                                 return null;
-                               };
-                               const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
+                               const ts = getCandidateTimestamp(c);
                                if (!ts) return 'N/A';
-                               const date = new Date(ts * 1000);
-                               return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                               return new Date(ts * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
                              })()}
                            </td>
                            <td className="p-4"><button onClick={() => onEdit(c)} className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"><Edit3 size={16}/></button></td>
@@ -4038,62 +3827,8 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
           const matchingJobs = allJobs && allJobs.length > 0 ? findMatchingJobs(c, allJobs) : [];
           const topMatch = matchingJobs.length > 0 ? matchingJobs[0] : null;
           
-          // Verificar se candidato é novo (menos de 7 dias)
-          const isNew = (() => {
-            const getTs = (tsField) => {
-              if (!tsField) return null;
-              
-              // Se for string ISO, converte diretamente
-              if (typeof tsField === 'string') {
-                const d = new Date(tsField);
-                return isNaN(d.getTime()) ? null : d.getTime() / 1000;
-              }
-              
-              // Se for objeto Timestamp do Firebase SDK (tem seconds e toDate)
-              if (tsField.toDate && typeof tsField.toDate === 'function') {
-                try {
-                  const date = tsField.toDate();
-                  return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-                } catch (e) {
-                  // Fallback para seconds se toDate falhar
-                }
-              }
-              
-              // Se tiver seconds (Timestamp do Firebase SDK)
-              if (tsField.seconds !== undefined) {
-                return typeof tsField.seconds === 'number' ? tsField.seconds : null;
-              }
-              
-              // Se tiver _seconds (formato alternativo)
-              if (tsField._seconds !== undefined) {
-                return typeof tsField._seconds === 'number' ? tsField._seconds : null;
-              }
-              
-              // Se tiver timestampValue (formato REST API)
-              if (tsField.timestampValue) {
-                if (typeof tsField.timestampValue === 'string') {
-                  const d = new Date(tsField.timestampValue);
-                  return isNaN(d.getTime()) ? null : d.getTime() / 1000;
-                }
-                // Se timestampValue for um objeto Timestamp
-                if (tsField.timestampValue.toDate) {
-                  try {
-                    const date = tsField.timestampValue.toDate();
-                    return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-                  } catch (e) {}
-                }
-                if (tsField.timestampValue.seconds !== undefined) {
-                  return typeof tsField.timestampValue.seconds === 'number' ? tsField.timestampValue.seconds : null;
-                }
-              }
-              
-              return null;
-            };
-            const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
-            if (!ts || ts === 0) return false;
-            const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
-            return daysAgo <= 7;
-          })();
+          const ts = getCandidateTimestamp(c);
+          const isNew = (ts && ts > 0) && ((Date.now() / 1000 - ts) / (24 * 60 * 60)) <= 7;
           return (
           <div key={c.id} id={`candidate-${c.id}`} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-200 dark:border-gray-700'} ${isNew ? 'border-l-4 border-l-green-500' : ''} ${highlightedCandidateId === c.id ? 'ring-4 ring-yellow-400 ring-opacity-75 animate-pulse border-yellow-400' : ''}`}>
             <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
@@ -4161,36 +3896,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
               <div className="text-xs text-slate-400 truncate flex gap-1">📞 {c.phone || 'N/D'}</div>
               {c.score && <div className="text-xs text-blue-600 dark:text-blue-400 font-bold">Match: {c.score}%</div>}
               {(() => {
-                const getTs = (tsField) => {
-                  if (!tsField) return null;
-                  if (typeof tsField === 'string') {
-                    const d = new Date(tsField);
-                    return isNaN(d.getTime()) ? null : d.getTime() / 1000;
-                  }
-                  if (tsField.toDate && typeof tsField.toDate === 'function') {
-                    try {
-                      const date = tsField.toDate();
-                      return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-                    } catch (e) {}
-                  }
-                  if (tsField.seconds !== undefined) return tsField.seconds;
-                  if (tsField._seconds !== undefined) return tsField._seconds;
-                  if (tsField.timestampValue) {
-                    if (typeof tsField.timestampValue === 'string') {
-                      const d = new Date(tsField.timestampValue);
-                      return isNaN(d.getTime()) ? null : d.getTime() / 1000;
-                    }
-                    if (tsField.timestampValue.toDate) {
-                      try {
-                        const date = tsField.timestampValue.toDate();
-                        return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-                      } catch (e) {}
-                    }
-                    if (tsField.timestampValue.seconds !== undefined) return tsField.timestampValue.seconds;
-                  }
-                  return null;
-                };
-                const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
+                const ts = getCandidateTimestamp(c);
                 if (!ts) return null;
                 const date = new Date(ts * 1000);
                 return (
@@ -4289,33 +3995,6 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
   const [customDateStart, setCustomDateStart] = useState('');
   const [customDateEnd, setCustomDateEnd] = useState('');
   const [showFilters, setShowFilters] = useState(false); // Painel de filtros colapsável
-
-  // Função auxiliar para converter timestamp para segundos (suporta múltiplos formatos)
-  const getTimestampSeconds = (tsField) => {
-    if (!tsField) return null;
-    if (typeof tsField === 'string') {
-      const date = new Date(tsField);
-      return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-    }
-    if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
-    if (tsField.toDate) return tsField.toDate().getTime() / 1000;
-    if (tsField.timestampValue) {
-      const date = new Date(tsField.timestampValue);
-      return isNaN(date.getTime()) ? null : date.getTime() / 1000;
-    }
-    return null;
-  };
-  
-  // Função para obter timestamp do candidato (original_timestamp ou createdAt)
-  const getCandidateTimestamp = (c) => {
-    // Prioriza original_timestamp (data de cadastro original do formulário)
-    const originalTs = getTimestampSeconds(c.original_timestamp);
-    if (originalTs) return originalTs;
-    
-    // Fallback para createdAt
-    const createdTs = getTimestampSeconds(c.createdAt);
-    return createdTs;
-  };
 
   const processedData = useMemo(() => {
     let data = candidates.filter(c => !c.deletedAt);
@@ -4639,24 +4318,9 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.source || 'N/A'}</td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">
                     {(() => {
-                      const getTs = (tsField) => {
-                        if (!tsField) return 0;
-                        if (typeof tsField === 'string') {
-                          const d = new Date(tsField);
-                          return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-                        }
-                        if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
-                        if (tsField.toDate) return tsField.toDate().getTime() / 1000;
-                        if (tsField.timestampValue) {
-                          const d = new Date(tsField.timestampValue);
-                          return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
-                        }
-                        return 0;
-                      };
-                      const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
+                      const ts = getCandidateTimestamp(c);
                       if (!ts) return 'N/A';
-                      const date = new Date(ts * 1000);
-                      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                      return new Date(ts * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
                     })()}
                   </td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.maritalStatus || 'N/A'}</td>
@@ -5161,8 +4825,12 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
             {c.status || 'Sem Status'}
           </span>
         );
-      case 'original_timestamp':
-        return <div className="text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">{formatDate(c.original_timestamp || c.createdAt)}</div>;
+      case 'original_timestamp': {
+        const ts = getCandidateTimestamp(c);
+        if (!ts) return <div className="text-xs text-gray-500">N/A</div>;
+        const d = new Date(ts * 1000);
+        return <div className="text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">{!isNaN(d.getTime()) ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</div>;
+      }
       case 'birthDate':
         return <div className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDateOnly(c.birthDate)}</div>;
       case 'age':
@@ -5241,24 +4909,8 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
     // Ordenar
     data.sort((a, b) => {
       if (sortField === 'original_timestamp') {
-        // Tenta usar original_timestamp primeiro, depois createdAt
-        let aTs = 0;
-        let bTs = 0;
-        
-        if (a.original_timestamp) {
-          const aDate = typeof a.original_timestamp === 'string' ? new Date(a.original_timestamp) : (a.original_timestamp.toDate ? a.original_timestamp.toDate() : new Date(a.original_timestamp));
-          aTs = aDate.getTime();
-        } else if (a.createdAt?.seconds || a.createdAt?._seconds) {
-          aTs = (a.createdAt.seconds || a.createdAt._seconds) * 1000;
-        }
-        
-        if (b.original_timestamp) {
-          const bDate = typeof b.original_timestamp === 'string' ? new Date(b.original_timestamp) : (b.original_timestamp.toDate ? b.original_timestamp.toDate() : new Date(b.original_timestamp));
-          bTs = bDate.getTime();
-        } else if (b.createdAt?.seconds || b.createdAt?._seconds) {
-          bTs = (b.createdAt.seconds || b.createdAt._seconds) * 1000;
-        }
-        
+        const aTs = (getCandidateTimestamp(a) || 0) * 1000;
+        const bTs = (getCandidateTimestamp(b) || 0) * 1000;
         return sortOrder === 'asc' ? aTs - bTs : bTs - aTs;
       }
       if (sortField === 'birthDate') {

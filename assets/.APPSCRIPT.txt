@@ -128,34 +128,27 @@ function mapearFormularioParaCandidato(responses) {
     return Array.isArray(responses[key]) ? responses[key][0].trim() : String(responses[key]).trim();
   };
   
-  // Metadados - IMPORTANTE: Converter para timestamp do Firestore
+  // TIMESTAMPS - NÃO CONFUNDIR:
+  // - original_timestamp = "Carimbo de data/hora" do Forms = quando a pessoa se inscreveu no formulário.
+  // - createdAt = quando o registro foi criado/gravado no Firebase (agora = execução deste script).
   const agora = new Date();
   const timestampOriginal = get('Carimbo de data/hora');
   
-  // Converte data/hora original para timestamp (se for string, parseia)
   let originalDate = agora;
   if (timestampOriginal) {
     try {
       originalDate = new Date(timestampOriginal);
-      if (isNaN(originalDate.getTime())) {
-        originalDate = agora; // Fallback se não conseguir parsear
-      }
+      if (isNaN(originalDate.getTime())) originalDate = agora;
+      // Se Carimbo vier no futuro (relógio do usuário), limita a agora
+      if (originalDate.getTime() > agora.getTime()) originalDate = agora;
     } catch (e) {
       originalDate = agora;
     }
   }
   
-  // Converte para segundos desde epoch (formato Firestore)
-  const originalTimestampSeconds = Math.floor(originalDate.getTime() / 1000);
-  const createdAtSeconds = Math.floor(agora.getTime() / 1000);
-  
-  // Formato Firestore timestamp: { timestampValue: "2024-01-19T10:30:00.000Z" }
-  candidato.original_timestamp = {
-    timestampValue: originalDate.toISOString()
-  };
-  candidato.createdAt = {
-    timestampValue: agora.toISOString()
-  };
+  // Formato Firestore: { timestampValue: "2024-01-19T10:30:00.000Z" }
+  candidato.original_timestamp = { timestampValue: originalDate.toISOString() };
+  candidato.createdAt = { timestampValue: agora.toISOString() };
   
   // Metadados adicionais
   candidato.origin = "forms_automation";
@@ -203,7 +196,7 @@ function mapearFormularioParaCandidato(responses) {
   candidato.salaryExpectation = get('Qual seria sua expectativa salarial?') || "";
   candidato.canRelocate = get('Teria disponibilidade para mudança de cidade?') || "";
   candidato.references = get('Referências profissionais:') || "";
-  candidato.typeOfApp = get('Você está se candidatando a uma vaga específica...?') || "";
+  candidato.typeOfApp = get('Você está se candidatando a uma vaga específica ou apenas quer se inscrever no banco de talentos?') || get('Você está se candidatando a uma vaga específica...?') || "";
   candidato.freeField = get('Campo Livre, SEJA VOCÊ!') || "";
   
   // Status do Pipeline
@@ -354,46 +347,64 @@ function enviarCandidatoParaFirebase(candidato) {
       fields: fields
     };
     
-    // Obtém token de autenticação
     const token = getServiceAccountToken();
-    
-    // Envia para o Firebase usando REST API
     const options = {
-      method: "patch", // PATCH faz upsert (create ou update)
+      method: "patch",
       contentType: "application/json",
-      headers: { 
-        Authorization: "Bearer " + token,
-        "Content-Type": "application/json"
-      },
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     };
-    
-    const response = UrlFetchApp.fetch(docPath, options);
-    const statusCode = response.getResponseCode();
-    const responseText = response.getContentText();
-    
-    if (statusCode === 200 || statusCode === 201) {
-      return {
-        sucesso: true,
-        docId: docId,
-        statusCode: statusCode
-      };
-    } else {
-      Logger.log(`  ⚠️  Resposta do Firebase: Status ${statusCode}`);
-      Logger.log(`  ⚠️  Erro: ${responseText}`);
-      return {
-        sucesso: false,
-        erro: `Erro Firebase (${statusCode}): ${responseText}`,
-        statusCode: statusCode
-      };
+
+    var response;
+    var statusCode;
+    var responseText;
+    var lastError = null;
+    var maxTentativas = 3;
+
+    for (var tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+      try {
+        response = UrlFetchApp.fetch(docPath, options);
+        statusCode = response.getResponseCode();
+        responseText = response.getContentText();
+
+        if (statusCode === 200 || statusCode === 201) {
+          return { sucesso: true, docId: docId, statusCode: statusCode };
+        }
+
+        // Não faz retry em erros 4xx (exceto 429)
+        if (statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
+          break;
+        }
+        lastError = "HTTP " + statusCode + ": " + (responseText || "").substring(0, 300);
+        if (tentativa < maxTentativas) {
+          Logger.log("  ⚠️  Tentativa " + tentativa + " falhou. Nova tentativa em 2s...");
+          Utilities.sleep(2000);
+        }
+      } catch (e) {
+        lastError = e.message || String(e);
+        if (tentativa < maxTentativas) {
+          Logger.log("  ⚠️  Tentativa " + tentativa + " exceção: " + lastError + ". Nova tentativa em 2s...");
+          Utilities.sleep(2000);
+        } else {
+          return { sucesso: false, erro: "Exceção após " + maxTentativas + " tentativas: " + lastError };
+        }
+      }
     }
-    
+
+    // Mensagem de erro mais clara por tipo de status
+    var msg = "Erro Firebase (" + statusCode + "): " + (responseText || "").substring(0, 200);
+    if (statusCode === 403) msg += " Sugestão: verifique as permissões do Service Account no projeto Firebase (Firebase Admin / Cloud Datastore User).";
+    if (statusCode === 401) msg += " Sugestão: credenciais (FIREBASE_CONFIG.key ou .email) podem estar incorretas ou expiradas.";
+    if (statusCode === 404) msg += " Sugestão: confira FIRESTORE_DOCS_URL e se a coleção 'candidates' existe.";
+    Logger.log("  ⚠️  " + msg);
+    return { sucesso: false, erro: msg, statusCode: statusCode };
+
   } catch (error) {
-    return {
-      sucesso: false,
-      erro: error.message
-    };
+    var errMsg = error.message || String(error);
+    Logger.log("  ⚠️  Exceção em enviarCandidatoParaFirebase: " + errMsg);
+    if (error.stack) Logger.log("  Stack: " + (error.stack || "").substring(0, 500));
+    return { sucesso: false, erro: "Exceção: " + errMsg };
   }
 }
 
@@ -866,32 +877,22 @@ function rowToCandidateObject(row, headers) {
     return (index > -1 && row[index]) ? String(row[index]).trim() : "";
   };
 
-  // Metadados - IMPORTANTE: Converter para timestamp do Firestore
+  // original_timestamp = Carimbo da planilha (quando a pessoa se inscreveu). createdAt = quando o registro foi importado (agora).
   const agora = new Date();
   const timestampOriginal = get('Carimbo de data/hora');
-  
-  // Converte data/hora original para timestamp
   let originalDate = agora;
   if (timestampOriginal) {
     try {
       originalDate = new Date(timestampOriginal);
-      if (isNaN(originalDate.getTime())) {
-        originalDate = agora;
-      }
-    } catch (e) {
-      originalDate = agora;
-    }
+      if (isNaN(originalDate.getTime())) originalDate = agora;
+      if (originalDate.getTime() > agora.getTime()) originalDate = agora; // evita data futura
+    } catch (e) { originalDate = agora; }
   }
   
   const candidato = {
-    // Metadados
     external_id: get('COD') || "",
-    createdAt: {
-      timestampValue: agora.toISOString()
-    },
-    original_timestamp: {
-      timestampValue: originalDate.toISOString()
-    },
+    createdAt: { timestampValue: agora.toISOString() },
+    original_timestamp: { timestampValue: originalDate.toISOString() },
     origin: "batch_script",
     createdBy: "Batch Import Script",
     
@@ -933,7 +934,7 @@ function rowToCandidateObject(row, headers) {
     salaryExpectation: get('Qual seria sua expectativa salarial?') || "",
     canRelocate: get('Teria disponibilidade para mudança de cidade?') || "",
     references: get('Referências profissionais:') || "",
-    typeOfApp: get('Você está se candidatando a uma vaga específica...?') || "",
+    typeOfApp: get('Você está se candidatando a uma vaga específica ou apenas quer se inscrever no banco de talentos?') || get('Você está se candidatando a uma vaga específica...?') || "",
     freeField: get('Campo Livre, SEJA VOCÊ!') || "",
     
     // Status do Pipeline
@@ -982,9 +983,114 @@ function enviarBatchFirestore(writesArray) {
 // ============================================================================
 /**
  * Função para testar o envio manualmente
- * Simula o envio de um formulário
+ * Simula o envio de um formulário completo
+ * Esta função cria um evento simulado igual ao que o Google Forms envia
  */
 function testeEnvio() {
+  try {
+    Logger.log("🧪 TESTE: Simulando envio de formulário completo...");
+    
+    // Cria um evento simulado igual ao que o Google Forms envia
+    // O evento do Google Forms tem a estrutura: { namedValues: {...}, values: [...], range: {...} }
+    const eventoSimulado = {
+      namedValues: {
+        'Carimbo de data/hora': [new Date().toISOString()],
+        'Nome completo:': ['João Silva Teste'],
+        'E-mail principal:': ['teste.' + Date.now() + '@exemplo.com'], // Email único para evitar duplicatas
+        'Endereço de e-mail': ['teste.' + Date.now() + '@exemplo.com'],
+        'Nº telefone celular / Whatsapp:': ['(51) 99999-9999'],
+        'Data de Nascimento:': ['15/03/1995'],
+        'Idade': ['29'],
+        'Nos envie uma foto atual que você goste:': ['https://exemplo.com/foto.jpg'],
+        'Estado civil:': ['Solteiro'],
+        'Se tem filhos, quantos?': ['0'],
+        'Você possui CNH tipo B?': ['Sim'],
+        'Cidade onde reside:': ['porto alegre'],
+        'Formação:': ['Engenharia de Software'],
+        'Nível de escolaridade:': ['Superior Completo'],
+        'Instituição de ensino:': ['Universidade Federal do Rio Grande do Sul'],
+        'Data de formatura:': ['15/12/2020'],
+        'Em caso de curso superior, está cursando neste momento?': ['Não'],
+        'Experiências anteriores:': ['Desenvolvedor Full Stack na Empresa XYZ por 3 anos. Trabalhei com React, Node.js e Firebase.'],
+        'Cursos e certificações profissionais.': ['Certificação AWS Cloud Practitioner, Curso de React Avançado'],
+        'Certificações profissionais:': ['AWS Certified Cloud Practitioner'],
+        'Áreas de interesse profissional': ['Desenvolvimento Web, Cloud Computing, DevOps'],
+        'Anexar currículo:': ['https://exemplo.com/curriculo.pdf'],
+        'Portfólio de trabalho:': ['https://github.com/joaosilva'],
+        'Onde você nos encontrou?': ['LinkedIn'],
+        'Você foi indicado por algum colaborador da Young? Se sim, quem?': ['Não'],
+        'Qual seria sua expectativa salarial?': ['R$ 8.000,00'],
+        'Teria disponibilidade para mudança de cidade?': ['Sim'],
+        'Referências profissionais:': ['Maria Santos - Gerente de Projetos - maria@empresa.com'],
+        'Você está se candidatando a uma vaga específica...?': ['Não, quero fazer parte do banco de talentos'],
+        'Campo Livre, SEJA VOCÊ!': ['Sou apaixonado por tecnologia e sempre busco aprender coisas novas. Adoro trabalhar em equipe e contribuir para projetos desafiadores.']
+      },
+      values: [
+        new Date().toISOString(), // Timestamp
+        'João Silva Teste',
+        'teste.' + Date.now() + '@exemplo.com',
+        '(51) 99999-9999',
+        '15/03/1995',
+        '29',
+        'https://exemplo.com/foto.jpg',
+        'Solteiro',
+        '0',
+        'Sim',
+        'porto alegre',
+        'Engenharia de Software',
+        'Superior Completo',
+        'Universidade Federal do Rio Grande do Sul',
+        '15/12/2020',
+        'Não',
+        'Desenvolvedor Full Stack na Empresa XYZ por 3 anos.',
+        'Certificação AWS Cloud Practitioner',
+        'AWS Certified Cloud Practitioner',
+        'Desenvolvimento Web, Cloud Computing',
+        'https://exemplo.com/curriculo.pdf',
+        'https://github.com/joaosilva',
+        'LinkedIn',
+        'Não',
+        'R$ 8.000,00',
+        'Sim',
+        'Maria Santos - maria@empresa.com',
+        'Não, quero fazer parte do banco de talentos',
+        'Sou apaixonado por tecnologia...'
+      ],
+      range: {
+        getRow: function() { return 2; },
+        getColumn: function() { return 1; },
+        getSheet: function() { return null; }
+      }
+    };
+    
+    Logger.log("📝 Evento simulado criado com sucesso!");
+    Logger.log(`   Total de campos: ${Object.keys(eventoSimulado.namedValues).length}`);
+    
+    // Chama a função onFormSubmit com o evento simulado
+    Logger.log("\n" + "=".repeat(60));
+    Logger.log("🚀 Chamando onFormSubmit com evento simulado...");
+    Logger.log("=".repeat(60) + "\n");
+    
+    onFormSubmit(eventoSimulado);
+    
+    Logger.log("\n" + "=".repeat(60));
+    Logger.log("✅ TESTE CONCLUÍDO");
+    Logger.log("=".repeat(60));
+    
+  } catch (e) {
+    Logger.log("\n" + "=".repeat(60));
+    Logger.log("❌ ERRO NO TESTE");
+    Logger.log("=".repeat(60));
+    Logger.log("Erro: " + e.message);
+    Logger.log("Stack: " + e.stack);
+  }
+}
+
+/**
+ * Função de teste simplificada (versão antiga mantida para compatibilidade)
+ * Simula apenas alguns campos básicos
+ */
+function testeEnvioSimples() {
   try {
     // Simula dados de um formulário
     const testResponses = {
@@ -1024,4 +1130,254 @@ function testeEnvio() {
     Logger.log("❌ Erro no teste: " + e.message);
     Logger.log("Stack: " + e.stack);
   }
+}
+
+// ============================================================================
+// DIAGNÓSTICO DO SISTEMA
+// ============================================================================
+/**
+ * Executa diagnóstico completo do sistema: gatilhos, Firebase e credenciais.
+ * Execute esta função para identificar onde está falhando a integração.
+ */
+function diagnosticarSistema() {
+  Logger.log("=".repeat(70));
+  Logger.log("🔧 DIAGNÓSTICO DO SISTEMA - Forms → AppScript → Firebase");
+  Logger.log("=".repeat(70));
+  Logger.log("");
+
+  // 1. Verificação de gatilhos
+  Logger.log("📋 1. GATILHOS CONFIGURADOS");
+  Logger.log("-".repeat(50));
+  const triggers = ScriptApp.getProjectTriggers();
+  const formSubmitTriggers = triggers.filter(function(t) {
+    return t.getHandlerFunction() === 'onFormSubmit' && t.getEventType() === ScriptApp.EventType.ON_FORM_SUBMIT;
+  });
+  const timeBasedTriggers = triggers.filter(function(t) {
+    return t.getHandlerFunction() === 'onFormSubmit' && t.getEventType() === ScriptApp.EventType.CLOCK;
+  });
+
+  if (triggers.length === 0) {
+    Logger.log("❌ Nenhum gatilho configurado. Execute setupTriggers() para configurar.");
+  } else {
+    triggers.forEach(function(t, i) {
+      Logger.log("   " + (i+1) + ". " + t.getHandlerFunction() + " | Tipo: " + t.getEventType());
+    });
+    if (formSubmitTriggers.length === 0) {
+      Logger.log("❌ Nenhum gatilho ON_FORM_SUBMIT. O acionador do Forms não está correto.");
+      if (timeBasedTriggers.length > 0) {
+        Logger.log("   ⚠️  Há gatilhos time-based chamando onFormSubmit (incorreto). Execute limparGatilhosIncorretos() e setupTriggers().");
+      }
+    } else {
+      Logger.log("✅ Gatilho ON_FORM_SUBMIT encontrado: " + formSubmitTriggers.length);
+    }
+  }
+  Logger.log("");
+
+  // 2. Verificação de credenciais Firebase
+  Logger.log("🔑 2. CREDENCIAIS FIREBASE (Service Account)");
+  Logger.log("-".repeat(50));
+  var configOk = true;
+  if (!FIREBASE_CONFIG || !FIREBASE_CONFIG.email) {
+    Logger.log("❌ FIREBASE_CONFIG.email não configurado");
+    configOk = false;
+  } else {
+    Logger.log("   Email: " + FIREBASE_CONFIG.email);
+  }
+  if (!FIREBASE_CONFIG || !FIREBASE_CONFIG.key || FIREBASE_CONFIG.key.length < 100) {
+    Logger.log("❌ FIREBASE_CONFIG.key inválido ou ausente");
+    configOk = false;
+  } else {
+    Logger.log("   Chave privada: " + (FIREBASE_CONFIG.key.indexOf("-----BEGIN") === 0 ? "✅ Presente" : "❌ Formato inválido"));
+  }
+  if (!FIREBASE_CONFIG || !FIREBASE_CONFIG.projectId) {
+    Logger.log("❌ FIREBASE_CONFIG.projectId não configurado");
+    configOk = false;
+  } else {
+    Logger.log("   Project ID: " + FIREBASE_CONFIG.projectId);
+  }
+  if (configOk) Logger.log("✅ Configuração do Firebase OK");
+  Logger.log("");
+
+  // 3. Teste de token (autenticação)
+  Logger.log("🔐 3. TESTE DE AUTENTICAÇÃO (Token OAuth)");
+  Logger.log("-".repeat(50));
+  try {
+    const token = getServiceAccountToken();
+    if (token && token.length > 50) {
+      Logger.log("✅ Token obtido com sucesso (length: " + token.length + ")");
+    } else {
+      Logger.log("❌ Token vazio ou inválido");
+    }
+  } catch (e) {
+    Logger.log("❌ Erro ao obter token: " + e.message);
+    Logger.log("   Stack: " + (e.stack || ""));
+  }
+  Logger.log("");
+
+  // 4. Teste de conexão com Firestore (leitura)
+  Logger.log("📡 4. TESTE DE CONEXÃO COM FIRESTORE");
+  Logger.log("-".repeat(50));
+  try {
+    const token = getServiceAccountToken();
+    const query = {
+      structuredQuery: {
+        from: [{ collectionId: "candidates" }],
+        limit: 1
+      }
+    };
+    const options = {
+      method: "post",
+      contentType: "application/json",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      payload: JSON.stringify(query),
+      muteHttpExceptions: true
+    };
+    const response = UrlFetchApp.fetch(FIRESTORE_RUN_QUERY_URL, options);
+    const statusCode = response.getResponseCode();
+    if (statusCode === 200) {
+      const data = JSON.parse(response.getContentText());
+      Logger.log("✅ Conexão Firestore OK (status " + statusCode + ")");
+      if (data && data[0] && data[0].document) {
+        Logger.log("   Exemplo doc em candidates: " + (data[0].document.name || "").split("/").pop());
+      } else {
+        Logger.log("   (Coleção candidates vazia ou sem documentos)");
+      }
+    } else {
+      Logger.log("❌ Firestore retornou status " + statusCode + ": " + response.getContentText().substring(0, 200));
+    }
+  } catch (e) {
+    Logger.log("❌ Erro ao conectar Firestore: " + e.message);
+    Logger.log("   Stack: " + (e.stack || ""));
+  }
+  Logger.log("");
+
+  // 5. Verificação de Form/Planilha vinculada
+  Logger.log("📄 5. FORMULÁRIO / PLANILHA VINCULADA");
+  Logger.log("-".repeat(50));
+  try {
+    const form = FormApp.getActiveForm();
+    Logger.log("✅ Formulário ativo: " + form.getTitle());
+    Logger.log("   ID: " + form.getId());
+  } catch (e) {
+    Logger.log("⚠️  " + e.message + " (script pode estar vinculado à planilha de respostas)");
+  }
+  Logger.log("");
+
+  Logger.log("=".repeat(70));
+  Logger.log("📌 RESUMO: Execute listarTodosGatilhos() para detalhes dos gatilhos.");
+  Logger.log("   Execute testeEnvio() para simular um envio completo.");
+  Logger.log("=".repeat(70));
+}
+
+/**
+ * Mapeamento esperado: rótulo do Forms (exatamente como em e.namedValues) -> campo Firebase.
+ * Deve estar alinhado com mapearFormularioParaCandidato e rowToCandidateObject.
+ */
+var FORM_TO_FIREBASE = {
+  'Carimbo de data/hora': 'original_timestamp', // Campo automático do Forms (sempre presente)
+  'Nome completo:': 'fullName',
+  'E-mail principal:': 'email',
+  'Endereço de e-mail': 'email_secondary', // Pode não existir se só houver "E-mail principal:"
+  'Nº telefone celular / Whatsapp:': 'phone',
+  'Data de Nascimento:': 'birthDate',
+  'Idade': 'age', // Pode não existir no formulário
+  'Nos envie uma foto atual que você goste:': 'photoUrl',
+  'Estado civil:': 'maritalStatus',
+  'Se tem filhos, quantos?': 'childrenCount',
+  'Você possui CNH tipo B?': 'hasLicense',
+  'Cidade onde reside:': 'city',
+  'Formação:': 'education',
+  'Nível de escolaridade:': 'schoolingLevel',
+  'Instituição de ensino:': 'institution',
+  'Data de formatura:': 'graduationDate',
+  'Em caso de curso superior, está cursando neste momento?': 'isStudying',
+  'Experiências anteriores:': 'experience',
+  'Cursos e certificações profissionais.': 'courses',
+  'Certificações profissionais:': 'certifications', // Pode ter nome diferente no Form
+  'Áreas de interesse profissional': 'interestAreas',
+  'Anexar currículo:': 'cvUrl', // Pode ter nome diferente no Form
+  'Portfólio de trabalho:': 'portfolioUrl',
+  'Onde você nos encontrou?': 'source',
+  'Você foi indicado por algum colaborador da Young? Se sim, quem?': 'referral',
+  'Qual seria sua expectativa salarial?': 'salaryExpectation',
+  'Teria disponibilidade para mudança de cidade?': 'canRelocate',
+  'Referências profissionais:': 'references',
+  'Você está se candidatando a uma vaga específica...?': 'typeOfApp', // Pode ter nome diferente no Form
+  'Você está se candidatando a uma vaga específica ou apenas quer se inscrever no banco de talentos?': 'typeOfApp', // Nome alternativo encontrado no Form
+  'Campo Livre, SEJA VOCÊ!': 'freeField'
+};
+
+/**
+ * Valida o mapeamento Forms -> Firebase.
+ * Compara os campos que o script espera (FORM_TO_FIREBASE) com os itens do formulário ativo (se disponível).
+ * Identifica: campos do Form não mapeados; campos mapeados que não existem no Form.
+ */
+function validarMapeamentoCampos() {
+  Logger.log("=".repeat(60));
+  Logger.log("📋 VALIDAÇÃO DE MAPEAMENTO: Forms -> Firebase");
+  Logger.log("=".repeat(60));
+
+  var formLabels = Object.keys(FORM_TO_FIREBASE);
+  var firebaseKeys = [];
+  for (var i = 0; i < formLabels.length; i++) {
+    var k = FORM_TO_FIREBASE[formLabels[i]];
+    if (firebaseKeys.indexOf(k) === -1) firebaseKeys.push(k);
+  }
+
+  Logger.log("Campos que o script mapeia (Forms -> Firebase): " + formLabels.length);
+  Logger.log("Campos Firebase únicos: " + firebaseKeys.length);
+
+  var noForm = [];
+  var formTitles = [];
+  var sectionHeaders = []; // Títulos de seção (não são campos de dados)
+  try {
+    var form = FormApp.getActiveForm();
+    var items = form.getItems();
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var t = item.getTitle();
+      var itemType = item.getType();
+      
+      // Ignora títulos de seção (SectionHeaderItem) - não são campos de dados
+      if (itemType === FormApp.ItemType.SECTION_HEADER || itemType === FormApp.ItemType.PAGE_BREAK) {
+        sectionHeaders.push(t);
+        continue;
+      }
+      
+      formTitles.push(t);
+      if (FORM_TO_FIREBASE[t] === undefined) noForm.push(t);
+    }
+    Logger.log("Itens no formulário ativo: " + formTitles.length + " (campos de dados)");
+    if (sectionHeaders.length > 0) {
+      Logger.log("   Títulos de seção ignorados: " + sectionHeaders.length + " (não são campos de dados)");
+    }
+    if (noForm.length > 0) {
+      Logger.log("⚠️  Campos no Form NÃO mapeados no script: " + noForm.length);
+      noForm.forEach(function(t) { Logger.log("   - " + t); });
+      Logger.log("   💡 Dica: Se algum desses campos contém dados importantes, adicione ao FORM_TO_FIREBASE.");
+    } else {
+      Logger.log("✅ Todos os campos de dados do Form estão mapeados.");
+    }
+    var mappedNotInForm = formLabels.filter(function(l) {
+      // Ignora "Carimbo de data/hora" - é automático do Forms, não aparece como item
+      if (l === 'Carimbo de data/hora') return false;
+      return formTitles.indexOf(l) === -1;
+    });
+    if (mappedNotInForm.length > 0) {
+      Logger.log("⚠️  Campos mapeados no script que NÃO existem no Form: " + mappedNotInForm.length);
+      mappedNotInForm.forEach(function(l) { 
+        Logger.log("   - " + l + " -> " + FORM_TO_FIREBASE[l]);
+      });
+      Logger.log("   💡 Dica: Esses campos podem ter nomes diferentes no Form ou podem ser opcionais.");
+    } else {
+      Logger.log("✅ Todos os campos mapeados existem no Form (ou são automáticos como 'Carimbo de data/hora').");
+    }
+  } catch (e) {
+    Logger.log("⚠️  Formulário ativo não disponível: " + e.message);
+    Logger.log("   Lista de rótulos esperados pelo script (e.namedValues):");
+    formLabels.slice(0, 10).forEach(function(l) { Logger.log("   - " + l); });
+    Logger.log("   ... e mais " + (formLabels.length - 10) + " campos. Consulte FORM_TO_FIREBASE no código.");
+  }
+
+  Logger.log("=".repeat(60));
 }
