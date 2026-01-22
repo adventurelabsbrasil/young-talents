@@ -24,22 +24,59 @@ const SPREADSHEET_ID = "1DKJSelwLZkBag-1ORe-IXT2TVI0XpRpj-CIgR0oaIf0";
  * NÃO modifica a planilha - envia diretamente para o Firebase
  */
 function onFormSubmit(e) {
-  if (!e || !e.namedValues) {
-    Logger.log("⚠️  Erro: Função rodada manualmente ou evento inválido.");
+  // Log de debug para entender o que está sendo recebido
+  Logger.log("🔍 DEBUG: onFormSubmit chamado");
+  Logger.log(`   Tipo do evento: ${typeof e}`);
+  Logger.log(`   Evento existe: ${!!e}`);
+  
+  if (e) {
+    Logger.log(`   Propriedades do evento: ${Object.keys(e).join(', ')}`);
+    Logger.log(`   e.namedValues existe: ${!!e.namedValues}`);
+    Logger.log(`   e.values existe: ${!!e.values}`);
+    Logger.log(`   e.range existe: ${!!e.range}`);
+  }
+  
+  // Verifica se o evento é válido
+  if (!e) {
+    Logger.log("⚠️  ERRO: Evento não recebido (null ou undefined)");
     Logger.log("   Esta função deve ser acionada automaticamente pelo gatilho do Google Forms.");
+    Logger.log("   Verifique se o gatilho está configurado corretamente:");
+    Logger.log("   - Função: onFormSubmit");
+    Logger.log("   - Origem: Do formulário");
+    Logger.log("   - Tipo: Ao enviar o formulário");
+    return;
+  }
+  
+  // Verifica se tem namedValues (formato do Google Forms)
+  if (!e.namedValues) {
+    Logger.log("⚠️  ERRO: Evento inválido - não contém 'namedValues'");
+    Logger.log("   Isso geralmente acontece quando:");
+    Logger.log("   1. A função é executada manualmente");
+    Logger.log("   2. Um gatilho time-based está chamando esta função incorretamente");
+    Logger.log("   3. O evento não é do tipo 'onFormSubmit' do Google Forms");
+    Logger.log("");
+    Logger.log("   SOLUÇÃO: Verifique os gatilhos em: Editar → Gatilhos do projeto atual");
+    Logger.log("   Deve haver APENAS um gatilho:");
+    Logger.log("   - Função: onFormSubmit");
+    Logger.log("   - Origem: Do formulário");
+    Logger.log("   - Tipo: Ao enviar o formulário");
     return;
   }
 
   try {
     Logger.log("📝 Novo formulário recebido - Processando...");
+    Logger.log(`   Total de campos recebidos: ${Object.keys(e.namedValues).length}`);
     
     const responses = e.namedValues;
     const candidato = mapearFormularioParaCandidato(responses);
     
     if (!candidato || !candidato.fullName) {
       Logger.log("❌ Erro: Dados do formulário inválidos ou nome não encontrado.");
+      Logger.log(`   Candidato mapeado: ${JSON.stringify(candidato)}`);
       return;
     }
+    
+    Logger.log(`✅ Candidato mapeado: ${candidato.fullName}`);
     
     // Verifica se candidato já existe no Firebase (duplicata)
     if (candidato.email) {
@@ -54,16 +91,20 @@ function onFormSubmit(e) {
         return;
       }
       Logger.log(`✅ Candidato não encontrado - pode enviar com segurança.`);
+    } else {
+      Logger.log(`⚠️  Candidato sem email - enviando mesmo assim.`);
     }
     
     // Envia para o Firebase
-    Logger.log(`📤 Enviando candidato: ${candidato.fullName} (${candidato.email})`);
+    Logger.log(`📤 Enviando candidato: ${candidato.fullName} (${candidato.email || 'sem email'})`);
     const resultado = enviarCandidatoParaFirebase(candidato);
     
     if (resultado.sucesso) {
       Logger.log(`✅ Candidato enviado com sucesso! ID: ${resultado.docId}`);
+      Logger.log(`   Status HTTP: ${resultado.statusCode}`);
     } else {
       Logger.log(`❌ Erro ao enviar candidato: ${resultado.erro}`);
+      Logger.log(`   Status HTTP: ${resultado.statusCode || 'N/A'}`);
     }
     
   } catch (error) {
@@ -573,6 +614,79 @@ function setupTriggers() {
     Logger.log("      - Tipo de evento: Ao enviar o formulário");
     Logger.log("   4. Salve");
     Logger.log(`   Erro: ${e.message}`);
+  }
+}
+
+/**
+ * Função para listar TODOS os gatilhos configurados
+ * Útil para debug e verificação
+ */
+function listarTodosGatilhos() {
+  const triggers = ScriptApp.getProjectTriggers();
+  
+  Logger.log("=".repeat(60));
+  Logger.log("📋 LISTA DE TODOS OS GATILHOS CONFIGURADOS");
+  Logger.log("=".repeat(60));
+  
+  if (triggers.length === 0) {
+    Logger.log("⚠️  Nenhum gatilho configurado.");
+    return;
+  }
+  
+  triggers.forEach(function(trigger, index) {
+    const handlerFunction = trigger.getHandlerFunction();
+    const eventType = trigger.getEventType();
+    const uniqueId = trigger.getUniqueId();
+    
+    Logger.log(`\n${index + 1}. Gatilho ID: ${uniqueId}`);
+    Logger.log(`   Função: ${handlerFunction}`);
+    Logger.log(`   Tipo de evento: ${eventType}`);
+    
+    // Informações específicas por tipo
+    if (eventType === ScriptApp.EventType.ON_FORM_SUBMIT) {
+      Logger.log(`   ✅ CORRETO: Gatilho de envio de formulário`);
+    } else if (eventType === ScriptApp.EventType.CLOCK) {
+      Logger.log(`   ⚠️  ATENÇÃO: Gatilho baseado em tempo`);
+      try {
+        const source = trigger.getTriggerSource();
+        Logger.log(`   Origem: ${source}`);
+      } catch (e) {
+        Logger.log(`   Origem: Não disponível`);
+      }
+    } else {
+      Logger.log(`   Tipo: ${eventType}`);
+    }
+  });
+  
+  Logger.log("\n" + "=".repeat(60));
+  Logger.log(`Total: ${triggers.length} gatilho(s) configurado(s)`);
+  Logger.log("=".repeat(60));
+  
+  // Verifica se há problemas
+  const formSubmitTriggers = triggers.filter(t => 
+    t.getHandlerFunction() === 'onFormSubmit' && t.getEventType() === ScriptApp.EventType.ON_FORM_SUBMIT
+  );
+  const timeBasedTriggers = triggers.filter(t => 
+    t.getHandlerFunction() === 'onFormSubmit' && t.getEventType() === ScriptApp.EventType.CLOCK
+  );
+  
+  if (timeBasedTriggers.length > 0) {
+    Logger.log("\n⚠️  PROBLEMA ENCONTRADO:");
+    Logger.log(`   Há ${timeBasedTriggers.length} gatilho(s) time-based chamando onFormSubmit`);
+    Logger.log("   Execute limparGatilhosIncorretos() para remover.");
+  }
+  
+  if (formSubmitTriggers.length === 0) {
+    Logger.log("\n⚠️  PROBLEMA ENCONTRADO:");
+    Logger.log("   Nenhum gatilho correto (ON_FORM_SUBMIT) configurado!");
+    Logger.log("   Execute setupTriggers() para configurar.");
+  } else if (formSubmitTriggers.length === 1) {
+    Logger.log("\n✅ Configuração correta:");
+    Logger.log("   Há 1 gatilho correto configurado.");
+  } else {
+    Logger.log("\n⚠️  ATENÇÃO:");
+    Logger.log(`   Há ${formSubmitTriggers.length} gatilhos ON_FORM_SUBMIT configurados.`);
+    Logger.log("   Pode haver duplicatas. Considere executar setupTriggers() para limpar.");
   }
 }
 
