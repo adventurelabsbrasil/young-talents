@@ -6,6 +6,7 @@ import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail } 
 import { normalizeCity } from '../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalizer';
 import { normalizeInterestAreasString, getMainInterestAreasOptions } from '../utils/interestAreaNormalizer';
+import { normalizeChildrenForStorage, CHILDREN_OPTIONS } from '../utils/childrenNormalizer';
 import { validateBirthDate } from '../utils/validation';
 import { getAllRSCities, searchRSCities } from '../utils/rsCities';
 import { Loader2, CheckCircle, AlertCircle, Send, ChevronRight, ChevronLeft, Upload, Link as LinkIcon, FileText, X, Check, Info } from 'lucide-react';
@@ -419,7 +420,7 @@ const PublicCandidateForm = () => {
         // Limpar campos vazios
         email_secondary: formData.email_secondary || '',
         age: formData.age ? parseInt(formData.age) : null,
-        childrenCount: formData.childrenCount ? parseInt(formData.childrenCount) : 0,
+        childrenCount: normalizeChildrenForStorage(formData.childrenCount),
         // Metadados
         status: 'Inscrito',
         tags: ['Novo Inscrito', 'Formulário Público'],
@@ -836,6 +837,7 @@ const PublicCandidateForm = () => {
                     <option value="Divorciado(a)">Divorciado(a)</option>
                     <option value="Viúvo(a)">Viúvo(a)</option>
                     <option value="União Estável">União Estável</option>
+                    <option value="Namorando">Namorando</option>
                   </select>
                 </div>
 
@@ -852,10 +854,9 @@ const PublicCandidateForm = () => {
                     } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                   >
                     <option value="">Selecione...</option>
-                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                      <option key={num} value={num}>{num}</option>
+                    {CHILDREN_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                    <option value="11+">11 ou mais</option>
                   </select>
                   {errors.childrenCount && <p className="text-red-500 text-xs mt-1">{errors.childrenCount}</p>}
                 </div>
@@ -986,6 +987,8 @@ const PublicCandidateForm = () => {
                     <option value="Técnico">Técnico</option>
                     <option value="Superior Incompleto">Superior Incompleto</option>
                     <option value="Superior Completo">Superior Completo</option>
+                    <option value="Pós-graduação Incompleta">Pós-graduação Incompleta</option>
+                    <option value="Pós-graduação Completa">Pós-graduação Completa</option>
                     <option value="Pós-Graduação">Pós-Graduação</option>
                     <option value="Mestrado">Mestrado</option>
                     <option value="Doutorado">Doutorado</option>

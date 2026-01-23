@@ -28,7 +28,7 @@ O AppScript usa os **rótulos exatos** das perguntas do Forms em `e.namedValues`
 | Idade | `age` | Inteiro |
 | Nos envie uma foto atual que você goste: | `photoUrl` | URL |
 | Estado civil: | `maritalStatus` | |
-| Se tem filhos, quantos? | `childrenCount` | Inteiro |
+| Se tem filhos, quantos? | `childrenCount` | Número 0–5: 0 = "Não tenho filhos", 1–4 = quantidade, 5 = "5 ou mais". Na exibição use `formatChildrenForDisplay` (compatível com dados legados em texto). |
 | Você possui CNH tipo B? | `hasLicense` | |
 | Cidade onde reside: | `city` | Normalizada (ex.: Porto Alegre/RS) |
 | Formação: | `education` | |
@@ -124,4 +124,10 @@ Alguns campos podem ter nomes ligeiramente diferentes no formulário. O script t
 
 ---
 
-*Última atualização: conforme implementação do plano de melhoria ATS (diagnóstico, timestamps e mapeamento).*
+### childrenCount (Filhos)
+- **Valor armazenado:** 0 | 1 | 2 | 3 | 4 | 5 (5 = "5 ou mais").
+- **Exibição:** usar `formatChildrenForDisplay` de `src/utils/childrenNormalizer.js` para compatibilidade com dados legados (ex.: "Não tenho filhos.", strings).
+
+---
+
+*Última atualização: conforme implementação do plano de melhoria ATS (diagnóstico, timestamps, mapeamento e childrenNormalizer).*

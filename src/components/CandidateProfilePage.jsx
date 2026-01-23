@@ -15,6 +15,7 @@ import { PIPELINE_STAGES, STATUS_COLORS, CLOSING_STATUSES, ALL_STATUSES } from '
 import { normalizeCity, getMainCitiesOptions } from '../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from '../utils/interestAreaNormalizer';
+import { formatChildrenForDisplay, CHILDREN_OPTIONS, normalizeChildrenForStorage } from '../utils/childrenNormalizer';
 
 export default function CandidateProfilePage({ 
   candidates = [], 
@@ -686,6 +687,7 @@ export default function CandidateProfilePage({
                     <option value="Divorciado(a)">Divorciado(a)</option>
                     <option value="Viúvo(a)">Viúvo(a)</option>
                     <option value="União Estável">União Estável</option>
+                    <option value="Namorando">Namorando</option>
                   </select>
                 ) : (
                   <p className="text-gray-900 dark:text-white">{candidate.maritalStatus || 'Não informado'}</p>
@@ -696,15 +698,16 @@ export default function CandidateProfilePage({
                   Número de Filhos
                 </label>
                 {isEditing ? (
-                  <input
-                    type="number"
-                    min="0"
-                    value={editData.childrenCount || ''}
-                    onChange={(e) => handleFieldChange('childrenCount', e.target.value)}
+                  <select
+                    value={editData.childrenCount != null && editData.childrenCount !== '' ? normalizeChildrenForStorage(editData.childrenCount) : ''}
+                    onChange={(e) => handleFieldChange('childrenCount', e.target.value === '' ? '' : normalizeChildrenForStorage(e.target.value))}
                     className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
-                  />
+                  >
+                    <option value="">Selecione</option>
+                    {CHILDREN_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </select>
                 ) : (
-                  <p className="text-gray-900 dark:text-white">{candidate.childrenCount !== undefined ? candidate.childrenCount : 'Não informado'}</p>
+                  <p className="text-gray-900 dark:text-white">{formatChildrenForDisplay(candidate.childrenCount) || 'Não informado'}</p>
                 )}
               </div>
               <div>

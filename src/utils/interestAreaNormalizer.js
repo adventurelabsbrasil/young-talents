@@ -53,8 +53,14 @@ export const MAIN_INTEREST_AREAS = {
     'obras', 'construção', 'construcao', 'construção civil',
     'construcao civil', 'execução de obras', 'execucao de obras',
     'gerência de obras', 'gerencia de obras', 'gerenciamento de obras',
-    'fiscalização de obras', 'fiscalizacao de obras', 'fiscal de obras',
+    'gerenciamento', 'fiscalização de obras', 'fiscalizacao de obras', 'fiscal de obras',
     'supervisão de obras', 'supervisao de obras', 'supervisor de obras'
+  ],
+  'Licenciamentos': [
+    'licenciamentos', 'licenciamento', 'licenciamento ambiental'
+  ],
+  'Esportiva': [
+    'esportiva', 'esportes'
   ],
   'Projetos': [
     'projetos', 'projeto', 'gestão de projetos', 'gestao de projetos',
@@ -64,7 +70,7 @@ export const MAIN_INTEREST_AREAS = {
     'pm', 'pmo', 'escritório de projetos', 'escritorio de projetos'
   ],
   'Financeiro': [
-    'financeiro', 'finanças', 'financas', 'contabilidade',
+    'financeiro', 'financeira', 'finanças', 'financas', 'contabilidade',
     'contador', 'analista financeiro', 'analista financeiro',
     'assistente financeiro', 'auxiliar financeiro',
     'controladoria', 'tesouraria', 'fiscal', 'fiscalização',

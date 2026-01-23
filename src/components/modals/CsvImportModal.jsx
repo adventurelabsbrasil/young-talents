@@ -4,6 +4,7 @@ import { CSV_FIELD_MAPPING_OPTIONS } from '../../constants';
 import { normalizeCity } from '../../utils/cityNormalizer';
 import { normalizeSource } from '../../utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString } from '../../utils/interestAreaNormalizer';
+import { normalizeChildrenForStorage } from '../../utils/childrenNormalizer';
 import { validateEmail, validatePhone, validateImportBatch, checkBatchDuplicates } from '../../utils/validation';
 import * as XLSX from 'xlsx';
 
@@ -461,7 +462,9 @@ export default function CsvImportModal({ isOpen, onClose, onImportData, existing
         Object.keys(mapping).forEach(header => {
             if(mapping[header] && row[header] !== undefined) {
                 let value = String(row[header] || '').trim();
-                if (value) {
+                if (mapping[header] === 'childrenCount') {
+                  candidate.childrenCount = normalizeChildrenForStorage(value || '');
+                } else if (value) {
                   if (mapping[header] === 'city') {
                     value = normalizeCity(value);
                   } else if (mapping[header] === 'source') {

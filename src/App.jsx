@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, Legend 
+  PieChart, Pie, Cell, Legend, LineChart, Line 
 } from 'recharts';
 
 // Firebase Imports
@@ -50,6 +50,7 @@ import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail, f
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from './utils/interestAreaNormalizer';
+import { formatChildrenForDisplay, CHILDREN_OPTIONS, normalizeChildrenForStorage } from './utils/childrenNormalizer';
 import { calculateMatchScore, findMatchingJobs, findMatchingCandidates, getMatchBadgeColor, getMatchBadgeText } from './utils/matching';
 
 // Material Design Colors (Google)
@@ -250,8 +251,7 @@ const Dashboard = ({
       : filteredCandidatesByPeriod;
     candidatesToUse.forEach(c => {
       if (c.interestAreas) {
-        // Dividir áreas por vírgula e contar individualmente
-        const areasList = c.interestAreas.split(',').map(a => a.trim()).filter(a => a);
+        const areasList = c.interestAreas.split(',').map(a => normalizeInterestArea(a.trim())).filter(a => a);
         areasList.forEach(area => {
           areas[area] = (areas[area] || 0) + 1;
         });
@@ -268,7 +268,7 @@ const Dashboard = ({
       }));
   }, [filteredCandidatesByPeriod, filteredCandidates, periodFilter]);
 
-  // Cidades ordenadas do maior para o menor
+  // Cidades ordenadas do maior para o menor (normalizadas para agregação coerente)
   const cityData = useMemo(() => {
     const cities = {};
     // Usar filteredCandidates quando período é 'all' ou quando não há dados no período filtrado
@@ -277,7 +277,8 @@ const Dashboard = ({
       : filteredCandidatesByPeriod;
     candidatesToUse.forEach(c => {
       if (c.city) {
-        cities[c.city] = (cities[c.city] || 0) + 1;
+        const norm = normalizeCity(c.city);
+        if (norm) cities[norm] = (cities[norm] || 0) + 1;
       }
     });
     return Object.entries(cities)
@@ -293,7 +294,10 @@ const Dashboard = ({
       ? filteredCandidates 
       : filteredCandidatesByPeriod;
     candidatesToUse.forEach(c => {
-      if (c.source) origins[c.source] = (origins[c.source] || 0) + 1;
+      if (c.source) {
+        const norm = normalizeSource(c.source);
+        if (norm) origins[norm] = (origins[norm] || 0) + 1;
+      }
     });
     const total = candidatesToUse.length;
     return Object.entries(origins)
@@ -305,6 +309,27 @@ const Dashboard = ({
         percentage: total > 0 ? ((value / total) * 100).toFixed(1) : 0
       }));
   }, [filteredCandidatesByPeriod, filteredCandidates, periodFilter]);
+
+  // Inscrições por dia (para gráfico de linha/barras)
+  const inscriptionsPerDayData = useMemo(() => {
+    const byDay = {};
+    filteredCandidatesByPeriod.forEach(c => {
+      const ts = getCandidateTimestamp(c);
+      if (!ts) return;
+      const d = new Date(ts * 1000);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const key = `${y}-${m}-${day}`;
+      byDay[key] = (byDay[key] || 0) + 1;
+    });
+    return Object.entries(byDay)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, count]) => {
+        const [y, m, d] = date.split('-');
+        return { date, label: `${d}/${m}`, count };
+      });
+  }, [filteredCandidatesByPeriod]);
 
   const missingReturnCount = useMemo(() => {
     return filteredCandidatesByPeriod.filter(c => {
@@ -651,6 +676,28 @@ const Dashboard = ({
             </ResponsiveContainer>
           ) : (
             <div className="h-[380px] flex items-center justify-center text-gray-500">Sem dados</div>
+          )}
+        </div>
+
+        {/* Inscrições por dia */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Candidatos inscritos por dia</h3>
+          {inscriptionsPerDayData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={inscriptionsPerDayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                <YAxis stroke="#94a3b8" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.date ? new Date(payload[0].payload.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
+                  formatter={(value) => [`${value} inscrições`, 'Quantidade']}
+                />
+                <Line type="monotone" dataKey="count" stroke="#4285F4" strokeWidth={2} dot={{ fill: '#4285F4', r: 4 }} activeDot={{ r: 6 }} name="Inscrições" />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[280px] flex items-center justify-center text-gray-500">Nenhuma inscrição no período selecionado</div>
           )}
         </div>
 
@@ -4850,7 +4897,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
       case 'maritalStatus':
         return <div className="text-xs text-gray-600 dark:text-gray-400">{c.maritalStatus || 'N/A'}</div>;
       case 'childrenCount':
-        return <div className="text-xs text-gray-600 dark:text-gray-400">{c.childrenCount || 'N/A'}</div>;
+        return <div className="text-xs text-gray-600 dark:text-gray-400">{formatChildrenForDisplay(c.childrenCount) || 'N/A'}</div>;
       case 'graduationDate':
         return <div className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDateOnly(c.graduationDate)}</div>;
       case 'isStudying':
@@ -6179,7 +6226,13 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                   {options.marital && options.marital.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
                 </select>
               </div>
-              <InputField label="Quantidade de Filhos" field="childrenCount" type="number" value={d.childrenCount} onChange={handleInputChange}/>
+              <div className="mb-3">
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Quantidade de Filhos</label>
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.childrenCount != null && d.childrenCount !== '' ? normalizeChildrenForStorage(d.childrenCount) : ''} onChange={e => handleInputChange('childrenCount', e.target.value === '' ? '' : normalizeChildrenForStorage(e.target.value))}>
+                  <option value="">Selecione...</option>
+                  {CHILDREN_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              </div>
               <UrlField label="URL da Foto" field="photoUrl" value={d.photoUrl} onChange={handleInputChange} placeholder="Cole a URL da foto aqui..."/>
               <div className="mb-3">
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Possui CNH Tipo B?</label>

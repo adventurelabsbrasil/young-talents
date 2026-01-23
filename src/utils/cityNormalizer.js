@@ -71,8 +71,8 @@ export function normalizeCity(city) {
     return '';
   }
 
-  // Remove espaços extras e converte para minúsculas para comparação
-  const normalized = city.trim();
+  // Remove sufixos comuns (ex: " (disponibilidade de mudança imediata)")
+  let normalized = city.trim().replace(/\s*\([^)]*disponibilidade[^)]*\)\s*$/i, '').trim();
   const lowerCity = normalized.toLowerCase();
 
   // Remove acentos para comparação mais flexível
@@ -127,12 +127,22 @@ export function normalizeCity(city) {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 
-  // Se termina com /RS, mantém; se não, adiciona se for do RS (assumindo que todas são do RS por enquanto)
-  // Mas só adiciona se não tiver estado já
-  if (!cleaned.includes('/') && !cleaned.match(/\b(RS|SC|PR|SP|RJ|MG|ES|BA|SE|AL|PE|PB|RN|CE|PI|MA|PA|AP|AM|AC|RO|RR|TO|GO|MT|MS|DF)\b/i)) {
-    return cleaned + '/RS';
+  // Já tem barra (ex: Bauru/SP, São Paulo/SP): não alterar, só retornar cleaned (que já tem o estado)
+  if (cleaned.includes('/')) {
+    return cleaned;
   }
-
+  // Já tem sigla de estado no texto: não adicionar /RS
+  if (cleaned.match(/\b(RS|SC|PR|SP|RJ|MG|ES|BA|SE|AL|PE|PB|RN|CE|PI|MA|PA|AP|AM|AC|RO|RR|TO|GO|MT|MS|DF)\b/i)) {
+    return cleaned;
+  }
+  // Só adiciona /RS quando a cidade consta em MAIN_CITIES (cidades do RS conhecidas)
+  const lowerCleaned = removeAccents(cleaned.toLowerCase());
+  for (const key of Object.keys(MAIN_CITIES)) {
+    const cityPart = key.split('/')[0] || '';
+    if (removeAccents(cityPart.toLowerCase()) === lowerCleaned) {
+      return key;
+    }
+  }
   return cleaned;
 }
 

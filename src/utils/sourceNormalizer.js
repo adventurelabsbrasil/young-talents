@@ -23,7 +23,8 @@ export const MAIN_SOURCES = {
     'agência empregos', 'agencia empregos',
     'agência', 'agencia', 'agência trabalho', 'agencia trabalho',
     'empregos', 'vagas', 'site de empregos', 'portal de empregos',
-    'indeed', 'linkedin jobs', 'catho', 'infojobs', 'vagas.com'
+    'indeed', 'linkedin jobs', 'catho', 'infojobs', 'vagas.com',
+    'sine'
   ],
   'Site da Empresa': [
     'site da empresa', 'site empresa', 'site', 'website',
@@ -40,12 +41,14 @@ export const MAIN_SOURCES = {
     'indicação', 'indicacao', 'indicado', 'foi indicado',
     'amigo indicou', 'conhecido indicou', 'colega indicou',
     'referência', 'referencia', 'referido', 'indicação de amigo',
-    'indicacao de amigo', 'indicação de colega', 'indicacao de colega'
+    'indicacao de amigo', 'indicação de amigos', 'indicacao de amigos',
+    'indicação de colega', 'indicacao de colega'
   ],
   'WhatsApp': [
     'whatsapp', 'whats app', 'wa', 'zap', 'zap zap',
     'grupo whatsapp', 'grupo zap', 'mensagem whatsapp',
-    'mensagem zap'
+    'mensagem zap',
+    'grupos de empregos', 'grupo de emprego no whatsapp', 'grupo de emprego whatsapp'
   ],
   'Email': [
     'email', 'e-mail', 'correio eletrônico', 'correio eletronico',
@@ -71,7 +74,8 @@ export const MAIN_SOURCES = {
   ],
   'Outros': [
     'outros', 'outro', 'diversos', 'outra fonte',
-    'não informado', 'nao informado', 'não sabe', 'nao sabe'
+    'não informado', 'nao informado', 'não sabe', 'nao sabe',
+    'twitter'
   ]
 };
 
