@@ -2306,6 +2306,11 @@ export default function App() {
   // Sync Data
   useEffect(() => {
     if (!user) return;
+    // Firebase é opcional - se não estiver configurado, pula os listeners do Firebase
+    if (!db) {
+      console.warn('[App] Firebase não está configurado. Algumas funcionalidades podem não estar disponíveis.');
+      return;
+    }
     const unsubs = [
       onSnapshot(query(collection(db, 'jobs')), s => setJobs(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(
@@ -2362,6 +2367,10 @@ export default function App() {
   }, [user]);
 
   const handleSaveGeneric = async (col, d, closeFn) => {
+    if (!db) {
+      showToast('Firebase não está configurado. Esta funcionalidade não está disponível.', 'error');
+      return;
+    }
     setIsSaving(true);
     try {
       const payload = { ...d, updatedAt: serverTimestamp() };
@@ -2965,17 +2974,24 @@ export default function App() {
 
   const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags, userRoles, user };
 
-  // Verificar se Firebase foi inicializado corretamente
-  if (!db) {
+  // Verificar se Supabase foi inicializado corretamente
+  if (!supabase) {
     return (
       <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md">
           <AlertCircle className="mx-auto mb-4 text-red-600 dark:text-red-400" size={48} />
           <h2 className="text-xl font-bold text-red-900 dark:text-red-200 mb-2">Erro de Configuração</h2>
           <p className="text-red-700 dark:text-red-300 mb-4">
-            Firebase não foi inicializado corretamente. Verifique as variáveis de ambiente no Vercel.
+            Supabase não foi inicializado corretamente. Verifique as variáveis de ambiente no Vercel.
           </p>
-          <p className="text-sm text-red-600 dark:text-red-400">
+          <p className="text-sm text-red-600 dark:text-red-400 mb-2">
+            Variáveis necessárias:
+          </p>
+          <ul className="text-sm text-red-600 dark:text-red-400 text-left list-disc list-inside">
+            <li>VITE_SUPABASE_URL</li>
+            <li>VITE_SUPABASE_ANON_KEY</li>
+          </ul>
+          <p className="text-sm text-red-600 dark:text-red-400 mt-4">
             Abra o console do navegador (F12) para mais detalhes.
           </p>
         </div>
