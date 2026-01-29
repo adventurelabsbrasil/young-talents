@@ -14,12 +14,6 @@ import {
 
 // Supabase Imports
 import { supabase } from "./supabase";
-// Firebase Imports (mantido temporariamente para migração gradual)
-import { db } from "./firebase";
-import { 
-  collection, addDoc, updateDoc, deleteDoc, doc, 
-  onSnapshot, serverTimestamp, query, orderBy, writeBatch, getDocs 
-} from "firebase/firestore";
 
 // Component Imports
 import TransitionModal from './components/modals/TransitionModal';
@@ -2303,200 +2297,60 @@ export default function App() {
     }
   };
 
-  // Sync Data
+  // Sync Data - Supabase only
   useEffect(() => {
     if (!user) return;
-    // Firebase é opcional - se não estiver configurado, pula os listeners do Firebase
-    if (!db) {
-      console.warn('[App] Firebase não está configurado. Algumas funcionalidades podem não estar disponíveis.');
-      return;
-    }
-    const unsubs = [
-      onSnapshot(query(collection(db, 'jobs')), s => setJobs(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(
-        query(collection(db, 'candidates')),
-        s => {
-          const docs = s.docs.map(d => ({ id: d.id, ...d.data() }));
-          setCandidates(docs);
-        }
-      ),
-      onSnapshot(query(collection(db, 'companies')), s => setCompanies(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'cities')), s => setCities(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'interest_areas')), s => setInterestAreas(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'positions')), s => setRoles(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'sectors')), s => setSectors(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'origins')), s => setOrigins(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'schooling_levels')), s => setSchooling(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'marital_statuses')), s => setMarital(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'tags')), s => setTags(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      // Log de movimentações de status para calcular taxas de conversão
-      onSnapshot(query(collection(db, 'statusMovements')), s => setStatusMovements(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      // Candidaturas formais (candidato-vaga)
-      onSnapshot(query(collection(db, 'applications')), s => setApplications(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      // Agendamentos de entrevistas
-      onSnapshot(query(collection(db, 'interviews')), s => setInterviews(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      // Roles de usuários - Supabase subscription
-      (async () => {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('*');
-        if (!error && data) setUserRoles(data);
-        
-        // Subscription para mudanças em tempo real
-        const subscription = supabase
-          .channel('user_roles_changes')
-          .on('postgres_changes', 
-            { event: '*', schema: 'young_talents', table: 'user_roles' },
-            async () => {
-              const { data: updatedData } = await supabase
-                .from('user_roles')
-                .select('*');
-              if (updatedData) setUserRoles(updatedData);
-            }
-          )
-          .subscribe();
-        
-        return () => {
-          subscription.unsubscribe();
-        };
-      })(),
-      // Log de atividades (últimas 200)
-      onSnapshot(query(collection(db, 'activityLog'), orderBy('timestamp', 'desc')), s => setActivityLog(s.docs.slice(0, 200).map(d => ({id:d.id, ...d.data()})))),
-    ];
-    return () => unsubs.forEach(u => u());
+    
+    // Roles de usuários - Supabase subscription
+    (async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('*');
+      if (!error && data) setUserRoles(data);
+      
+      // Subscription para mudanças em tempo real
+      const subscription = supabase
+        .channel('user_roles_changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'young_talents', table: 'user_roles' },
+          async () => {
+            const { data: updatedData } = await supabase
+              .from('user_roles')
+              .select('*');
+            if (updatedData) setUserRoles(updatedData);
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        subscription.unsubscribe();
+      };
+    })();
   }, [user]);
 
   const handleSaveGeneric = async (col, d, closeFn) => {
-    if (!db) {
-      showToast('Firebase não está configurado. Esta funcionalidade não está disponível.', 'error');
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const payload = { ...d, updatedAt: serverTimestamp() };
-      
-      // Adiciona histórico de edição/criação e metadados
-      if (user && user.email) {
-        if (!d.id) {
-          // Novo candidato criado manualmente
-          payload.createdBy = user.email;
-          payload.createdAt = serverTimestamp();
-          payload.origin = 'manual'; // Origem: criado manualmente pelo usuário
-          payload.responsibleUser = user.email; // Usuário responsável
-          if (!payload.tags) {
-            payload.tags = [];
-          }
-        } else {
-          payload.updatedBy = user.email;
-          payload.updatedAt = serverTimestamp();
-        }
-      }
-      
-      // Normaliza campos específicos se for collection de candidatos
-      if (col === 'candidates') {
-        if (payload.city) {
-          payload.city = normalizeCity(payload.city);
-        }
-        if (payload.source) {
-          payload.source = normalizeSource(payload.source);
-        }
-        if (payload.interestAreas) {
-          payload.interestAreas = normalizeInterestAreasString(payload.interestAreas);
-        }
-      }
-      
-      if (d.id) {
-        await updateDoc(doc(db, col, d.id), payload);
-      } else {
-        const docRef = await addDoc(collection(db, col), payload);
-        // Se for candidato, redireciona para a página de perfil
-        if (col === 'candidates' && closeFn) {
-          closeFn();
-          navigate(`/candidate/${docRef.id}`);
-          showToast('Candidato criado com sucesso', 'success');
-          return;
-        }
-      }
-      if(closeFn) closeFn();
-      showToast('Salvo com sucesso', 'success');
-    } catch(e) { showToast(`Erro ao salvar: ${e.message}`, 'error'); } finally { setIsSaving(false); }
+    showToast('Esta funcionalidade precisa ser migrada para Supabase.', 'error');
+    // TODO: Migrar para Supabase
   };
 
   const handleDeleteGeneric = async (col, id) => {
     if (!window.confirm('Tem certeza que deseja excluir este item?')) return;
-    
-    try {
-      setIsSaving(true);
-      const docRef = doc(db, col, id);
-      
-      // Registra histórico antes de deletar
-      if (user && user.email) {
-        await updateDoc(docRef, {
-          deletedBy: user.email,
-          deletedAt: serverTimestamp()
-        });
-      }
-      
-      // Registra ação no histórico
-      await recordActionHistory({
-        action: 'exclusão',
-        collection: col,
-        recordsAffected: 1,
-        details: { id }
-      });
-      
-      // Deleta o documento
-      await deleteDoc(docRef);
-      showToast('Excluído com sucesso', 'success');
-    } catch(e) {
-      showToast(`Erro ao excluir: ${e.message}`, 'error');
-    } finally {
-      setIsSaving(false);
-    }
+    showToast('Esta funcionalidade precisa ser migrada para Supabase.', 'error');
+    // TODO: Migrar para Supabase
   };
 
   // Função para registrar histórico de ações
   const recordActionHistory = async ({ action, col, recordsAffected, details = {} }) => {
     if (!user || !user.email) return;
-    
-    try {
-      await addDoc(collection(db, 'actionHistory'), {
-        action,
-        collection: col,
-        recordsAffected,
-        userEmail: user.email,
-        userName: user.displayName || user.email,
-        userPhoto: user.photoURL || null,
-        timestamp: serverTimestamp(),
-        details,
-        createdAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Erro ao registrar histórico:', error);
-      // Não interrompe a operação principal se o histórico falhar
-    }
+    // TODO: Migrar para Supabase
+    console.log('Action history:', { action, col, recordsAffected, details });
   };
 
   // Função para registrar atividades gerais do sistema (log completo)
   const recordActivity = async (activityType, description, entityType = null, entityId = null, metadata = {}) => {
     if (!user || !user.email) return;
-    
-    try {
-      await addDoc(collection(db, 'activityLog'), {
-        type: activityType, // 'login', 'create', 'update', 'delete', 'move', 'import', 'export', 'schedule', etc.
-        description,
-        entityType, // 'candidate', 'job', 'application', 'interview', 'user', etc.
-        entityId,
-        metadata,
-        userEmail: user.email,
-        userName: user.displayName || user.email,
-        userPhoto: user.photoURL || null,
-        userRole: currentUserRole,
-        timestamp: serverTimestamp(),
-        createdAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Erro ao registrar atividade:', error);
+    // TODO: Migrar para Supabase
+    console.log('Activity:', { activityType, description, entityType, entityId, metadata });
     }
   };
 
@@ -2507,18 +2361,8 @@ export default function App() {
     const isClosingStatus = CLOSING_STATUSES.includes(newStatus);
     
     try {
-      await addDoc(collection(db, 'statusMovements'), {
-        candidateId,
-        candidateName: candidateName || 'Candidato',
-        previousStatus: previousStatus || 'Inscrito',
-        newStatus,
-        isClosingStatus,
-        userEmail: user.email,
-        userName: user.displayName || user.email,
-        userPhoto: user.photoURL || null,
-        timestamp: serverTimestamp(),
-        createdAt: serverTimestamp()
-      });
+      // TODO: Migrar para Supabase
+      console.log('Status movement:', { candidateId, candidateName, previousStatus, newStatus, isClosingStatus });
       
       // Registrar também no log de atividades
       await recordActivity('move', `${candidateName} movido de "${previousStatus || 'Inscrito'}" para "${newStatus}"`, 'candidate', candidateId, { previousStatus: previousStatus || 'Inscrito', newStatus, isClosingStatus });
@@ -2555,17 +2399,18 @@ export default function App() {
         jobTitle: job?.title || 'Vaga',
         jobCompany: job?.company || '',
         status: 'Inscrito', // Status inicial na vaga
-        appliedAt: serverTimestamp(),
-        lastActivity: serverTimestamp(), // Atualizado automaticamente
+        appliedAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString(), // Atualizado automaticamente
         rating: 0, // Qualificação 1-5 estrelas
         closedAt: null,
         closedReason: null,
         createdBy: user.email,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         notes: []
       };
       
-      const docRef = await addDoc(collection(db, 'applications'), appData);
+      // TODO: Migrar para Supabase
+      const docRef = { id: 'temp-' + Date.now() };
       showToast(`${candidate?.fullName} vinculado à vaga ${job?.title}`, 'success');
       return { id: docRef.id, ...appData };
     } catch (error) {
@@ -2583,36 +2428,8 @@ export default function App() {
     if (!app) return;
     
     try {
-      const updateData = {
-        status: newStatus,
-        lastActivity: serverTimestamp(), // Atualiza atividade automaticamente
-        updatedAt: serverTimestamp(),
-        updatedBy: user.email
-      };
-      
-      // Se for status de fechamento, marca data de fechamento
-      if (CLOSING_STATUSES.includes(newStatus)) {
-        updateData.closedAt = serverTimestamp();
-        updateData.closedReason = newStatus;
-      }
-      
-      await updateDoc(doc(db, 'applications', applicationId), updateData);
-      
-      // Registra movimentação específica da candidatura
-      await addDoc(collection(db, 'statusMovements'), {
-        candidateId: app.candidateId,
-        candidateName: app.candidateName,
-        jobId: app.jobId,
-        jobTitle: app.jobTitle,
-        applicationId,
-        previousStatus: app.status,
-        newStatus,
-        isClosingStatus: CLOSING_STATUSES.includes(newStatus),
-        userEmail: user.email,
-        userName: user.displayName || user.email,
-        timestamp: serverTimestamp(),
-        createdAt: serverTimestamp()
-      });
+      // TODO: Migrar para Supabase
+      console.log('Update application status:', { applicationId, newStatus, notes, app });
       
       showToast('Status da candidatura atualizado', 'success');
     } catch (error) {
@@ -2626,7 +2443,8 @@ export default function App() {
     if (!window.confirm('Remover este candidato da vaga?')) return;
     
     try {
-      await deleteDoc(doc(db, 'applications', applicationId));
+      // TODO: Migrar para Supabase
+      console.log('Remove application:', { applicationId });
       showToast('Candidato removido da vaga', 'success');
     } catch (error) {
       console.error('Erro ao remover candidatura:', error);
@@ -2650,10 +2468,8 @@ export default function App() {
         userName: user.displayName || user.email
       };
       
-      await updateDoc(doc(db, 'applications', applicationId), {
-        notes: [newNote, ...existingNotes],
-        updatedAt: serverTimestamp()
-      });
+      // TODO: Migrar para Supabase
+      console.log('Add note:', { applicationId, newNote, existingNotes });
       
       showToast('Nota adicionada', 'success');
     } catch (error) {
@@ -2691,11 +2507,12 @@ export default function App() {
         notes: data.notes || '',
         status: 'Agendada', // Agendada, Confirmada, Realizada, Cancelada, NoShow
         createdBy: user.email,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
-      const docRef = await addDoc(collection(db, 'interviews'), interviewData);
+      // TODO: Migrar para Supabase
+      const docRef = { id: 'temp-' + Date.now() };
       
       // Registrar atividade
       await recordActivity('schedule', `Entrevista agendada para ${data.candidateName} em ${data.date} às ${data.time}`, 'interview', docRef.id, { candidateId: data.candidateId, jobId: data.jobId, date: data.date, time: data.time });
@@ -2714,21 +2531,8 @@ export default function App() {
     if (!user || !user.email) return;
     
     try {
-      const updateData = {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        updatedBy: user.email
-      };
-      
-      if (feedback) {
-        updateData.feedback = feedback;
-      }
-      
-      if (newStatus === 'Realizada') {
-        updateData.completedAt = serverTimestamp();
-      }
-      
-      await updateDoc(doc(db, 'interviews', interviewId), updateData);
+      // TODO: Migrar para Supabase
+      console.log('Update interview:', { interviewId, newStatus, feedback });
       showToast('Status da entrevista atualizado', 'success');
     } catch (error) {
       console.error('Erro ao atualizar entrevista:', error);
@@ -2741,12 +2545,8 @@ export default function App() {
     if (!window.confirm('Cancelar esta entrevista?')) return;
     
     try {
-      await updateDoc(doc(db, 'interviews', interviewId), {
-        status: 'Cancelada',
-        cancelReason: reason,
-        cancelledAt: serverTimestamp(),
-        cancelledBy: user?.email
-      });
+      // TODO: Migrar para Supabase
+      console.log('Cancel interview:', { interviewId, reason });
       showToast('Entrevista cancelada', 'success');
     } catch (error) {
       console.error('Erro ao cancelar entrevista:', error);
@@ -2767,26 +2567,11 @@ export default function App() {
       const existingRole = userRoles.find(r => r.email === email);
       
       if (existingRole) {
-        await updateDoc(doc(db, 'userRoles', existingRole.id), {
-          role,
-          name: userName || existingRole.name || '',
-          updatedAt: serverTimestamp(),
-          updatedBy: user?.email
-        });
-        
-        // Registrar atividade
-        await recordActivity('user_update', `Permissão de ${email} alterada para ${role}`, 'user', existingRole.id, { email, role, previousRole: existingRole.role });
+        // TODO: Migrar para Supabase
+        console.log('Update user role:', { existingRole, role, userName });
       } else {
-        const docRef = await addDoc(collection(db, 'userRoles'), {
-          email,
-          role,
-          name: userName || '',
-          createdAt: serverTimestamp(),
-          createdBy: user?.email
-        });
-        
-        // Registrar atividade
-        await recordActivity('user_create', `Usuário ${email} adicionado como ${role}`, 'user', docRef.id, { email, role });
+        // TODO: Migrar para Supabase
+        console.log('Create user role:', { email, role, userName });
       }
       
       showToast(`Permissão de ${email} atualizada para ${role}`, 'success');
@@ -2806,7 +2591,8 @@ export default function App() {
     if (!window.confirm('Remover acesso deste usuário?')) return;
     
     try {
-      await deleteDoc(doc(db, 'userRoles', roleId));
+      // TODO: Migrar para Supabase
+      console.log('Remove user role:', { roleId });
       showToast('Acesso removido', 'success');
     } catch (error) {
       console.error('Erro ao remover usuário:', error);
@@ -2855,33 +2641,8 @@ export default function App() {
 
     // Movimentação direta quando não há pendências
     const previousStatus = candidate.status || 'Inscrito';
-    await updateDoc(doc(db, 'candidates', cId), { status: newStage, updatedAt: serverTimestamp() });
-    
-    // Registra log de movimentação
-    await recordStatusMovement(cId, candidate.fullName, previousStatus, newStage);
-    
-    // Sincroniza status em TODAS as aplicações do candidato (não apenas fechamento)
-    const candidateApplications = applications.filter(app => app.candidateId === cId);
-    if (candidateApplications.length > 0) {
-      const batch = writeBatch(db);
-      candidateApplications.forEach(app => {
-        const appRef = doc(db, 'applications', app.id);
-        const updateData = {
-          status: newStage,
-          lastActivity: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
-        
-        // Se for status de fechamento, adiciona campos de fechamento
-        if (CLOSING_STATUSES.includes(newStage)) {
-          updateData.closedAt = serverTimestamp();
-          updateData.closedReason = newStage;
-        }
-        
-        batch.update(appRef, updateData);
-      });
-      await batch.commit();
-    }
+    // TODO: Migrar para Supabase
+    console.log('Update candidate status:', { cId, newStage, previousStatus, candidate });
     
     showToast('Status atualizado', 'success');
   };
@@ -3194,7 +2955,8 @@ export default function App() {
         onCreateApplication={createApplication}
         jobs={jobs}
         onAddNote={async (candidateId, noteText) => {
-          const candidateRef = doc(db, 'candidates', candidateId);
+          // TODO: Migrar para Supabase
+          console.log('Get candidate:', candidateId);
           const candidateDoc = candidates.find(c => c.id === candidateId);
           const existingNotes = candidateDoc?.notes || [];
           const newNote = {
@@ -3203,10 +2965,8 @@ export default function App() {
             userEmail: user?.email || 'unknown',
             userName: user?.displayName || user?.email || 'Usuário'
           };
-          await updateDoc(candidateRef, {
-            notes: [newNote, ...existingNotes],
-            updatedAt: serverTimestamp()
-          });
+          // TODO: Migrar para Supabase
+          console.log('Add candidate note:', { candidateRef, newNote, existingNotes });
           showToast('Nota adicionada', 'success');
         }}
         onAdvanceStage={async (candidate, newStage) => {
@@ -3216,26 +2976,8 @@ export default function App() {
             setPendingTransition({ candidate, toStage: newStage, missingFields, isConclusion });
           } else {
             const previousStatus = candidate.status || 'Inscrito';
-            await updateDoc(doc(db, 'candidates', candidate.id), { status: newStage, updatedAt: serverTimestamp() });
-            await recordStatusMovement(candidate.id, candidate.fullName, previousStatus, newStage);
-            
-            // Sincroniza status nas aplicações se for status de fechamento
-            if (CLOSING_STATUSES.includes(newStage)) {
-              const candidateApplications = applications.filter(app => app.candidateId === candidate.id);
-              if (candidateApplications.length > 0) {
-                const batch = writeBatch(db);
-                candidateApplications.forEach(app => {
-                  const appRef = doc(db, 'applications', app.id);
-                  batch.update(appRef, {
-                    status: newStage,
-                    updatedAt: serverTimestamp(),
-                    closedAt: serverTimestamp(),
-                    closedReason: newStage
-                  });
-                });
-                await batch.commit();
-              }
-            }
+            // TODO: Migrar para Supabase
+            console.log('Advance stage:', { candidate, newStage, previousStatus });
             
             showToast('Status atualizado', 'success');
           }
@@ -3248,44 +2990,17 @@ export default function App() {
           transition={pendingTransition} 
           onClose={() => setPendingTransition(null)} 
           onConfirm={async d => {
+            // TODO: Migrar para Supabase
             const payload = {
               id: pendingTransition.candidate.id,
               ...d,
               status: pendingTransition.toStage,
-              updatedAt: serverTimestamp()
+              updatedAt: new Date().toISOString()
             };
             if (pendingTransition.isConclusion) {
-              payload.closedAt = serverTimestamp();
+              payload.closedAt = new Date().toISOString();
             }
-            
-            // Registra log de movimentação ANTES de salvar
-            const previousStatus = pendingTransition.candidate.status || 'Inscrito';
-            await recordStatusMovement(
-              pendingTransition.candidate.id, 
-              pendingTransition.candidate.fullName || d.fullName, 
-              previousStatus, 
-              pendingTransition.toStage
-            );
-            
-            // Sincroniza status nas aplicações se for status de fechamento
-            if (CLOSING_STATUSES.includes(pendingTransition.toStage)) {
-              const candidateApplications = applications.filter(app => app.candidateId === pendingTransition.candidate.id);
-              const batch = writeBatch(db);
-              
-              candidateApplications.forEach(app => {
-                const appRef = doc(db, 'applications', app.id);
-                batch.update(appRef, {
-                  status: pendingTransition.toStage,
-                  updatedAt: serverTimestamp(),
-                  closedAt: serverTimestamp(),
-                  closedReason: pendingTransition.toStage
-                });
-              });
-              
-              if (candidateApplications.length > 0) {
-                await batch.commit();
-              }
-            }
+            console.log('Transition confirm:', payload);
             
             handleSaveGeneric('candidates', payload, () => setPendingTransition(null));
           }} 
@@ -3310,97 +3025,11 @@ export default function App() {
             let updated = 0;
             let duplicated = 0;
 
-            // Processa em lotes
-            for (let i = 0; i < candidatesData.length; i += BATCH_SIZE) {
-              const batch = writeBatch(db);
-              const chunk = candidatesData.slice(i, i + BATCH_SIZE);
-              let batchOps = 0;
-
-              for (const candidateData of chunk) {
-                const email = candidateData.email?.toLowerCase().trim();
-                if (!email) {
-                  skipped++;
-                  continue;
-                }
-
-                // Busca candidato existente por email
-                const existingCandidate = candidates.find(c => 
-                  c.email?.toLowerCase().trim() === email
-                );
-
-                if (existingCandidate) {
-                  if (importMode === 'skip') {
-                    skipped++;
-                    continue;
-                  } else if (importMode === 'overwrite') {
-                    const candidateRef = doc(db, 'candidates', existingCandidate.id);
-                    const updateData = {
-                      ...candidateData,
-                      updatedAt: serverTimestamp()
-                    };
-                    if (user && user.email) {
-                      updateData.updatedBy = user.email;
-                    }
-                    batch.update(candidateRef, updateData);
-                    updated++;
-                    batchOps++;
-                  } else if (importMode === 'duplicate') {
-                    const candidateRef = doc(collection(db, 'candidates'));
-                    const duplicateData = {
-                      ...candidateData,
-                      createdAt: serverTimestamp(),
-                      origin: 'csv_import', // Origem: importado via CSV
-                      imported: true
-                    };
-                    if (user && user.email) {
-                      duplicateData.createdBy = user.email;
-                      duplicateData.responsibleUser = user.email;
-                    }
-                    if (!duplicateData.tags) {
-                      duplicateData.tags = [];
-                    }
-                    if (candidateData.importTag) {
-                      if (!duplicateData.tags.includes(candidateData.importTag)) {
-                        duplicateData.tags.push(candidateData.importTag);
-                      }
-                    }
-                    batch.set(candidateRef, duplicateData);
-                    duplicated++;
-                    batchOps++;
-                  }
-                } else {
-                  // Novo candidato
-                  const candidateRef = doc(collection(db, 'candidates'));
-                  const newCandidateData = {
-                    ...candidateData,
-                    createdAt: serverTimestamp(),
-                    origin: 'csv_import', // Origem: importado via CSV
-                    imported: true
-                  };
-                  if (user && user.email) {
-                    newCandidateData.createdBy = user.email;
-                    newCandidateData.responsibleUser = user.email; // Usuário responsável
-                  }
-                  // Garante que tags seja um array
-                  if (!newCandidateData.tags) {
-                    newCandidateData.tags = [];
-                  }
-                  // Adiciona tag de importação se houver
-                  if (candidateData.importTag) {
-                    if (!newCandidateData.tags.includes(candidateData.importTag)) {
-                      newCandidateData.tags.push(candidateData.importTag);
-                    }
-                  }
-                  batch.set(candidateRef, newCandidateData);
-                  imported++;
-                  batchOps++;
-                }
-              }
-
-              if (batchOps > 0) {
-                await batch.commit();
-              }
-            }
+            // TODO: Migrar para Supabase
+            console.log('CSV import:', { candidatesData, importMode });
+            showToast('Importação precisa ser migrada para Supabase', 'error');
+            setIsSaving(false);
+            return;
             
             // Registra histórico da importação
             const totalAffected = imported + updated + duplicated;
@@ -5504,12 +5133,10 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
 
   // Carregar setores, cargos e funções
   useEffect(() => {
-    const unsubSectors = onSnapshot(query(collection(db, 'sectors'), orderBy('name', 'asc')), 
-      s => setSectors(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubPositions = onSnapshot(query(collection(db, 'positions'), orderBy('name', 'asc')), 
-      s => setPositions(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubFunctions = onSnapshot(query(collection(db, 'functions'), orderBy('name', 'asc')), 
-      s => setFunctions(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    // TODO: Migrar para Supabase - carregar sectors, positions, functions
+    const unsubSectors = () => {};
+    const unsubPositions = () => {};
+    const unsubFunctions = () => {};
     return () => { unsubSectors(); unsubPositions(); unsubFunctions(); };
   }, []);
 
@@ -5522,10 +5149,11 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
       const newCompany = {
         name: newCompanyName.trim(),
         city: newCompanyCity || '',
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         createdBy: options.user?.email || 'system'
       };
-      await addDoc(collection(db, 'companies'), newCompany);
+      // TODO: Migrar para Supabase
+      console.log('Create company:', newCompany);
       setD({...d, company: newCompanyName.trim(), city: newCompanyCity || d.city});
       setShowNewCompany(false);
       setNewCompanyName('');
@@ -5545,10 +5173,11 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
     try {
       const newCity = {
         name: newCityName.trim(),
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         createdBy: options.user?.email || 'system'
       };
-      await addDoc(collection(db, 'cities'), newCity);
+      // TODO: Migrar para Supabase
+      console.log('Create city:', newCity);
       setD({...d, city: newCityName.trim()});
       setShowNewCity(false);
       setNewCityName('');
@@ -5567,10 +5196,11 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
     try {
       const newSector = {
         name: newSectorName.trim(),
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         createdBy: options.user?.email || 'system'
       };
-      await addDoc(collection(db, 'sectors'), newSector);
+      // TODO: Migrar para Supabase
+      console.log('Create sector:', newSector);
       setD({...d, sector: newSectorName.trim()});
       setShowNewSector(false);
       setNewSectorName('');
@@ -5590,10 +5220,11 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
       const newPosition = {
         name: newPositionName.trim(),
         level: newPositionLevel || '',
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         createdBy: options.user?.email || 'system'
       };
-      await addDoc(collection(db, 'positions'), newPosition);
+      // TODO: Migrar para Supabase
+      console.log('Create position:', newPosition);
       setD({...d, position: newPositionName.trim()});
       setShowNewPosition(false);
       setNewPositionName('');

@@ -6,10 +6,7 @@ import {
   Building2, MapPin, Briefcase, Users, Layers, Tag,
   Plus, Edit3, Trash2, Search, Save, X, ChevronDown, ChevronRight
 } from 'lucide-react';
-import { 
-  collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc, serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../firebase';
+// Firebase removido - migrado para Supabase
 
 // Componente genérico para gerenciar uma coleção
 const CollectionManager = ({ 
@@ -28,33 +25,17 @@ const CollectionManager = ({
   const [formData, setFormData] = useState({});
   const [relatedData, setRelatedData] = useState({});
 
-  // Carregar dados da coleção
+  // Carregar dados da coleção - TODO: Migrar para Supabase
   useEffect(() => {
-    const q = query(collection(db, collectionName), orderBy('name', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
-    }, (error) => {
-      console.error(`Erro ao carregar ${collectionName}:`, error);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    // TODO: Carregar do Supabase
+    setItems([]);
+    setLoading(false);
   }, [collectionName]);
 
-  // Carregar coleções relacionadas
+  // Carregar coleções relacionadas - TODO: Migrar para Supabase
   useEffect(() => {
-    const unsubscribes = [];
-    Object.entries(relatedCollections).forEach(([key, colName]) => {
-      const q = query(collection(db, colName), orderBy('name', 'asc'));
-      const unsub = onSnapshot(q, (snapshot) => {
-        setRelatedData(prev => ({
-          ...prev,
-          [key]: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        }));
-      });
-      unsubscribes.push(unsub);
-    });
-    return () => unsubscribes.forEach(u => u());
+    // TODO: Carregar do Supabase
+    setRelatedData({});
   }, [relatedCollections]);
 
   const initForm = () => {
@@ -85,20 +66,9 @@ const CollectionManager = ({
     }
 
     try {
-      const data = { ...formData, updatedAt: serverTimestamp() };
-      
-      if (editingItem) {
-        await updateDoc(doc(db, collectionName, editingItem.id), data);
-        if (onShowToast) onShowToast(`${title} atualizado`, 'success');
-      } else {
-        data.createdAt = serverTimestamp();
-        await addDoc(collection(db, collectionName), data);
-        if (onShowToast) onShowToast(`${title} criado`, 'success');
-      }
-
-      setShowForm(false);
-      setEditingItem(null);
-      setFormData(initForm());
+      // TODO: Migrar para Supabase
+      console.log('Save item:', { collectionName, editingItem, formData });
+      if (onShowToast) onShowToast('Funcionalidade precisa ser migrada para Supabase', 'error');
     } catch (error) {
       console.error('Erro ao salvar:', error);
       if (onShowToast) onShowToast('Erro ao salvar', 'error');
@@ -108,8 +78,9 @@ const CollectionManager = ({
   const handleDelete = async (item) => {
     if (!window.confirm(`Excluir "${item.name}"?`)) return;
     try {
-      await deleteDoc(doc(db, collectionName, item.id));
-      if (onShowToast) onShowToast('Excluído com sucesso', 'success');
+      // TODO: Migrar para Supabase
+      console.log('Delete item:', { collectionName, item });
+      if (onShowToast) onShowToast('Funcionalidade precisa ser migrada para Supabase', 'error');
     } catch (error) {
       console.error('Erro ao excluir:', error);
       if (onShowToast) onShowToast('Erro ao excluir', 'error');

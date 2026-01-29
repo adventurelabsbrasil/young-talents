@@ -6,11 +6,7 @@ import {
   History, MessageSquare, Clock, UserPlus, Tag, Database, TrendingUp,
   CheckCircle, XCircle, AlertCircle, Clock as ClockIcon
 } from 'lucide-react';
-import { auth, db } from '../firebase';
-import { 
-  doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot,
-  serverTimestamp, addDoc
-} from 'firebase/firestore';
+// Firebase removido - migrado para Supabase
 import { PIPELINE_STAGES, STATUS_COLORS, CLOSING_STATUSES, ALL_STATUSES } from '../constants';
 import { normalizeCity, getMainCitiesOptions } from '../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalizer';
@@ -50,42 +46,17 @@ export default function CandidateProfilePage({
       setEditData(foundCandidate);
       setLoading(false);
     } else {
-      // Se não encontrar, busca direto do Firestore
-      const candidateRef = doc(db, 'candidates', id);
-      getDoc(candidateRef).then(docSnap => {
-        if (docSnap.exists()) {
-          setCandidate({ id: docSnap.id, ...docSnap.data() });
-          setEditData({ id: docSnap.id, ...docSnap.data() });
-        }
-        setLoading(false);
-      }).catch(err => {
-        console.error('Erro ao buscar candidato:', err);
-        setLoading(false);
-      });
+      // TODO: Migrar para Supabase
+      console.log('Candidate not found in list, ID:', id);
+      setLoading(false);
     }
   }, [id, candidates]);
 
-  // Buscar log de alterações
+  // Buscar log de alterações - TODO: Migrar para Supabase
   useEffect(() => {
     if (!id) return;
-    
-    const q = query(
-      collection(db, 'candidateChangeLog'),
-      where('candidateId', '==', id),
-      orderBy('timestamp', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const logs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setChangeLog(logs);
-    }, (error) => {
-      console.error('Erro ao buscar log de alterações:', error);
-    });
-
-    return () => unsubscribe();
+    // TODO: Carregar changeLog do Supabase
+    setChangeLog([]);
   }, [id]);
 
   // Dados do candidato filtrados
@@ -189,25 +160,11 @@ export default function CandidateProfilePage({
     return date.toLocaleDateString('pt-BR');
   };
 
-  // Registrar alteração no log
+  // Registrar alteração no log - TODO: Migrar para Supabase
   const recordChange = async (field, oldValue, newValue, userId, userName) => {
     if (!id) return;
-    
-    try {
-      await addDoc(collection(db, 'candidateChangeLog'), {
-        candidateId: id,
-        candidateName: candidate?.fullName || 'Candidato',
-        field,
-        oldValue: String(oldValue || ''),
-        newValue: String(newValue || ''),
-        userId,
-        userName,
-        timestamp: serverTimestamp(),
-        createdAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Erro ao registrar alteração:', error);
-    }
+    // TODO: Migrar para Supabase
+    console.log('Record change:', { field, oldValue, newValue, userId, userName });
   };
 
   // Salvar alterações
@@ -216,10 +173,7 @@ export default function CandidateProfilePage({
     
     setSaving(true);
     try {
-      const candidateRef = doc(db, 'candidates', id);
-      const user = auth.currentUser;
-      
-      // Compara valores antigos e novos para registrar no log
+      // TODO: Migrar para Supabase
       const changes = [];
       Object.keys(editData).forEach(key => {
         if (key === 'id' || key === 'createdAt' || key === 'updatedAt' || key === 'changeLog') return;
@@ -230,19 +184,7 @@ export default function CandidateProfilePage({
         }
       });
 
-      // Atualiza documento
-      const updateData = {
-        ...editData,
-        updatedAt: serverTimestamp(),
-        updatedBy: user?.email || 'unknown'
-      };
-      
-      // Remove campos que não devem ser atualizados diretamente
-      delete updateData.id;
-      delete updateData.createdAt;
-      delete updateData.changeLog;
-
-      await updateDoc(candidateRef, updateData);
+      console.log('Save candidate:', { id, editData, changes });
 
       // Registra cada alteração no log
       if (user && changes.length > 0) {

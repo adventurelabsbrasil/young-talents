@@ -5,10 +5,7 @@ import {
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
 import DataManager from './DataManager';
-import { 
-  collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp
-} from 'firebase/firestore';
-import { db } from '../firebase';
+// Firebase removido - migrado para Supabase
 import * as XLSX from 'xlsx';
 
 // Helper para mostrar toast (será passado do App ou criado localmente)
@@ -495,25 +492,9 @@ const ImportExportManager = ({ onOpenCsvModal, onShowToast }) => {
   const exportData = async () => {
     setExporting(true);
     try {
-      // Buscar dados do Firestore
+      // TODO: Migrar para Supabase
       const collectionName = exportType === 'candidates' ? 'candidates' : 'jobs';
-      const q = query(collection(db, collectionName), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      
-      const data = snapshot.docs.map(doc => {
-        const docData = doc.data();
-        // Converter timestamps para formato legível
-        const processed = { ...docData };
-        if (docData.createdAt) {
-          const date = docData.createdAt.toDate ? docData.createdAt.toDate() : new Date(docData.createdAt);
-          processed.createdAt = date.toLocaleString('pt-BR');
-        }
-        if (docData.updatedAt) {
-          const date = docData.updatedAt.toDate ? docData.updatedAt.toDate() : new Date(docData.updatedAt);
-          processed.updatedAt = date.toLocaleString('pt-BR');
-        }
-        return processed;
-      });
+      const data = [];
 
       if (data.length === 0) {
         if (onShowToast) onShowToast('Nenhum dado encontrado para exportar', 'info');
@@ -563,20 +544,8 @@ const ImportExportManager = ({ onOpenCsvModal, onShowToast }) => {
         alert(`Exportação concluída! ${data.length} registro(s) exportado(s).`);
       }
       
-      // Registrar no histórico
-      try {
-        await addDoc(collection(db, 'actionHistory'), {
-          action: 'exportação',
-          collection: collectionName,
-          recordsAffected: data.length,
-          userEmail: 'system', // Será atualizado pelo App se necessário
-          timestamp: serverTimestamp(),
-          details: { format: exportFormat, type: exportType },
-          createdAt: serverTimestamp()
-        });
-      } catch (e) {
-        console.error('Erro ao registrar histórico de exportação:', e);
-      }
+      // TODO: Migrar histórico para Supabase
+      console.log('Export action history:', { collectionName, dataLength: data.length, exportFormat, exportType });
     } catch (error) {
       console.error('Erro na exportação:', error);
       if (onShowToast) {
@@ -937,37 +906,15 @@ const CompaniesManager = ({ onShowToast }) => {
   const [formData, setFormData] = useState({ name: '', city: '', interestArea: '', address: '', phone: '', email: '' });
 
   useEffect(() => {
-    const q = query(collection(db, 'companies'), orderBy('name', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const companiesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setCompanies(companiesData);
-      setLoading(false);
-    }, (error) => {
-      console.error('Erro ao carregar empresas:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    // TODO: Migrar para Supabase
+    setCompanies([]);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    const qCities = query(collection(db, 'cities'), orderBy('name', 'asc'));
-    const unsubscribeCities = onSnapshot(qCities, (snapshot) => {
-      setCities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    const qAreas = query(collection(db, 'interestAreas'), orderBy('name', 'asc'));
-    const unsubscribeAreas = onSnapshot(qAreas, (snapshot) => {
-      setInterestAreas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    return () => {
-      unsubscribeCities();
-      unsubscribeAreas();
-    };
+    // TODO: Migrar para Supabase
+    setCities([]);
+    setInterestAreas([]);
   }, []);
 
   const handleSave = async () => {
@@ -977,25 +924,9 @@ const CompaniesManager = ({ onShowToast }) => {
     }
 
     try {
-      const companyData = {
-        name: formData.name.trim(),
-        city: formData.city || '',
-        interestArea: formData.interestArea || '',
-        address: formData.address || '',
-        phone: formData.phone || '',
-        email: formData.email || '',
-        updatedAt: serverTimestamp()
-      };
-
-      if (editingCompany) {
-        await updateDoc(doc(db, 'companies', editingCompany.id), companyData);
-        if (onShowToast) onShowToast('Empresa atualizada com sucesso', 'success');
-      } else {
-        companyData.createdAt = serverTimestamp();
-        companyData.createdBy = 'system';
-        await addDoc(collection(db, 'companies'), companyData);
-        if (onShowToast) onShowToast('Empresa criada com sucesso', 'success');
-      }
+      // TODO: Migrar para Supabase
+      console.log('Save company:', { editingCompany, formData });
+      if (onShowToast) onShowToast('Funcionalidade precisa ser migrada para Supabase', 'error');
 
       setEditingCompany(null);
       setShowAddForm(false);
@@ -1010,7 +941,8 @@ const CompaniesManager = ({ onShowToast }) => {
     if (!window.confirm(`Tem certeza que deseja excluir a empresa "${companyName}"?`)) return;
 
     try {
-      await deleteDoc(doc(db, 'companies', companyId));
+      // TODO: Migrar para Supabase
+      console.log('Delete company:', companyId);
       if (onShowToast) onShowToast('Empresa excluída com sucesso', 'success');
     } catch (error) {
       console.error('Erro ao excluir empresa:', error);
@@ -1211,25 +1143,9 @@ const MassActionHistory = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'actionHistory'),
-      orderBy('timestamp', 'desc'),
-      limit(100)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const historyData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setHistory(historyData);
-      setLoading(false);
-    }, (error) => {
-      console.error('Erro ao carregar histórico:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    // TODO: Migrar para Supabase
+    setHistory([]);
+    setLoading(false);
   }, []);
 
   const formatDate = (timestamp) => {

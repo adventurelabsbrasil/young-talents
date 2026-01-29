@@ -2,8 +2,6 @@
 // Página de diagnóstico da integração Forms → AppScript → Firebase → Frontend
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, query, limit } from 'firebase/firestore';
-import { db } from '../firebase';
 import { CANDIDATE_FIELDS } from '../constants';
 import { getTimestampSeconds, getCandidateTimestamp } from '../utils/timestampUtils';
 import { AlertCircle, Check, X, Database, Clock, FileText, Users, RefreshCw } from 'lucide-react';
@@ -19,28 +17,10 @@ export default function DiagnosticPage({ candidates = [] }) {
   const [lastError, setLastError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Teste de conexão Firestore
+  // Firebase removido - migrado para Supabase
   useEffect(() => {
-    let cancelled = false;
-    async function test() {
-      if (!db) {
-        setFirebaseOk(false);
-        setLastError('Firebase (db) não inicializado. Verifique VITE_FIREBASE_*.');
-        return;
-      }
-      try {
-        const q = query(collection(db, 'candidates'), limit(1));
-        await getDocs(q);
-        if (!cancelled) setFirebaseOk(true);
-      } catch (e) {
-        if (!cancelled) {
-          setFirebaseOk(false);
-          setLastError(e?.message || String(e));
-        }
-      }
-    }
-    test();
-    return () => { cancelled = true; };
+    setFirebaseOk(false);
+    setLastError('Firebase foi removido. A aplicação agora usa Supabase.');
   }, []);
 
   const stats = useMemo(() => {
@@ -120,17 +100,14 @@ export default function DiagnosticPage({ candidates = [] }) {
         </button>
       </div>
 
-      {/* 1. Status Firebase */}
+      {/* 1. Status Firebase - Removido */}
       <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-3">
           <Database size={18} /> Conexão Firebase
         </h2>
         <div className="flex items-center gap-2">
-          {firebaseOk === true && <Check size={20} className="text-green-500" />}
-          {firebaseOk === false && <X size={20} className="text-red-500" />}
-          {firebaseOk === true && <span className="text-green-600 dark:text-green-400">Conectado. Leitura da coleção candidates OK.</span>}
-          {firebaseOk === false && <span className="text-red-600 dark:text-red-400">Erro: {lastError || 'Falha ao acessar Firestore.'}</span>}
-          {firebaseOk === null && <span className="text-gray-500">Verificando...</span>}
+          <X size={20} className="text-red-500" />
+          <span className="text-red-600 dark:text-red-400">Firebase foi removido. A aplicação agora usa Supabase.</span>
         </div>
       </section>
 
