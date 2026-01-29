@@ -12,17 +12,10 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line 
 } from 'recharts';
 
-// Firebase Imports
-import { auth, db } from "./firebase";
-import { 
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  onAuthStateChanged,
-  signOut 
-} from "firebase/auth";
+// Supabase Imports
+import { supabase } from "./supabase";
+// Firebase Imports (mantido temporariamente para migração gradual)
+import { db } from "./firebase";
 import { 
   collection, addDoc, updateDoc, deleteDoc, doc, 
   onSnapshot, serverTimestamp, query, orderBy, writeBatch, getDocs 
@@ -42,6 +35,7 @@ import CandidateProfilePage from './components/CandidateProfilePage';
 import DiagnosticPage from './components/DiagnosticPage';
 import PublicCandidateForm from './components/PublicCandidateForm';
 import ThankYouPage from './components/ThankYouPage';
+import ChangePasswordModal from './components/ChangePasswordModal';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
@@ -2043,6 +2037,7 @@ export default function App() {
   const [dashboardModalTitle, setDashboardModalTitle] = useState('');
   const [highlightedCandidateId, setHighlightedCandidateId] = useState(null);
   const [interviewModalData, setInterviewModalData] = useState(null); // { candidate, job, application }
+  const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
 
   // Helpers para abrir modais com URL
   const openJobModal = (job = null) => {
@@ -2119,14 +2114,33 @@ export default function App() {
 
   useEffect(() => { 
     try {
-      const unsubscribe = onAuthStateChanged(auth, (u) => { 
-        setUser(u); 
-        setAuthLoading(false); 
-      }, (error) => {
-        console.error('[Auth] Erro ao verificar estado de autenticação:', error);
+      // Verificar sessão inicial
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user || null);
         setAuthLoading(false);
       });
-      return unsubscribe;
+
+      // Listener para mudanças de autenticação
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        setUser(session?.user || null);
+        setAuthLoading(false);
+        
+        // Verificar e atualizar role quando usuário faz login
+        if (event === 'SIGNED_IN' && session?.user) {
+          await checkAndUpdateUserRole(session.user);
+          
+          // Verificar se usuário precisa alterar senha (senha provisória)
+          // Verifica se há flag no user_metadata ou se é primeiro login
+          const needsPasswordChange = session.user.user_metadata?.needs_password_change || 
+                                     session.user.user_metadata?.is_temporary_password;
+          
+          if (needsPasswordChange) {
+            setShowPasswordChangeModal(true);
+          }
+        }
+      });
+      
+      return () => subscription.unsubscribe();
     } catch (error) {
       console.error('[Auth] Erro ao configurar listener de autenticação:', error);
       setAuthLoading(false);
@@ -2134,18 +2148,53 @@ export default function App() {
   }, []);
   const handleEmailLogin = async (email, password) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) throw error;
+      
+      // Verificar se usuário tem role
+      if (data.user) {
+        const { data: userRole } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (!userRole) {
+          // Verificar se é primeiro usuário
+          const { data: allRoles } = await supabase
+            .from('user_roles')
+            .select('id');
+          
+          if (allRoles && allRoles.length === 0) {
+            // Criar admin para primeiro usuário
+            await supabase
+              .from('user_roles')
+              .insert([{
+                user_id: data.user.id,
+                email: data.user.email,
+                name: data.user.email,
+                role: 'admin'
+              }]);
+          } else {
+            await supabase.auth.signOut();
+            throw new Error('Acesso negado. Entre em contato com o administrador para solicitar acesso.');
+          }
+        }
+      }
+      
       showToast('Login realizado com sucesso!', 'success');
     } catch (error) {
       let errorMessage = 'Erro ao fazer login.';
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'Usuário não encontrado.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Senha incorreta.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Email inválido.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Muitas tentativas. Tente novamente mais tarde.';
+      if (error.message?.includes('Invalid login credentials') || error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Email ou senha incorretos.';
+      } else if (error.message?.includes('Acesso negado')) {
+        errorMessage = error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       throw new Error(errorMessage);
     }
@@ -2153,107 +2202,105 @@ export default function App() {
 
   const handleForgotPassword = async (email) => {
     try {
-      await sendPasswordResetEmail(auth, email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      
+      if (error) throw error;
       showToast('Email de recuperação enviado!', 'success');
     } catch (error) {
       let errorMessage = 'Erro ao enviar email de recuperação.';
-      if (error.code === 'auth/user-not-found') {
+      if (error.message?.includes('not found')) {
         errorMessage = 'Usuário não encontrado.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Email inválido.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       throw new Error(errorMessage);
     }
   };
 
   const handleGoogleLogin = async () => { 
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-
-    try { 
-      const result = await signInWithPopup(auth, provider);
-      const loggedUser = result.user;
-      
-      // Auto-registrar/atualizar perfil do usuário no primeiro login
-      if (loggedUser) {
-        setTimeout(async () => {
-          try {
-            // Verificar se o usuário já existe em userRoles
-            const q = query(collection(db, 'userRoles'), orderBy('createdAt', 'desc'));
-            const snapshot = await getDocs(q);
-            const existingRoles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            const existingRole = existingRoles.find(r => r.email === loggedUser.email);
-            
-            // Verificar se o usuário tem permissão para acessar o sistema
-            // Se não existe na lista de userRoles e não é o primeiro usuário, negar acesso
-            const isFirstUser = existingRoles.length === 0;
-            
-            if (!existingRole && !isFirstUser) {
-              // Usuário não autorizado - fazer logout
-              await signOut(auth);
-              showToast('Acesso negado. Entre em contato com o administrador para solicitar acesso.', 'error');
-              return;
-            }
-            
-            if (existingRole) {
-              // Atualizar nome e foto do Google se diferentes
-              if (existingRole.name !== loggedUser.displayName || existingRole.photo !== loggedUser.photoURL) {
-                await updateDoc(doc(db, 'userRoles', existingRole.id), {
-                  name: loggedUser.displayName || existingRole.name,
-                  photo: loggedUser.photoURL || existingRole.photo,
-                  lastLogin: serverTimestamp()
-                });
-              }
-            } else {
-              // Criar registro para primeiro usuário (admin)
-              await addDoc(collection(db, 'userRoles'), {
-                email: loggedUser.email,
-                name: loggedUser.displayName || '',
-                photo: loggedUser.photoURL || '',
-                role: 'admin', // Primeiro usuário é admin
-                createdAt: serverTimestamp(),
-                lastLogin: serverTimestamp()
-              });
-            }
-            
-            // Registrar atividade de login
-            await addDoc(collection(db, 'activityLog'), {
-              type: 'login',
-              description: `${loggedUser.displayName || loggedUser.email} fez login no sistema`,
-              entityType: 'user',
-              entityId: loggedUser.uid,
-              metadata: { method: 'google' },
-              userEmail: loggedUser.email,
-              userName: loggedUser.displayName || loggedUser.email,
-              userPhoto: loggedUser.photoURL || null,
-              timestamp: serverTimestamp(),
-              createdAt: serverTimestamp()
-            });
-          } catch (err) {
-            console.error('Erro ao registrar login:', err);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}`,
+          queryParams: {
+            prompt: 'select_account'
           }
-        }, 500);
-      }
+        }
+      });
+      
+      if (error) throw error;
+      
+      // OAuth redireciona, então o callback será tratado no onAuthStateChange
     } catch (e) { 
       console.error(e);
-
-      // Tratamento específico para bloqueio de popup
-      if (e.code === 'auth/popup-blocked') {
-        try {
-          await signInWithRedirect(auth, provider);
-        } catch (redirectError) {
-          console.error('Erro no login com redirecionamento:', redirectError);
-
-          if (typeof showToast === 'function') {
-            showToast('Seu navegador bloqueou o popup de login. Permita pop-ups ou tente outro navegador.', 'error');
-          }
+      showToast('Erro ao fazer login com Google. Tente novamente mais tarde.', 'error');
+    } 
+  };
+  
+  // Função auxiliar para verificar e criar/atualizar role após login OAuth
+  const checkAndUpdateUserRole = async (user) => {
+    if (!user) return;
+    
+    try {
+      // Verificar se o usuário já existe em userRoles
+      const { data: existingRoles, error: fetchError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      
+      const existingRole = existingRoles?.find(r => r.email === user.email);
+      const isFirstUser = !existingRoles || existingRoles.length === 0;
+      
+      // Verificar se o usuário tem permissão para acessar o sistema
+      if (!existingRole && !isFirstUser) {
+        // Usuário não autorizado - fazer logout
+        await supabase.auth.signOut();
+        showToast('Acesso negado. Entre em contato com o administrador para solicitar acesso.', 'error');
+        return;
+      }
+      
+      if (existingRole) {
+        // Atualizar nome e foto do Google se diferentes
+        const userMetadata = user.user_metadata || {};
+        if (existingRole.name !== userMetadata.full_name || existingRole.photo !== userMetadata.avatar_url) {
+          await supabase
+            .from('user_roles')
+            .update({
+              name: userMetadata.full_name || existingRole.name,
+              photo: userMetadata.avatar_url || existingRole.photo,
+              last_login: new Date().toISOString()
+            })
+            .eq('id', existingRole.id);
+        } else {
+          // Apenas atualizar last_login
+          await supabase
+            .from('user_roles')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', existingRole.id);
         }
       } else {
-        if (typeof showToast === 'function') {
-          showToast('Erro ao fazer login com Google. Tente novamente mais tarde.', 'error');
-        }
+        // Criar registro para primeiro usuário (admin)
+        const userMetadata = user.user_metadata || {};
+        await supabase
+          .from('user_roles')
+          .insert([{
+            user_id: user.id,
+            email: user.email,
+            name: userMetadata.full_name || user.email,
+            photo: userMetadata.avatar_url || null,
+            role: 'admin', // Primeiro usuário é admin
+            created_at: new Date().toISOString(),
+            last_login: new Date().toISOString()
+          }]);
       }
-    } 
+    } catch (err) {
+      console.error('Erro ao verificar/atualizar role:', err);
+    }
   };
 
   // Sync Data
@@ -2283,8 +2330,31 @@ export default function App() {
       onSnapshot(query(collection(db, 'applications')), s => setApplications(s.docs.map(d => ({id:d.id, ...d.data()})))),
       // Agendamentos de entrevistas
       onSnapshot(query(collection(db, 'interviews')), s => setInterviews(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      // Roles de usuários
-      onSnapshot(query(collection(db, 'userRoles')), s => setUserRoles(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      // Roles de usuários - Supabase subscription
+      (async () => {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('*');
+        if (!error && data) setUserRoles(data);
+        
+        // Subscription para mudanças em tempo real
+        const subscription = supabase
+          .channel('user_roles_changes')
+          .on('postgres_changes', 
+            { event: '*', schema: 'young_talents', table: 'user_roles' },
+            async () => {
+              const { data: updatedData } = await supabase
+                .from('user_roles')
+                .select('*');
+              if (updatedData) setUserRoles(updatedData);
+            }
+          )
+          .subscribe();
+        
+        return () => {
+          subscription.unsubscribe();
+        };
+      })(),
       // Log de atividades (últimas 200)
       onSnapshot(query(collection(db, 'activityLog'), orderBy('timestamp', 'desc')), s => setActivityLog(s.docs.slice(0, 200).map(d => ({id:d.id, ...d.data()})))),
     ];
@@ -3035,7 +3105,7 @@ export default function App() {
         </nav>
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex items-center justify-between">
            <div className="text-xs text-slate-400 truncate w-32">{user.email}</div>
-           <button onClick={()=>signOut(auth)}><LogOut size={16} className="text-red-400 hover:text-red-300"/></button>
+           <button onClick={()=>supabase.auth.signOut()}><LogOut size={16} className="text-red-400 hover:text-red-300"/></button>
         </div>
       </div>
 
@@ -3398,6 +3468,21 @@ export default function App() {
         </>
       )}
     </Routes>
+    
+    {/* Modal de alteração de senha provisória */}
+    {showPasswordChangeModal && user && (
+      <ChangePasswordModal
+        onClose={() => setShowPasswordChangeModal(false)}
+        onSuccess={() => {
+          setShowPasswordChangeModal(false);
+          showToast('Senha alterada com sucesso!', 'success');
+          // Atualizar user_metadata para remover flag
+          supabase.auth.updateUser({
+            data: { needs_password_change: false, is_temporary_password: false }
+          });
+        }}
+      />
+    )}
   );
 }
 

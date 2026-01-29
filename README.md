@@ -2,7 +2,7 @@
 
 # 🏆 Young Talents ATS
 
-Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desenvolvido com React + Vite + Firebase.
+Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desenvolvido com React + Vite + Supabase.
 
 ## 📋 Funcionalidades Principais
 
@@ -100,8 +100,9 @@ cd young-hunt-ats
 npm install
 
 # Configure variáveis de ambiente
-cp .env.example .env.local
-# Edite .env.local e adicione suas credenciais Firebase
+# Crie um arquivo .env.local com as credenciais do Supabase:
+# VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+# VITE_SUPABASE_ANON_KEY=sua-anon-key-aqui
 
 # Inicie o servidor de desenvolvimento
 npm run dev
@@ -123,28 +124,29 @@ npm run preview
 
 1. Conecte seu repositório no [Vercel](https://vercel.com)
 2. Adicione variáveis de ambiente no dashboard:
-	- \`VITE_FIREBASE_API_KEY\`
-	- \`VITE_FIREBASE_AUTH_DOMAIN\`
-	- \`VITE_FIREBASE_PROJECT_ID\`
-	- \`VITE_FIREBASE_STORAGE_BUCKET\`
-	- \`VITE_FIREBASE_MESSAGING_SENDER_ID\`
-	- \`VITE_FIREBASE_APP_ID\`
+	- \`VITE_SUPABASE_URL\` - URL do seu projeto Supabase
+	- \`VITE_SUPABASE_ANON_KEY\` - Anon key do Supabase
 3. Clique em "Deploy"
 
-## 🔐 Configuração Firebase
+## 🔐 Configuração Supabase
 
-1. Crie um projeto no [Firebase Console](https://console.firebase.google.com)
-2. Ative Google Authentication
-3. Crie um arquivo \`.env.local\`:
+1. Crie um projeto no [Supabase](https://supabase.com)
+2. Execute as migrations SQL (veja `supabase/migrations/`)
+3. Configure Google OAuth (opcional) no dashboard do Supabase
+4. Crie um arquivo \`.env.local\`:
 
 \`\`\`env
-VITE_FIREBASE_API_KEY=sua_api_key
-VITE_FIREBASE_AUTH_DOMAIN=seu_auth_domain
-VITE_FIREBASE_PROJECT_ID=seu_project_id
-VITE_FIREBASE_STORAGE_BUCKET=seu_storage_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=seu_messaging_sender_id
-VITE_FIREBASE_APP_ID=seu_app_id
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-anon-key-aqui
+SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key-aqui
 \`\`\`
+
+5. Execute o script para criar usuários iniciais:
+\`\`\`bash
+node scripts/setup-supabase-users.js
+\`\`\`
+
+📖 **Guia completo**: Veja [GUIA_SETUP_SUPABASE.md](./GUIA_SETUP_SUPABASE.md) para instruções detalhadas.
 
 ## 📚 Documentação
 

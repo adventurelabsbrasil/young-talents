@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, addDoc, query, getDocs, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail } from '../utils/validation';
 import { normalizeCity } from '../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalizer';
@@ -88,10 +87,12 @@ const PublicCandidateForm = () => {
   useEffect(() => {
     const loadCandidates = async () => {
       try {
-        const q = query(collection(db, 'candidates'));
-        const snapshot = await getDocs(q);
-        const candidates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setExistingCandidates(candidates);
+        const { data, error } = await supabase
+          .from('candidates')
+          .select('id, email');
+        
+        if (error) throw error;
+        setExistingCandidates(data || []);
       } catch (error) {
         console.error('Erro ao carregar candidatos:', error);
       }
@@ -401,57 +402,67 @@ const PublicCandidateForm = () => {
     setIsSubmitting(true);
 
     try {
-      // Normalizar dados antes de enviar
+      // Normalizar dados antes de enviar e converter para snake_case
       const normalizedData = {
-        ...formData,
+        full_name: formData.fullName,
+        email: formData.email,
+        email_secondary: formData.email_secondary || null,
+        phone: formData.phone,
+        birth_date: convertDateToISO(formData.birthDate) || null,
+        age: formData.age ? parseInt(formData.age) : null,
+        marital_status: formData.maritalStatus || null,
+        children_count: normalizeChildrenForStorage(formData.childrenCount) || null,
+        has_license: formData.hasLicense || null,
         city: showCityCustom && formData.cityCustom 
           ? normalizeCity(formData.cityCustom) 
           : formData.city 
             ? normalizeCity(formData.city) 
-            : '',
+            : null,
+        photo_url: formData.photoUrl || null,
+        education: formData.education || null,
+        schooling_level: formData.schoolingLevel || null,
+        institution: formData.institution || null,
+        graduation_date: convertDateToISO(formData.graduationDate) || null,
+        is_studying: formData.isStudying || null,
+        experience: formData.experience || null,
+        courses: formData.courses || null,
+        certifications: formData.certifications || null,
+        interest_areas: formData.interestAreas ? normalizeInterestAreasString(formData.interestAreas) : null,
+        cv_url: formData.cvUrl || null,
+        portfolio_url: formData.portfolioUrl || null,
         source: showSourceCustom && formData.sourceCustom
           ? normalizeSource(formData.sourceCustom)
           : formData.source
             ? normalizeSource(formData.source)
             : 'Formulário Público',
-        interestAreas: formData.interestAreas ? normalizeInterestAreasString(formData.interestAreas) : '',
-        birthDate: convertDateToISO(formData.birthDate),
-        graduationDate: convertDateToISO(formData.graduationDate),
-        // Limpar campos vazios
-        email_secondary: formData.email_secondary || '',
-        age: formData.age ? parseInt(formData.age) : null,
-        childrenCount: normalizeChildrenForStorage(formData.childrenCount),
+        referral: formData.referral || null,
+        salary_expectation: formData.salaryExpectation || null,
+        can_relocate: formData.canRelocate || null,
+        professional_references: formData.references || null,
+        type_of_app: formData.typeOfApp || null,
+        free_field: formData.freeField || null,
         // Metadados
         status: 'Inscrito',
         tags: ['Novo Inscrito', 'Formulário Público'],
         origin: 'public_form',
-        createdBy: 'Formulário Público',
-        original_timestamp: serverTimestamp(),
-        createdAt: serverTimestamp()
+        created_by: 'Formulário Público',
+        original_timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString()
       };
 
-      // Remover campos auxiliares e arquivos (por enquanto só URLs são salvas)
-      delete normalizedData.cityCustom;
-      delete normalizedData.sourceCustom;
-      delete normalizedData.photoFile;
-      delete normalizedData.cvFile;
-      delete normalizedData.portfolioFile;
-      delete normalizedData.photoType;
-      delete normalizedData.cvType;
-      delete normalizedData.portfolioType;
-      delete normalizedData.photoDriveUrl;
-      delete normalizedData.cvDriveUrl;
-      delete normalizedData.portfolioDriveUrl;
-
-      // Remover campos vazios
+      // Remover campos vazios/null
       Object.keys(normalizedData).forEach(key => {
         if (normalizedData[key] === '' || normalizedData[key] === null || normalizedData[key] === undefined) {
           delete normalizedData[key];
         }
       });
 
-      // Enviar para Firebase
-      await addDoc(collection(db, 'candidates'), normalizedData);
+      // Enviar para Supabase
+      const { error } = await supabase
+        .from('candidates')
+        .insert([normalizedData]);
+      
+      if (error) throw error;
 
       localStorage.setItem('lastFormSubmit', Date.now().toString());
       setSubmitSuccess(true);
