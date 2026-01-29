@@ -2966,7 +2966,7 @@ export default function App() {
   const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags, userRoles, user };
 
   // Verificar se Firebase foi inicializado corretamente
-  if (!auth || !db) {
+  if (!db) {
     return (
       <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md">
@@ -3474,13 +3474,19 @@ export default function App() {
     {showPasswordChangeModal && user && (
       <ChangePasswordModal
         onClose={() => setShowPasswordChangeModal(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
           setShowPasswordChangeModal(false);
           showToast('Senha alterada com sucesso!', 'success');
           // Atualizar user_metadata para remover flag
-          supabase.auth.updateUser({
-            data: { needs_password_change: false, is_temporary_password: false }
-          });
+          try {
+            if (supabase?.auth) {
+              await supabase.auth.updateUser({
+                data: { needs_password_change: false, is_temporary_password: false }
+              });
+            }
+          } catch (error) {
+            console.error('Erro ao atualizar user_metadata:', error);
+          }
         }}
       />
     )}
