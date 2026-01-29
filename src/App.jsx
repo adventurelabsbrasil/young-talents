@@ -2987,6 +2987,7 @@ export default function App() {
   
   // Rotas públicas (acessíveis sem autenticação)
   return (
+    <>
     <Routes>
       <Route path="/apply" element={<PublicCandidateForm />} />
       <Route path="/apply/thank-you" element={<ThankYouPage />} />
@@ -3464,7 +3465,7 @@ export default function App() {
         </div>
       )}
     </div>
-      } />
+    } />
         </>
       )}
     </Routes>
@@ -3483,6 +3484,7 @@ export default function App() {
         }}
       />
     )}
+    </>
   );
 }
 
