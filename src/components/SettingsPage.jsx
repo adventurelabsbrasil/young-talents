@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, Mail, History, Database, Layout, UploadCloud, Download, 
-  Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X, Building2, Layers
+  Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X, Building2, Layers, ExternalLink
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
 import DataManager from './DataManager';
@@ -30,6 +31,7 @@ export default function SettingsPage({
 }) {
   // Usar toast do App se disponível
   if (onShowToast) showToast = onShowToast;
+  const navigate = useNavigate();
   
   const activeTab = activeSettingsTab || 'campos';
   const setActiveTab = (tab) => {
@@ -66,7 +68,7 @@ export default function SettingsPage({
             )}
             <div className="text-sm">
               <div className="font-medium text-gray-900 dark:text-white">{currentUserName || currentUserEmail}</div>
-              <div className="text-xs text-gray-400">{currentUserRole === 'admin' ? 'Administrador' : currentUserRole === 'recruiter' ? 'Recrutador' : 'Visualizador'}</div>
+              <div className="text-xs text-gray-400">{currentUserRole === 'admin' ? 'Administrador' : currentUserRole === 'editor' ? 'Recrutador' : 'Visualizador'}</div>
             </div>
           </div>
         </div>
@@ -89,7 +91,22 @@ export default function SettingsPage({
 
       {/* Conteúdo das Abas */}
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-        {activeTab === 'dados' && <DataManager onShowToast={onShowToast} />}
+        {activeTab === 'dados' && (
+          <div className="max-w-xl rounded-xl border border-brand-border bg-brand-card p-8 text-center">
+            <Building2 className="mx-auto mb-4 text-brand-orange" size={48} />
+            <h3 className="text-lg font-bold text-white mb-2">Dados mestres unificados</h3>
+            <p className="text-gray-400 mb-6">
+              Empresas, cidades, setores e cargos são gerenciados em <strong className="text-white">Gerenciar Vagas</strong> para manter uma única fonte de dados no sistema.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/jobs')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-brand-orange hover:bg-orange-600 text-white font-medium rounded-lg transition-colors"
+            >
+              <ExternalLink size={18} /> Abrir Gerenciar Vagas
+            </button>
+          </div>
+        )}
         {activeTab === 'campos' && <FieldsManager candidateFields={candidateFields} />}
         {activeTab === 'pipeline' && <PipelineManager />}
         {activeTab === 'companies' && <CompaniesManager onShowToast={onShowToast} />}
@@ -642,11 +659,11 @@ const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveU
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
-  const [newUserRole, setNewUserRole] = useState('recruiter');
+  const [newUserRole, setNewUserRole] = useState('editor');
 
   const ROLES = [
     { value: 'admin', label: 'Administrador', color: 'bg-purple-900/30 text-purple-300 border-purple-800', desc: 'Acesso total ao sistema' },
-    { value: 'recruiter', label: 'Recrutador', color: 'bg-blue-900/30 text-blue-300 border-blue-800', desc: 'Pode editar candidatos, mover no funil, agendar entrevistas' },
+    { value: 'editor', label: 'Recrutador', color: 'bg-blue-900/30 text-blue-300 border-blue-800', desc: 'Pode editar candidatos, mover no funil, agendar entrevistas' },
     { value: 'viewer', label: 'Visualizador', color: 'bg-gray-900/30 text-gray-300 border-gray-700', desc: 'Apenas visualização, sem edição' }
   ];
 
@@ -1256,7 +1273,11 @@ const ActivityLog = ({ activityLog = [] }) => {
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds ? timestamp.seconds * 1000 : timestamp);
+    let date;
+    if (timestamp.toDate) date = timestamp.toDate();
+    else if (timestamp.seconds) date = new Date(timestamp.seconds * 1000);
+    else if (typeof timestamp === 'string') date = new Date(timestamp);
+    else date = new Date(timestamp);
     return date.toLocaleString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -1366,10 +1387,10 @@ const ActivityLog = ({ activityLog = [] }) => {
                       {activity.userRole && (
                         <span className={`text-xs px-2 py-0.5 rounded ${
                           activity.userRole === 'admin' ? 'bg-purple-900/50 text-purple-300' :
-                          activity.userRole === 'recruiter' ? 'bg-blue-900/50 text-blue-300' :
+                          activity.userRole === 'editor' ? 'bg-blue-900/50 text-blue-300' :
                           'bg-gray-700 text-gray-400'
                         }`}>
-                          {activity.userRole}
+                          {activity.userRole === 'admin' ? 'Administrador' : activity.userRole === 'editor' ? 'Recrutador' : 'Visualizador'}
                         </span>
                       )}
                     </div>

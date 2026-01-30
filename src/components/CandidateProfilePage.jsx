@@ -6,7 +6,8 @@ import {
   History, MessageSquare, Clock, UserPlus, Tag, Database, TrendingUp,
   CheckCircle, XCircle, AlertCircle, Clock as ClockIcon
 } from 'lucide-react';
-// Firebase removido - migrado para Supabase
+import { supabase } from '../supabase';
+import { mapCandidateFromSupabase } from '../utils/candidateFromSupabase';
 import { PIPELINE_STAGES, STATUS_COLORS, CLOSING_STATUSES, ALL_STATUSES } from '../constants';
 import { normalizeCity, getMainCitiesOptions } from '../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalizer';
@@ -49,21 +50,29 @@ export default function CandidateProfilePage({
     return (parts[0][0] || '?').toUpperCase();
   };
 
-  // Buscar candidato
+  // Buscar candidato: primeiro na lista, depois por ID no Supabase
   useEffect(() => {
     if (!id) return;
-    
-    // Primeiro tenta buscar da lista de candidatos (mais rápido)
-    const foundCandidate = candidates.find(c => c.id === id);
-    if (foundCandidate) {
-      setCandidate(foundCandidate);
-      setEditData(foundCandidate);
+    const foundInList = candidates.find(c => c.id === id);
+    if (foundInList) {
+      setCandidate(foundInList);
+      setEditData(foundInList);
       setLoading(false);
-    } else {
-      // TODO: Migrar para Supabase
-      console.log('Candidate not found in list, ID:', id);
-      setLoading(false);
+      return;
     }
+    (async () => {
+      const { data, error } = await supabase.from('candidates').select('*').eq('id', id).maybeSingle();
+      if (error) {
+        console.warn('Erro ao buscar candidato:', error);
+        setCandidate(null);
+        setLoading(false);
+        return;
+      }
+      const mapped = data ? mapCandidateFromSupabase(data) : null;
+      setCandidate(mapped);
+      if (mapped) setEditData(mapped);
+      setLoading(false);
+    })();
   }, [id, candidates]);
 
   useEffect(() => {
@@ -273,17 +282,18 @@ export default function CandidateProfilePage({
     );
   }
 
-  if (!candidate) {
+  if (!candidate && !loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400 mb-4">Candidato não encontrado</p>
+      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900 p-4">
+        <div className="text-center max-w-md">
+          <AlertCircle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
+          <p className="text-gray-700 dark:text-gray-300 font-medium mb-2">Candidato não encontrado</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">O perfil solicitado não existe ou você não tem acesso.</p>
           <button
-            onClick={() => navigate('/')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            onClick={() => navigate('/dashboard')}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium"
           >
-            Voltar
+            Voltar ao início
           </button>
         </div>
       </div>
@@ -318,6 +328,7 @@ export default function CandidateProfilePage({
                     src={photoDisplayUrl(candidate.photoUrl) || candidate.photoUrl}
                     alt={candidate.fullName}
                     className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
                     onError={() => setPhotoLoadError(true)}
                   />
                 ) : (
@@ -711,7 +722,7 @@ export default function CandidateProfilePage({
                   />
                 ) : (
                   candidate.photoUrl ? (
-                    <img src={candidate.photoUrl} alt={candidate.fullName} className="w-24 h-24 rounded-lg object-cover" />
+                    <img src={photoDisplayUrl(candidate.photoUrl) || candidate.photoUrl} alt={candidate.fullName} className="w-24 h-24 rounded-lg object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <p className="text-gray-500 dark:text-gray-400">Sem foto</p>
                   )
@@ -829,7 +840,7 @@ export default function CandidateProfilePage({
                     <option value="Sim">Sim</option>
                   </select>
                 ) : (
-                  <p className="text-gray-900 dark:text-white">{candidate.isStudying ? 'Sim' : 'Não'}</p>
+                  <p className={`font-medium ${candidate.isStudying ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{candidate.isStudying ? 'Sim' : 'Não'}</p>
                 )}
               </div>
               <div className="md:col-span-2">
@@ -877,7 +888,7 @@ export default function CandidateProfilePage({
                     <option value="Não">Não</option>
                   </select>
                 ) : (
-                  <p className="text-gray-900 dark:text-white">{candidate.hasLicense || 'Não informado'}</p>
+                  <p className={`font-medium ${candidate.hasLicense === 'Sim' ? 'text-green-600 dark:text-green-400' : candidate.hasLicense === 'Não' ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>{candidate.hasLicense || 'Não informado'}</p>
                 )}
               </div>
               <div>

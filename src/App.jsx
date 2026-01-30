@@ -70,6 +70,23 @@ const MATERIAL_COLORS = [
 
 const COLORS = MATERIAL_COLORS;
 
+// Destaque por data do formulário: hoje (forte), ontem (médio), esta semana (leve)
+function getCandidateRecency(c) {
+  const ts = getCandidateTimestamp(c);
+  if (!ts || ts <= 0) return null;
+  const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
+  if (daysAgo < 1) return 'today';
+  if (daysAgo < 2) return 'yesterday';
+  if (daysAgo <= 7) return 'week';
+  return null;
+}
+function getRecencyRowClass(recency) {
+  if (recency === 'today') return 'bg-green-50 dark:bg-green-900/30 border-l-4 border-l-green-500';
+  if (recency === 'yesterday') return 'bg-green-50/50 dark:bg-green-900/20 border-l-4 border-l-green-400/70';
+  if (recency === 'week') return 'border-l-2 border-l-green-400/50';
+  return '';
+}
+
 // --- COMPONENTES AUXILIARES ---
 
 // Dashboard com Gráficos
@@ -79,6 +96,8 @@ const Dashboard = ({
   totalCandidatesCount = 0,
   totalSubmissionsCount = 0,
   onOpenCandidates, 
+  onSetModalTitle,
+  onNavigateToCandidates,
   statusMovements = [], 
   applications: applicationsProp = [], 
   onViewJob, 
@@ -460,24 +479,24 @@ const Dashboard = ({
         </div>
       </div>
       
-      {/* KPIs Principais - Material Design Colors */}
+      {/* KPIs Principais - Material Design Colors: ao clicar navega para lista filtrada */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates)} className="cursor-pointer bg-gradient-to-br from-[#4285F4]/20 to-[#4285F4]/10 p-6 rounded-xl border border-[#4285F4]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#4285F4]/20">
+        <div onClick={() => onNavigateToCandidates ? onNavigateToCandidates('/candidates') : (onOpenCandidates && onOpenCandidates(filteredCandidates))} className="cursor-pointer bg-gradient-to-br from-[#4285F4]/20 to-[#4285F4]/10 p-6 rounded-xl border border-[#4285F4]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#4285F4]/20">
           <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Total de Candidatos</h3>
           <p className="text-3xl font-bold text-[#4285F4] mt-2">{candidateStats.total}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">{candidateStats.active} em processo</p>
         </div>
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Contratado'))} className="cursor-pointer bg-gradient-to-br from-[#34A853]/20 to-[#34A853]/10 p-6 rounded-xl border border-[#34A853]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#34A853]/20">
+        <div onClick={() => onNavigateToCandidates ? onNavigateToCandidates('/candidates?status=Contratado') : (onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Contratado')))} className="cursor-pointer bg-gradient-to-br from-[#34A853]/20 to-[#34A853]/10 p-6 rounded-xl border border-[#34A853]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#34A853]/20">
           <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Contratados</h3>
           <p className="text-3xl font-bold text-[#34A853] mt-2">{candidateStats.hired}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Taxa geral: {overallConversionRate}%</p>
         </div>
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id)))} className="cursor-pointer bg-gradient-to-br from-[#FBBC04]/20 to-[#FBBC04]/10 p-6 rounded-xl border border-[#FBBC04]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#FBBC04]/20">
+        <div onClick={() => onNavigateToCandidates ? onNavigateToCandidates('/candidates?jobs=open') : (onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id))))} className="cursor-pointer bg-gradient-to-br from-[#FBBC04]/20 to-[#FBBC04]/10 p-6 rounded-xl border border-[#FBBC04]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#FBBC04]/20">
           <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Vagas Abertas</h3>
           <p className="text-3xl font-bold text-[#FBBC04] mt-2">{jobStats.open}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">{jobStats.filled} preenchidas</p>
         </div>
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Reprovado'))} className="cursor-pointer bg-gradient-to-br from-[#EA4335]/20 to-[#EA4335]/10 p-6 rounded-xl border border-[#EA4335]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#EA4335]/20">
+        <div onClick={() => onNavigateToCandidates ? onNavigateToCandidates('/candidates?status=Reprovado') : (onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Reprovado')))} className="cursor-pointer bg-gradient-to-br from-[#EA4335]/20 to-[#EA4335]/10 p-6 rounded-xl border border-[#EA4335]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#EA4335]/20">
           <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Reprovados</h3>
           <p className="text-3xl font-bold text-[#EA4335] mt-2">{candidateStats.rejected}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.rejected / candidateStats.total) * 100).toFixed(1) : 0}%</p>
@@ -518,8 +537,10 @@ const Dashboard = ({
       {/* Card rápido: falta dar retorno */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div onClick={() => {
-          if (onOpenCandidates) {
-            setDashboardModalTitle('Faltam dar retorno');
+          if (onNavigateToCandidates) {
+            onNavigateToCandidates('/candidates?filter=missing-return');
+          } else if (onOpenCandidates) {
+            if (onSetModalTitle) onSetModalTitle('Faltam dar retorno');
             onOpenCandidates(filteredCandidates.filter(c => {
               const isSelectionStage = c.status === 'Seleção' || c.status === 'Selecionado';
               const needsReturn = !c.returnSent || c.returnSent === 'Pendente' || c.returnSent === 'Não';
@@ -1800,6 +1821,29 @@ export default function App() {
       settingsTab: params.get('settingsTab') || null
     });
   }, [location.pathname, location.search]);
+
+  // Sincronizar query /candidates?status=...&filter=...&jobs=... com filtros
+  useEffect(() => {
+    if (location.pathname !== '/candidates') return;
+    const params = new URLSearchParams(location.search);
+    const statusParam = params.get('status');
+    const filterParam = params.get('filter');
+    const jobsParam = params.get('jobs');
+    setFilters(prev => {
+      const next = { ...prev };
+      if (statusParam) {
+        next.status = [statusParam];
+        next.dashboardFilter = null;
+      } else if (filterParam === 'missing-return') {
+        next.dashboardFilter = 'missing-return';
+      } else if (jobsParam === 'open') {
+        next.dashboardFilter = 'jobs-open';
+      } else if (!statusParam && !filterParam && !jobsParam) {
+        next.dashboardFilter = null;
+      }
+      return next;
+    });
+  }, [location.pathname, location.search]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Para ocultar menu em desktop
 
@@ -1855,7 +1899,7 @@ export default function App() {
   const [userRoles, setUserRoles] = useState([{ email: DEV_USER.email, role: 'admin' }]); // Dev: role fixo
   const [activityLog, setActivityLog] = useState([]); // Log de atividades para admin
   
-  // Role do usuário atual (admin, recruiter, viewer)
+  // Role do usuário atual (admin, editor, viewer) — exibido na UI como Administrador, Recrutador, Visualizador
   const currentUserRole = useMemo(() => {
     if (!effectiveUser?.email) return 'viewer';
     const userRoleDoc = userRoles.find(r => r.email === effectiveUser.email);
@@ -1866,7 +1910,7 @@ export default function App() {
   const hasPermission = (action) => {
     const permissions = {
       admin: ['all'],
-      recruiter: ['view', 'edit_candidates', 'move_pipeline', 'schedule_interviews', 'add_notes'],
+      editor: ['view', 'edit_candidates', 'move_pipeline', 'schedule_interviews', 'add_notes'],
       viewer: ['view']
     };
     const userPerms = permissions[currentUserRole] || [];
@@ -1898,12 +1942,12 @@ export default function App() {
   const [interviewModalData, setInterviewModalData] = useState(null); // { candidate, job, application }
   // Helpers para abrir modais com URL
   const openJobModal = (job = null) => {
-    setEditingJob(job);
-    const params = new URLSearchParams(location.search);
-    params.set('modal', 'job');
-    if (job?.id) params.set('id', job.id);
-    navigate(`${location.pathname}?${params.toString()}`);
-    setRoute(prev => ({ ...prev, modal: 'job', id: job?.id || '' }));
+    if (job?.id) {
+      navigate(`/jobs/${job.id}`);
+    } else {
+      navigate('/jobs/new');
+    }
+    setRoute(prev => ({ ...prev, page: 'jobs', modal: null, id: null }));
   };
 
   const closeJobModal = () => {
@@ -1951,7 +1995,9 @@ export default function App() {
     origin: 'all',
     schooling: 'all',
     createdAtPreset: 'all',
-    tags: 'all'
+    tags: 'all',
+    status: 'all',
+    dashboardFilter: null // 'missing-return' | 'jobs-open' | null (from URL /candidates?filter=...)
   };
   const [filters, setFilters] = useState(() => {
     try {
@@ -1984,18 +2030,28 @@ export default function App() {
   }, [user]);
 
   // Carregar candidatos do Supabase (view public.candidates → young_talents.candidates)
-  // Supabase retorna no máximo 1000 linhas por padrão; usamos range para trazer até 10.000
+  // PostgREST limita 1000 linhas por request; paginamos em lotes de 1000 até trazer todos
   const loadCandidates = React.useCallback(async () => {
-    const { data, error } = await supabase
-      .from('candidates')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(0, 9999);
-    if (error) {
-      console.error('Erro ao carregar candidatos:', error);
-      return;
+    const PAGE_SIZE = 1000;
+    let allRows = [];
+    let offset = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('candidates')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (error) {
+        console.error('Erro ao carregar candidatos:', error);
+        return;
+      }
+      const chunk = data ?? [];
+      allRows = allRows.concat(chunk);
+      hasMore = chunk.length >= PAGE_SIZE;
+      offset += PAGE_SIZE;
     }
-    setCandidates(mapCandidatesFromSupabase(data ?? []));
+    setCandidates(mapCandidatesFromSupabase(allRows));
   }, []);
 
   // Carregar jobs, companies, cities, sectors, positions, applications do schema young_talents
@@ -2041,6 +2097,22 @@ export default function App() {
     else console.error('Erro ao carregar candidaturas:', error);
   }, []);
 
+  const loadActivityLog = React.useCallback(async () => {
+    const { data, error } = await supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(500);
+    if (!error && data) {
+      setActivityLog(data.map(row => ({
+        id: row.id,
+        type: row.action,
+        description: row.details,
+        userName: row.user_name,
+        userEmail: row.user_email,
+        timestamp: row.created_at,
+        entityType: row.entity_type,
+        entityId: row.entity_id
+      })));
+    }
+  }, []);
+
   const loadAllData = React.useCallback(async () => {
     await Promise.all([
       loadCandidates(),
@@ -2058,6 +2130,7 @@ export default function App() {
   useEffect(() => {
     if (!effectiveUser) return;
     loadAllData();
+    if (currentUserRole === 'admin') loadActivityLog();
     const channel = supabase
       .channel('candidates_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'young_talents', table: 'candidates' }, () => {
@@ -2073,7 +2146,7 @@ export default function App() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [effectiveUser, loadAllData]);
+  }, [effectiveUser, loadAllData, loadActivityLog, currentUserRole]);
 
   const handleSaveGeneric = async (col, d, closeFn) => {
     const schema = () => supabase.schema('young_talents');
@@ -2085,9 +2158,11 @@ export default function App() {
           const { error } = await schema().from('jobs').update(rest).eq('id', d.id);
           if (error) throw error;
           showToast('Vaga atualizada com sucesso.', 'success');
+          await recordActivity('update', `Vaga "${d.title}" atualizada`, 'job', d.id, { title: d.title });
         } else {
-          const { error } = await schema().from('jobs').insert(payload);
+          const { data: inserted, error } = await schema().from('jobs').insert(payload).select('id').single();
           if (error) throw error;
+          if (inserted) await recordActivity('create', `Vaga "${d.title || payload.title}" criada`, 'job', inserted.id, { title: d.title || payload.title });
           showToast('Vaga criada com sucesso.', 'success');
         }
         await loadJobs();
@@ -2252,11 +2327,27 @@ export default function App() {
     console.log('Action history:', { action, col, recordsAffected, details });
   };
 
-  // Função para registrar atividades gerais do sistema (log completo)
+  // Função para registrar atividades gerais do sistema (log completo) — persiste em young_talents.activity_log
   const recordActivity = async (activityType, description, entityType = null, entityId = null, metadata = {}) => {
-    if (!effectiveUser || !effectiveUser.email) return;
-    // TODO: Migrar para Supabase
-    console.log('Activity:', { activityType, description, entityType, entityId, metadata });
+    if (!effectiveUser || !effectiveUser.email || !supabase) return;
+    try {
+      const payload = {
+        user_id: effectiveUser.id || null,
+        user_email: effectiveUser.email,
+        user_name: effectiveUser.displayName || effectiveUser.email,
+        action: activityType,
+        entity_type: entityType || null,
+        entity_id: entityId || null,
+        details: description || '',
+        meta: metadata && Object.keys(metadata).length > 0 ? metadata : null
+      };
+      const { data, error } = await supabase.from('activity_log').insert(payload).select('id, created_at').single();
+      if (!error && data) {
+        setActivityLog(prev => [...prev, { id: data.id, type: activityType, description, userName: payload.user_name, userEmail: payload.user_email, timestamp: data.created_at, entityType, entityId }]);
+      }
+    } catch (e) {
+      console.warn('Erro ao registrar atividade:', e);
+    }
   };
 
   // Função para registrar log de movimentação de status do candidato
@@ -2315,6 +2406,7 @@ export default function App() {
       };
       const { data: inserted, error } = await supabase.schema('young_talents').from('applications').insert(payload).select('*').single();
       if (error) throw error;
+      if (inserted) await recordActivity('create', `Candidatura: ${candidate?.fullName || 'Candidato'} vinculado à vaga "${job?.title || 'Vaga'}"`, 'application', inserted.id, { candidateId, jobId });
       await loadApplications();
       const appData = inserted ? {
         id: inserted.id,
@@ -2662,10 +2754,23 @@ export default function App() {
         });
       }
     }
-    return data;
-  }, [uniqueCandidatesByEmail, filters]);
 
-  const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags, userRoles, user: effectiveUser };
+    // Filtros vindos da URL (scorecards do dashboard)
+    if (filters.dashboardFilter === 'missing-return') {
+      data = data.filter(c => {
+        const isSelection = c.status === 'Seleção' || c.status === 'Selecionado';
+        const needsReturn = !c.returnSent || c.returnSent === 'Pendente' || c.returnSent === 'Não';
+        return isSelection && needsReturn;
+      });
+    } else if (filters.dashboardFilter === 'jobs-open') {
+      const openJobIds = (jobs || []).filter(j => j.status === 'Aberta').map(j => j.id);
+      data = data.filter(c => (applications || []).some(a => a.candidateId === c.id && openJobIds.includes(a.jobId)));
+    }
+
+    return data;
+  }, [uniqueCandidatesByEmail, filters, jobs, applications]);
+
+  const optionsProps = { jobs, companies, cities, interestAreas, roles, sectors, origins, schooling, marital, tags, userRoles, user: effectiveUser };
 
   // Verificar se Supabase foi inicializado corretamente
   if (!supabase) {
@@ -2797,8 +2902,8 @@ export default function App() {
              <BarChart3 size={18}/> Relatórios
            </button>
            
-           {/* Configurações */}
-           <button onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+           {/* Configurações — navega já com aba padrão para abrir em um clique */}
+           <button onClick={() => { navigate('/settings?settingsTab=campos'); setRoute(prev => ({ ...prev, page: 'settings', settingsTab: 'campos' })); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
              <Settings size={18}/> Configurações
            </button>
 
@@ -2863,11 +2968,25 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} totalSubmissionsCount={candidates.filter(c => !c.deletedAt).length} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
+           {/^\/jobs\/[^/]+$/.test(location.pathname) && (
+             <div className="p-6 overflow-y-auto h-full">
+               <JobModal
+                 isOpen
+                 isPageMode
+                 job={location.pathname === '/jobs/new' ? null : jobs.find(j => j.id === location.pathname.replace(/^\/jobs\//, ''))}
+                 onClose={() => navigate('/jobs')}
+                 onSave={d => handleSaveGeneric('jobs', d, () => navigate('/jobs'))}
+                 options={optionsProps}
+                 isSaving={isSaving}
+                 candidates={candidates}
+               />
+             </div>
+           )}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} totalSubmissionsCount={candidates.filter(c => !c.deletedAt).length} onOpenCandidates={setDashboardModalCandidates} onSetModalTitle={setDashboardModalTitle} onNavigateToCandidates={(path) => navigate(path)} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" highlightedCandidateId={highlightedCandidateId} />}
            {activeTab === 'candidates' && <TalentBankView candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} onStatusChange={handleDragEnd} />}
            {activeTab === 'submissions' && <SubmissionsView candidates={candidates.filter(c => !c.deletedAt)} onEdit={openCandidateProfile} />}
-           {(activeTab === 'jobs' || activeTab === 'companies' || activeTab === 'positions' || activeTab === 'sectors' || activeTab === 'cities') && (
+           {(activeTab === 'jobs' || activeTab === 'companies' || activeTab === 'positions' || activeTab === 'sectors' || activeTab === 'cities') && !/^\/jobs\/[^/]+$/.test(location.pathname) && (
              <JobsManagementPage
                jobs={jobs}
                candidates={candidates}
@@ -3429,13 +3548,13 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                        const candidateApplications = applications.filter(a => a.candidateId === c.id);
                        const primaryApplication = candidateApplications[0]; // Primeira candidatura como principal
                       const ts = getCandidateTimestamp(c);
-                      const isNew = (ts && ts > 0) && ((Date.now() / 1000 - ts) / (24 * 60 * 60)) <= 7;
+                      const recency = getCandidateRecency(c);
                        const hasApplication = candidateApplications.length > 0;
                        const isInscrito = (c.status || 'Inscrito') === 'Inscrito';
                        const needsApplication = !isInscrito && !hasApplication; // A partir de Considerado precisa ter candidatura
                        
                        return (
-                         <tr key={c.id} className={`hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors ${needsApplication ? 'bg-yellow-50 dark:bg-yellow-900/10 border-l-4 border-yellow-500' : ''}`}>
+                         <tr key={c.id} className={`hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors ${needsApplication ? 'bg-yellow-50 dark:bg-yellow-900/10 border-l-4 border-yellow-500' : ''} ${!needsApplication ? getRecencyRowClass(recency) : ''}`}>
                            <td className="p-4"><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)}/></td>
                            <td className="p-4">
                              <div className="flex items-center gap-2">
@@ -3482,7 +3601,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                            <td className="p-4 text-xs break-words truncate max-w-[200px] text-gray-700 dark:text-gray-300" title={c.email}>{c.email || 'N/A'}</td>
                            <td className="p-4 text-xs break-words text-gray-700 dark:text-gray-300">{c.phone || 'N/A'}</td>
                            <td className="p-4 text-xs break-words truncate max-w-[150px] text-gray-700 dark:text-gray-300" title={c.interestAreas}>{c.interestAreas || 'N/A'}</td>
-                           <td className="p-4 text-xs text-gray-700 dark:text-gray-300">{c.hasLicense === 'Sim' ? '✓' : c.hasLicense === 'Não' ? '✗' : 'N/A'}</td>
+                           <td className="p-4 text-xs font-medium">{c.hasLicense === 'Sim' ? <span className="text-green-600 dark:text-green-400">✓ Sim</span> : c.hasLicense === 'Não' ? <span className="text-red-600 dark:text-red-400">✗ Não</span> : <span className="text-gray-500">N/A</span>}</td>
                            <td className="p-4 text-xs break-words truncate max-w-[120px] text-gray-700 dark:text-gray-300" title={c.source}>{c.source || 'N/A'}</td>
                            <td className="p-4 text-xs text-gray-700 dark:text-gray-300">
                              {(() => {
@@ -3603,9 +3722,9 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
           const topMatch = matchingJobs.length > 0 ? matchingJobs[0] : null;
           
           const ts = getCandidateTimestamp(c);
-          const isNew = (ts && ts > 0) && ((Date.now() / 1000 - ts) / (24 * 60 * 60)) <= 7;
+          const recency = getCandidateRecency(c);
           return (
-          <div key={c.id} id={`candidate-${c.id}`} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-200 dark:border-gray-700'} ${isNew ? 'border-l-4 border-l-green-500' : ''} ${highlightedCandidateId === c.id ? 'ring-4 ring-yellow-400 ring-opacity-75 animate-pulse border-yellow-400' : ''}`}>
+          <div key={c.id} id={`candidate-${c.id}`} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-200 dark:border-gray-700'} ${getRecencyRowClass(recency)} ${highlightedCandidateId === c.id ? 'ring-4 ring-yellow-400 ring-opacity-75 animate-pulse border-yellow-400' : ''}`}>
             <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
             
             {/* Cabeçalho com resumo */}
@@ -3676,7 +3795,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
                 const date = new Date(ts * 1000);
                 return (
                   <div className="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1.5">
-                    {isNew && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Candidato novo (últimos 7 dias)"></div>}
+                    {recency && <div className={`w-2 h-2 rounded-full ${recency === 'today' ? 'bg-green-500 animate-pulse' : recency === 'yesterday' ? 'bg-green-400' : 'bg-green-400/70'}`} title={recency === 'today' ? 'Hoje' : recency === 'yesterday' ? 'Ontem' : 'Esta semana'}></div>}
                     <Clock size={10}/> {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </div>
                 );
@@ -3863,14 +3982,6 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
     if (localSearch) count++;
     return count;
   }, [dateFilter, localSearch]);
-
-  // Verificar se candidato é novo (menos de 7 dias)
-  const isCandidateNew = (c) => {
-    const ts = getCandidateTimestamp(c);
-    if (!ts) return false;
-    const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
-    return daysAgo <= 7;
-  };
 
   return (
     <div className="flex flex-col h-full p-6 overflow-hidden bg-white dark:bg-gray-900">
@@ -4066,13 +4177,11 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {paginatedData.map(c => {
-              const isNew = isCandidateNew(c);
+              const recency = getCandidateRecency(c);
               return (
                 <tr 
                   key={c.id} 
-                  className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                    isNew ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500' : ''
-                  }`}
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${getRecencyRowClass(recency)}`}
                 >
                   <td className="p-3">
                     <input
@@ -4083,8 +4192,8 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                     />
                   </td>
                   <td className="p-3 text-center">
-                    {isNew && (
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mx-auto" title="Candidato novo (últimos 7 dias)"></div>
+                    {recency && (
+                      <div className={`w-2 h-2 rounded-full mx-auto ${recency === 'today' ? 'bg-green-500 animate-pulse' : recency === 'yesterday' ? 'bg-green-400' : 'bg-green-400/70'}`} title={recency === 'today' ? 'Hoje' : recency === 'yesterday' ? 'Ontem' : 'Esta semana'}></div>
                     )}
                   </td>
                   <td className="p-3">
@@ -4115,7 +4224,7 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.email || 'N/A'}</td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.phone || 'N/A'}</td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.city || 'N/A'}</td>
-                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.hasLicense === 'Sim' ? '✓' : c.hasLicense === 'Não' ? '✗' : 'N/A'}</td>
+                  <td className="p-3 text-sm font-medium">{c.hasLicense === 'Sim' ? <span className="text-green-600 dark:text-green-400">✓ Sim</span> : c.hasLicense === 'Não' ? <span className="text-red-600 dark:text-red-400">✗ Não</span> : <span className="text-gray-500">N/A</span>}</td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300 truncate max-w-[200px]" title={c.interestAreas}>{c.interestAreas || 'N/A'}</td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.source || 'N/A'}</td>
                   <td className="p-3 text-sm text-gray-700 dark:text-gray-300">
@@ -5316,7 +5425,7 @@ const UrlField = ({ label, field, value, onChange, placeholder = "Cole a URL aqu
   );
 };
 
-const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates = [] }) => {
+const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates = [], isPageMode = false }) => {
   const [d, setD] = useState(() => {
     if (job?.id) {
       return { ...job };
@@ -5357,10 +5466,10 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
   const [newPositionLevel, setNewPositionLevel] = useState('');
   const [showOptionalFields, setShowOptionalFields] = useState(false);
 
-  // Estados para dados relacionados (setores, cargos, funções)
-  const [sectors, setSectors] = useState([]);
-  const [positions, setPositions] = useState([]);
-  const [functions, setFunctions] = useState([]);
+  // Setores, cargos e funções vêm de options (App já carrega do Supabase)
+  const sectors = options?.sectors ?? [];
+  const positions = options?.roles ?? [];
+  const functions = options?.functions ?? [];
 
   useEffect(() => {
     if (job?.id) {
@@ -5388,15 +5497,6 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
       }
     }
   }, [job, isOpen, d.company, options.companies]);
-
-  // Carregar setores, cargos e funções
-  useEffect(() => {
-    // TODO: Migrar para Supabase - carregar sectors, positions, functions
-    const unsubSectors = () => {};
-    const unsubPositions = () => {};
-    const unsubFunctions = () => {};
-    return () => { unsubSectors(); unsubPositions(); unsubFunctions(); };
-  }, []);
 
   const handleCreateCompany = async () => {
     if (!newCompanyName.trim()) {
@@ -5534,18 +5634,17 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
     return Array.from(areasSet).sort();
   }, [candidates]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !isPageMode) return null;
 
   // Lista de usuários para seleção de recrutador
   const availableRecruiters = options.userRoles || [];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] border border-gray-200 dark:border-gray-700 flex flex-col shadow-2xl">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+  const formContent = (
+    <>
+        <div className={`px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 ${isPageMode ? 'rounded-t-xl' : ''}`}>
           <h3 className="font-bold text-xl text-gray-900 dark:text-white">{d.id ? 'Editar' : 'Nova'} Vaga</h3>
-          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white">
-            <X size={20}/>
+          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white flex items-center gap-2">
+            {isPageMode ? <><ChevronLeft size={20}/> Voltar</> : <X size={20}/>}
           </button>
         </div>
         
@@ -5965,6 +6064,22 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
             {isSaving ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
+      </>
+  );
+
+  if (isPageMode) {
+    return (
+      <div className="p-6 bg-white dark:bg-gray-900 min-h-full">
+        <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col shadow-lg">
+          {formContent}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] border border-gray-200 dark:border-gray-700 flex flex-col shadow-2xl">
+        {formContent}
       </div>
     </div>
   );
