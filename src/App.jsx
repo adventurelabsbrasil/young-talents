@@ -99,6 +99,7 @@ const Dashboard = ({
   onOpenCandidates, 
   onSetModalTitle,
   onNavigateToCandidates,
+  onNavigateToJobs,
   statusMovements = [], 
   applications: applicationsProp = [], 
   onViewJob, 
@@ -499,7 +500,7 @@ const Dashboard = ({
           <p className="text-3xl font-bold text-[#34A853] mt-2">{candidateStats.hired}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">Taxa geral: {overallConversionRate}%</p>
         </div>
-        <div onClick={() => onNavigateToCandidates ? onNavigateToCandidates('/candidates?jobs=open') : (onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id))))} className="cursor-pointer bg-gradient-to-br from-[#FBBC04]/20 to-[#FBBC04]/10 p-6 rounded-xl border border-[#FBBC04]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#FBBC04]/20">
+        <div onClick={() => onNavigateToJobs ? onNavigateToJobs('/jobs?status=Aberta') : (onNavigateToCandidates ? onNavigateToCandidates('/candidates?jobs=open') : (onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id)))))} className="cursor-pointer bg-gradient-to-br from-[#FBBC04]/20 to-[#FBBC04]/10 p-6 rounded-xl border border-[#FBBC04]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#FBBC04]/20">
           <h3 className="text-gray-700 dark:text-gray-300 text-sm font-semibold">Vagas Abertas</h3>
           <p className="text-3xl font-bold text-[#FBBC04] mt-2">{jobStats.open}</p>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">{jobStats.filled} preenchidas</p>
@@ -1852,6 +1853,14 @@ export default function App() {
       return next;
     });
   }, [location.pathname, location.search]);
+
+  // Reset de filtros ao sair de /candidates para que Dashboard/Pipeline/Banco mostrem dados
+  useEffect(() => {
+    if (location.pathname !== '/candidates') {
+      setFilters(prev => ({ ...prev, dashboardFilter: null, status: 'all' }));
+    }
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Para ocultar menu em desktop
 
@@ -2070,6 +2079,8 @@ export default function App() {
           .range(offset, offset + PAGE_SIZE - 1);
         if (error) {
           console.error('Erro ao carregar candidatos:', error);
+          setCandidates([]);
+          if (typeof showToast === 'function') showToast('Falha ao carregar candidatos.', 'error');
           return;
         }
         const chunk = data ?? [];
@@ -2078,6 +2089,10 @@ export default function App() {
         offset += PAGE_SIZE;
       }
       setCandidates(mapCandidatesFromSupabase(allRows));
+    } catch (e) {
+      console.error('Erro ao carregar candidatos:', e);
+      setCandidates([]);
+      if (typeof showToast === 'function') showToast('Falha ao carregar candidatos.', 'error');
     } finally {
       setCandidatesLoading(false);
     }
@@ -2127,18 +2142,28 @@ export default function App() {
   }, []);
 
   const loadActivityLog = React.useCallback(async () => {
-    const { data, error } = await supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(500);
-    if (!error && data) {
-      setActivityLog(data.map(row => ({
-        id: row.id,
-        type: row.action,
-        description: row.details,
-        userName: row.user_name,
-        userEmail: row.user_email,
-        timestamp: row.created_at,
-        entityType: row.entity_type,
-        entityId: row.entity_id
-      })));
+    try {
+      const { data, error } = await supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(500);
+      if (error) {
+        setActivityLog([]);
+        return;
+      }
+      if (data) {
+        setActivityLog(data.map(row => ({
+          id: row.id,
+          type: row.action,
+          description: row.details,
+          userName: row.user_name,
+          userEmail: row.user_email,
+          timestamp: row.created_at,
+          entityType: row.entity_type,
+          entityId: row.entity_id
+        })));
+      } else {
+        setActivityLog([]);
+      }
+    } catch (_e) {
+      setActivityLog([]);
     }
   }, []);
 
@@ -2292,7 +2317,8 @@ export default function App() {
       closeFn?.();
     } catch (err) {
       console.error('Erro ao salvar:', err);
-      showToast(err?.message || 'Erro ao salvar. Tente novamente.', 'error');
+      const msg = err?.message || err?.details || (typeof err?.error_description === 'string' ? err.error_description : null);
+      showToast(msg ? `${msg}` : 'Erro ao salvar. Verifique os dados e tente novamente.', 'error');
     }
   };
 
@@ -3011,7 +3037,7 @@ export default function App() {
                />
              </div>
            )}
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard candidatesLoading={candidatesLoading} filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} totalSubmissionsCount={candidates.filter(c => !c.deletedAt).length} onOpenCandidates={setDashboardModalCandidates} onSetModalTitle={setDashboardModalTitle} onNavigateToCandidates={(path) => navigate(path)} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard candidatesLoading={candidatesLoading} filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} totalSubmissionsCount={candidates.filter(c => !c.deletedAt).length} onOpenCandidates={setDashboardModalCandidates} onSetModalTitle={setDashboardModalTitle} onNavigateToCandidates={(path) => navigate(path)} onNavigateToJobs={(path) => navigate(path)} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidatesLoading={candidatesLoading} candidatesTotal={candidates.length} filteredCount={filteredCandidates.length} onClearFilters={() => setFilters(initialFilters)} candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" highlightedCandidateId={highlightedCandidateId} />}
            {activeTab === 'candidates' && <TalentBankView candidatesLoading={candidatesLoading} candidatesTotal={candidates.length} filteredCount={filteredCandidates.length} onClearFilters={() => setFilters(initialFilters)} candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} onStatusChange={handleDragEnd} />}
            {activeTab === 'submissions' && <SubmissionsView candidatesLoading={candidatesLoading} candidates={candidates.filter(c => !c.deletedAt)} onEdit={openCandidateProfile} />}
@@ -3034,6 +3060,7 @@ export default function App() {
                setActiveTab={setActiveTab}
                filters={filters}
                routeTab={activeTab}
+               initialJobStatusFilter={new URLSearchParams(location.search).get('status') || undefined}
              />
            )}
            {activeTab === 'applications' && <ApplicationsPage applications={applications} candidates={candidates} jobs={jobs} companies={companies} onUpdateApplicationStatus={updateApplicationStatus} onRemoveApplication={removeApplication} onAddApplicationNote={addApplicationNote} onEditCandidate={openCandidateProfile} onViewJob={openJobCandidatesModal} onCreateApplication={createApplication} />}
@@ -4492,6 +4519,7 @@ const JobsManagementPage = ({
   setActiveTab,
   filters,
   routeTab,
+  initialJobStatusFilter,
 }) => {
   const routeTabId = JOBS_PAGE_TAB_MAP[routeTab] || 'vagas';
   const [jobsPageTab, setJobsPageTab] = useState(routeTabId);
@@ -4538,6 +4566,7 @@ const JobsManagementPage = ({
             onToggleStatus={onSaveGeneric}
             onFilterPipeline={() => { setFilters({ ...filters, jobId: 'mock_id' }); setActiveTab('candidates'); }}
             onViewCandidates={onViewCandidates}
+            initialStatusFilter={initialJobStatusFilter}
           />
         )}
         {jobsPageTab === 'companies' && (
@@ -4616,12 +4645,18 @@ const JobsManagementPage = ({
   );
 };
 
-const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandidates, companies }) => {
+const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandidates, companies, initialStatusFilter }) => {
   const [activeTab, setActiveTab] = useState('status');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter && ['Aberta', 'Preenchida', 'Cancelada', 'Fechada'].includes(initialStatusFilter) ? initialStatusFilter : 'all');
   const [cityFilter, setCityFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [periodFilter, setPeriodFilter] = useState('all');
+
+  useEffect(() => {
+    if (initialStatusFilter && ['Aberta', 'Preenchida', 'Cancelada', 'Fechada'].includes(initialStatusFilter)) {
+      setStatusFilter(initialStatusFilter);
+    }
+  }, [initialStatusFilter]);
   
   // Agrupar vagas por status
   const jobsByStatus = useMemo(() => {
