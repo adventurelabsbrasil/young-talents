@@ -505,7 +505,7 @@ const PublicCandidateForm = () => {
         }
       });
 
-      // Enviar para Supabase
+      // Enviar para Supabase (view public.candidates redireciona para young_talents.candidates)
       const { error } = await supabase
         .from('candidates')
         .insert([normalizedData]);
@@ -729,6 +729,12 @@ const PublicCandidateForm = () => {
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Campos marcados com <span className="text-red-500">*</span> são obrigatórios
+          </p>
+          <p className="text-sm mt-3">
+            <Link to="/apply/test" className="inline-flex items-center gap-1.5 text-young-orange hover:underline font-medium">
+              <FlaskConical size={16} />
+              Teste de envio (validar Supabase)
+            </Link>
           </p>
         </div>
 

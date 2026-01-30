@@ -34,6 +34,7 @@ import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
 import { getTimestampSeconds, getCandidateTimestamp } from './utils/timestampUtils';
+import { mapCandidatesFromSupabase } from './utils/candidateFromSupabase';
 import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail, formatValidationErrors } from './utils/validation';
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
@@ -1921,6 +1922,36 @@ export default function App() {
       return () => sub.unsubscribe();
     })();
   }, [user]);
+
+  // Carregar candidatos do Supabase (view public.candidates → young_talents.candidates)
+  const loadCandidates = React.useCallback(async () => {
+    const { data, error } = await supabase.from('candidates').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('Erro ao carregar candidatos:', error);
+      return;
+    }
+    setCandidates(mapCandidatesFromSupabase(data ?? []));
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    loadCandidates();
+    const channel = supabase
+      .channel('candidates_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'young_talents', table: 'candidates' }, () => {
+        loadCandidates();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'young_talents', table: 'candidates' }, () => {
+        loadCandidates();
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'young_talents', table: 'candidates' }, () => {
+        loadCandidates();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, loadCandidates]);
 
   const handleSaveGeneric = async (col, d, closeFn) => {
     showToast('Esta funcionalidade precisa ser migrada para Supabase.', 'error');
