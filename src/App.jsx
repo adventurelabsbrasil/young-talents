@@ -74,6 +74,7 @@ const COLORS = MATERIAL_COLORS;
 const Dashboard = ({ 
   filteredJobs, 
   filteredCandidates, 
+  totalCandidatesCount = 0,
   onOpenCandidates, 
   statusMovements = [], 
   applications: applicationsProp = [], 
@@ -405,8 +406,13 @@ const Dashboard = ({
 
   return (
     <div className="text-gray-900 dark:text-white space-y-6 overflow-y-auto h-full pb-6">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-2xl font-bold">Dashboard</h2>
+      <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold">Dashboard</h2>
+          <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium">
+            Total geral: {totalCandidatesCount} candidatos
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400">Período:</label>
           <select
@@ -2512,10 +2518,19 @@ export default function App() {
      handleDragEnd(cId, status); // Reutiliza a lógica do DragEnd para acionar o modal se necessário
   };
 
-  // Filtra candidatos baseado nos filtros da Sidebar (Avançados)
+  // Um candidato por email (último envio por timestamp) para listagem e contagem; múltiplos envios ficam nas linhas do banco
+  const uniqueCandidatesByEmail = useMemo(() => {
+    const byEmail = {};
+    candidates.filter(c => !c.deletedAt).forEach(c => {
+      const ts = getCandidateTimestamp(c) || (c.createdAt ? new Date(c.createdAt).getTime() / 1000 : 0);
+      if (!byEmail[c.email] || (getCandidateTimestamp(byEmail[c.email]) || 0) < ts) byEmail[c.email] = c;
+    });
+    return Object.values(byEmail);
+  }, [candidates]);
+
+  // Filtra candidatos baseado nos filtros da Sidebar (Avançados) — usa lista única por email
   const filteredCandidates = useMemo(() => {
-    // Filtrar registros deletados (soft delete)
-    let data = candidates.filter(c => !c.deletedAt);
+    let data = [...uniqueCandidatesByEmail];
     const nowSeconds = Math.floor(Date.now() / 1000);
     const preset = filters.createdAtPreset || 'all';
     const presetToSeconds = {
@@ -2592,7 +2607,7 @@ export default function App() {
       }
     }
     return data;
-  }, [candidates, filters]);
+  }, [uniqueCandidatesByEmail, filters]);
 
   const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags, userRoles, user: effectiveUser };
 
@@ -2787,7 +2802,7 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" highlightedCandidateId={highlightedCandidateId} />}
            {activeTab === 'candidates' && <TalentBankView candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} onStatusChange={handleDragEnd} />}
            {(activeTab === 'jobs' || activeTab === 'companies' || activeTab === 'positions' || activeTab === 'sectors' || activeTab === 'cities') && (
@@ -3800,13 +3815,24 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Banco de Talentos</h2>
-            {/* Contador de resultados */}
-            <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-semibold">
-              {processedData.length} {processedData.length === 1 ? 'candidato' : 'candidatos'}
-              {activeFiltersCount > 0 && (
-                <span className="ml-2 text-xs">
-                  ({activeFiltersCount} {activeFiltersCount === 1 ? 'filtro ativo' : 'filtros ativos'})
-                </span>
+            {/* Contador: Mostrando X a Y de Z candidatos */}
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-semibold">
+                Mostrando {processedData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, processedData.length)} de {processedData.length} candidatos
+                {activeFiltersCount > 0 && (
+                  <span className="ml-2 text-xs">
+                    ({activeFiltersCount} {activeFiltersCount === 1 ? 'filtro ativo' : 'filtros ativos'})
+                  </span>
+                )}
+              </div>
+              {processedData.length > itemsPerPage && (
+                <button
+                  type="button"
+                  onClick={() => setItemsPerPage(prev => Math.min(prev + 50, processedData.length))}
+                  className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors"
+                >
+                  Ver mais
+                </button>
               )}
             </div>
           </div>

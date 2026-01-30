@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "delete-candidates": "node scripts/delete-candidates-collection.js",
-    "import-candidates": "node scripts/import-candidates-from-csv.js"
+    "import-candidates": "node scripts/import-candidates-from-csv.js",
+    "generate-candidates-sql": "node scripts/generate-candidates-sql.js"
   },
   "dependencies": {
     "csv-parse": "^5.5.6",

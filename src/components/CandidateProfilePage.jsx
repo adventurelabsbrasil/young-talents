@@ -93,6 +93,21 @@ export default function CandidateProfilePage({
     return statusMovements.filter(m => m.candidateId === candidate.id);
   }, [candidate, statusMovements]);
 
+  // Todos os envios deste email (múltiplos cadastros = múltiplas linhas)
+  const submissionsByEmail = useMemo(() => {
+    if (!candidate?.email) return [];
+    const sameEmail = candidates.filter(c => c.email === candidate.email);
+    const getTs = (c) => {
+      const ot = c.original_timestamp;
+      if (ot) return new Date(ot).getTime();
+      const ca = c.createdAt;
+      if (ca?.seconds) return ca.seconds * 1000;
+      if (typeof ca === 'string') return new Date(ca).getTime();
+      return 0;
+    };
+    return sameEmail.sort((a, b) => getTs(b) - getTs(a));
+  }, [candidate?.email, candidates]);
+
   // Dados calculados para scorecards
   const scorecards = useMemo(() => {
     if (!candidate) return [];
@@ -1096,6 +1111,23 @@ export default function CandidateProfilePage({
                   </p>
                 )}
               </div>
+              {submissionsByEmail.length > 1 && (
+                <div className="col-span-full mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                    <History size={16} />
+                    Histórico de envios ({submissionsByEmail.length} cadastros com este e-mail)
+                  </label>
+                  <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                    {submissionsByEmail.map((sub, idx) => (
+                      <li key={sub.id}>
+                        {idx === 0 ? '(atual) ' : ''}
+                        {formatTimestamp(sub.original_timestamp || sub.createdAt)}
+                        {sub.origin && ` · ${sub.origin}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         )}

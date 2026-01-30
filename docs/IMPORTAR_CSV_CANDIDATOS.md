@@ -154,14 +154,21 @@ Se no CSV você tem **2698 linhas** e no Supabase só **2193**, as demais (~505)
 
 **Como completar os dados:**
 
-1. **Script (recomendado para muitos registros)**  
-   Coloque a chave anon **real** no `.env` e rode de novo:
+1. **Arquivos SQL para colar no Supabase (não depende de chave)**  
+   Gera vários `.sql` pequenos (cada um com até ~300 linhas) para caber no **SQL Editor** do Supabase. Emails já existentes são ignorados (`ON CONFLICT (email) DO NOTHING`).
+   ```bash
+   npm run generate-candidates-sql
+   ```
+   Os arquivos saem em **`scripts/output/`**: `seed-candidates-part-01.sql`, `part-02.sql`, … No Supabase: **SQL Editor → New query → cole o conteúdo do part-01 → Run**. Depois repita com part-02, part-03, … **em ordem**, até o último.
+
+2. **Script Node (precisa de chave no .env)**  
+   Coloque a chave anon **real** no `.env` e rode:
    ```bash
    npm run import-candidates
    ```
    Duplicatas (mesmo email) serão ignoradas; apenas linhas novas ou que antes falharam serão inseridas.
 
-2. **Import pelo frontend**  
+3. **Import pelo frontend**  
    Configurações → Importação em massa (CSV). Envie o mesmo CSV; o sistema insere em lotes e pula emails duplicados.
 
 Depois de importar, **recarregue a página** (com usuário logado). Com o `.range(0, 9999)`, o front passa a exibir até 10.000 candidatos.
