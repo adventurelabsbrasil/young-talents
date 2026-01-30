@@ -47,6 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_candidates_city ON young_talents.candidates(city)
 
 -- Trigger para atualizar updated_at automaticamente
 -- A função update_updated_at_column() já foi criada no arquivo 001_create_schema.sql
+DROP TRIGGER IF EXISTS update_candidates_updated_at ON young_talents.candidates;
 CREATE TRIGGER update_candidates_updated_at
   BEFORE UPDATE ON young_talents.candidates
   FOR EACH ROW
@@ -55,14 +56,15 @@ CREATE TRIGGER update_candidates_updated_at
 -- Habilitar RLS
 ALTER TABLE young_talents.candidates ENABLE ROW LEVEL SECURITY;
 
--- Política: Usuários autenticados podem ler candidatos
+-- Políticas RLS (DROP IF EXISTS para permitir reaplicar a migration)
+DROP POLICY IF EXISTS "Usuários autenticados podem ler candidatos" ON young_talents.candidates;
 CREATE POLICY "Usuários autenticados podem ler candidatos"
   ON young_talents.candidates
   FOR SELECT
   TO authenticated
   USING (true);
 
--- Política: Apenas admin e editor podem inserir candidatos
+DROP POLICY IF EXISTS "Admin e editor podem inserir candidatos" ON young_talents.candidates;
 CREATE POLICY "Admin e editor podem inserir candidatos"
   ON young_talents.candidates
   FOR INSERT
@@ -75,7 +77,7 @@ CREATE POLICY "Admin e editor podem inserir candidatos"
     )
   );
 
--- Política: Apenas admin e editor podem atualizar candidatos
+DROP POLICY IF EXISTS "Admin e editor podem atualizar candidatos" ON young_talents.candidates;
 CREATE POLICY "Admin e editor podem atualizar candidatos"
   ON young_talents.candidates
   FOR UPDATE
@@ -88,7 +90,7 @@ CREATE POLICY "Admin e editor podem atualizar candidatos"
     )
   );
 
--- Política: Apenas admin pode deletar candidatos
+DROP POLICY IF EXISTS "Apenas admin pode deletar candidatos" ON young_talents.candidates;
 CREATE POLICY "Apenas admin pode deletar candidatos"
   ON young_talents.candidates
   FOR DELETE
@@ -101,8 +103,7 @@ CREATE POLICY "Apenas admin pode deletar candidatos"
     )
   );
 
--- Política especial: Permitir inserção pública (para formulário público)
--- Esta política permite que usuários não autenticados insiram candidatos
+DROP POLICY IF EXISTS "Formulário público pode inserir candidatos" ON young_talents.candidates;
 CREATE POLICY "Formulário público pode inserir candidatos"
   ON young_talents.candidates
   FOR INSERT

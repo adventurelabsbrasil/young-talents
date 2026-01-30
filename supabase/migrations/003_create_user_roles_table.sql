@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_email ON young_talents.user_roles(emai
 CREATE INDEX IF NOT EXISTS idx_user_roles_role ON young_talents.user_roles(role);
 
 -- Trigger para atualizar updated_at automaticamente
+DROP TRIGGER IF EXISTS update_user_roles_updated_at ON young_talents.user_roles;
 CREATE TRIGGER update_user_roles_updated_at
   BEFORE UPDATE ON young_talents.user_roles
   FOR EACH ROW
@@ -25,14 +26,15 @@ CREATE TRIGGER update_user_roles_updated_at
 -- Habilitar RLS
 ALTER TABLE young_talents.user_roles ENABLE ROW LEVEL SECURITY;
 
--- Política: Usuários podem ler seu próprio role
+-- Políticas RLS (DROP IF EXISTS para permitir reaplicar a migration)
+DROP POLICY IF EXISTS "Usuários podem ler seu próprio role" ON young_talents.user_roles;
 CREATE POLICY "Usuários podem ler seu próprio role"
   ON young_talents.user_roles
   FOR SELECT
   TO authenticated
   USING (user_id = auth.uid());
 
--- Política: Admin pode ler todos os roles
+DROP POLICY IF EXISTS "Admin pode ler todos os roles" ON young_talents.user_roles;
 CREATE POLICY "Admin pode ler todos os roles"
   ON young_talents.user_roles
   FOR SELECT
@@ -45,7 +47,7 @@ CREATE POLICY "Admin pode ler todos os roles"
     )
   );
 
--- Política: Apenas admin pode inserir roles
+DROP POLICY IF EXISTS "Apenas admin pode inserir roles" ON young_talents.user_roles;
 CREATE POLICY "Apenas admin pode inserir roles"
   ON young_talents.user_roles
   FOR INSERT
@@ -58,7 +60,7 @@ CREATE POLICY "Apenas admin pode inserir roles"
     )
   );
 
--- Política: Apenas admin pode atualizar roles
+DROP POLICY IF EXISTS "Apenas admin pode atualizar roles" ON young_talents.user_roles;
 CREATE POLICY "Apenas admin pode atualizar roles"
   ON young_talents.user_roles
   FOR UPDATE
@@ -71,7 +73,7 @@ CREATE POLICY "Apenas admin pode atualizar roles"
     )
   );
 
--- Política: Apenas admin pode deletar roles
+DROP POLICY IF EXISTS "Apenas admin pode deletar roles" ON young_talents.user_roles;
 CREATE POLICY "Apenas admin pode deletar roles"
   ON young_talents.user_roles
   FOR DELETE

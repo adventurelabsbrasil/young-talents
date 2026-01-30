@@ -25,6 +25,10 @@ CREATE INDEX IF NOT EXISTS idx_applications_status ON young_talents.applications
 
 ALTER TABLE young_talents.applications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated read applications" ON young_talents.applications;
+DROP POLICY IF EXISTS "Authenticated insert applications" ON young_talents.applications;
+DROP POLICY IF EXISTS "Authenticated update applications" ON young_talents.applications;
+DROP POLICY IF EXISTS "Authenticated delete applications" ON young_talents.applications;
 CREATE POLICY "Authenticated read applications" ON young_talents.applications FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated insert applications" ON young_talents.applications FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Authenticated update applications" ON young_talents.applications FOR UPDATE TO authenticated USING (true);

@@ -41,13 +41,14 @@ INSERT INTO young_talents.jobs (id, title, code, company, city, interest_area, s
 ON CONFLICT (id) DO NOTHING;
 
 -- Candidatos de exemplo (young_talents.candidates) – IDs fixos para poder referenciar em applications
+-- ON CONFLICT (id): email pode não ser UNIQUE após migration 011
 INSERT INTO young_talents.candidates (
   id, full_name, email, phone, city, schooling_level, interest_areas, source, status, origin, created_by, created_at
 ) VALUES
   ('f6000000-0000-4000-8000-000000000001', 'Maria Silva', 'maria.silva@email.com', '(51) 99999-1001', 'Porto Alegre', 'Superior completo', 'Tecnologia, Administrativo', 'LinkedIn', 'Inscrito', 'seed', 'Sistema', NOW() - INTERVAL '8 days'),
   ('f6000000-0000-4000-8000-000000000002', 'João Santos', 'joao.santos@email.com', '(51) 99999-1002', 'Caxias do Sul', 'Superior em andamento', 'Comercial', 'Indicação', 'Considerado', 'seed', 'Sistema', NOW() - INTERVAL '6 days'),
   ('f6000000-0000-4000-8000-000000000003', 'Ana Oliveira', 'ana.oliveira@email.com', '(51) 99999-1003', 'Porto Alegre', 'Superior completo', 'Administrativo', 'Formulário Público', 'Inscrito', 'seed', 'Sistema', NOW() - INTERVAL '3 days')
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Candidaturas (applications) – ligam candidatos às vagas
 INSERT INTO young_talents.applications (candidate_id, job_id, candidate_name, candidate_email, job_title, job_company, status, applied_at, created_by) VALUES

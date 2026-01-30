@@ -70,7 +70,15 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON young_talents.jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON young_talents.jobs(company);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON young_talents.jobs(created_at);
 
--- Triggers updated_at
+-- Triggers updated_at: drop all first (idempotent), then create
+DO $$
+BEGIN
+  DROP TRIGGER IF EXISTS update_companies_updated_at ON young_talents.companies;
+  DROP TRIGGER IF EXISTS update_cities_updated_at ON young_talents.cities;
+  DROP TRIGGER IF EXISTS update_sectors_updated_at ON young_talents.sectors;
+  DROP TRIGGER IF EXISTS update_positions_updated_at ON young_talents.positions;
+  DROP TRIGGER IF EXISTS update_jobs_updated_at ON young_talents.jobs;
+END $$;
 CREATE TRIGGER update_companies_updated_at
   BEFORE UPDATE ON young_talents.companies
   FOR EACH ROW EXECUTE FUNCTION young_talents.update_updated_at_column();
@@ -94,26 +102,47 @@ ALTER TABLE young_talents.sectors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE young_talents.positions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE young_talents.jobs ENABLE ROW LEVEL SECURITY;
 
+-- Políticas (DROP IF EXISTS para permitir reaplicar a migration)
+DROP POLICY IF EXISTS "Authenticated read companies" ON young_talents.companies;
+DROP POLICY IF EXISTS "Authenticated insert companies" ON young_talents.companies;
+DROP POLICY IF EXISTS "Authenticated update companies" ON young_talents.companies;
+DROP POLICY IF EXISTS "Authenticated delete companies" ON young_talents.companies;
 CREATE POLICY "Authenticated read companies" ON young_talents.companies FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated insert companies" ON young_talents.companies FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Authenticated update companies" ON young_talents.companies FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Authenticated delete companies" ON young_talents.companies FOR DELETE TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Authenticated read cities" ON young_talents.cities;
+DROP POLICY IF EXISTS "Authenticated insert cities" ON young_talents.cities;
+DROP POLICY IF EXISTS "Authenticated update cities" ON young_talents.cities;
+DROP POLICY IF EXISTS "Authenticated delete cities" ON young_talents.cities;
 CREATE POLICY "Authenticated read cities" ON young_talents.cities FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated insert cities" ON young_talents.cities FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Authenticated update cities" ON young_talents.cities FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Authenticated delete cities" ON young_talents.cities FOR DELETE TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Authenticated read sectors" ON young_talents.sectors;
+DROP POLICY IF EXISTS "Authenticated insert sectors" ON young_talents.sectors;
+DROP POLICY IF EXISTS "Authenticated update sectors" ON young_talents.sectors;
+DROP POLICY IF EXISTS "Authenticated delete sectors" ON young_talents.sectors;
 CREATE POLICY "Authenticated read sectors" ON young_talents.sectors FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated insert sectors" ON young_talents.sectors FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Authenticated update sectors" ON young_talents.sectors FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Authenticated delete sectors" ON young_talents.sectors FOR DELETE TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Authenticated read positions" ON young_talents.positions;
+DROP POLICY IF EXISTS "Authenticated insert positions" ON young_talents.positions;
+DROP POLICY IF EXISTS "Authenticated update positions" ON young_talents.positions;
+DROP POLICY IF EXISTS "Authenticated delete positions" ON young_talents.positions;
 CREATE POLICY "Authenticated read positions" ON young_talents.positions FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated insert positions" ON young_talents.positions FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Authenticated update positions" ON young_talents.positions FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Authenticated delete positions" ON young_talents.positions FOR DELETE TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Authenticated read jobs" ON young_talents.jobs;
+DROP POLICY IF EXISTS "Authenticated insert jobs" ON young_talents.jobs;
+DROP POLICY IF EXISTS "Authenticated update jobs" ON young_talents.jobs;
+DROP POLICY IF EXISTS "Authenticated delete jobs" ON young_talents.jobs;
 CREATE POLICY "Authenticated read jobs" ON young_talents.jobs FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated insert jobs" ON young_talents.jobs FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Authenticated update jobs" ON young_talents.jobs FOR UPDATE TO authenticated USING (true);
