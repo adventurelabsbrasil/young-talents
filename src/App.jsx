@@ -2351,7 +2351,6 @@ export default function App() {
     if (!user || !user.email) return;
     // TODO: Migrar para Supabase
     console.log('Activity:', { activityType, description, entityType, entityId, metadata });
-    }
   };
 
   // Função para registrar log de movimentação de status do candidato
