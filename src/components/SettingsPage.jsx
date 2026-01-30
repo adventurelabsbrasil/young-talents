@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, Mail, History, Database, Layout, UploadCloud, Download, 
-  Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X, Building2, Layers, ExternalLink
+  Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
 import DataManager from './DataManager';
@@ -41,7 +41,6 @@ export default function SettingsPage({
   const isAdmin = currentUserRole === 'admin';
 
   const tabs = [
-    { id: 'dados', label: 'Dados Base', icon: Layers },
     { id: 'campos', label: 'Gerenciamento de Campos', icon: Database },
     { id: 'pipeline', label: 'Configuração do Pipeline', icon: Layout },
     { id: 'import', label: 'Importar / Exportar', icon: UploadCloud },
@@ -91,29 +90,27 @@ export default function SettingsPage({
 
       {/* Conteúdo das Abas */}
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-        {activeTab === 'dados' && (
-          <div className="max-w-xl rounded-xl border border-brand-border bg-brand-card p-8 text-center">
-            <Building2 className="mx-auto mb-4 text-brand-orange" size={48} />
-            <h3 className="text-lg font-bold text-white mb-2">Dados mestres unificados</h3>
-            <p className="text-gray-400 mb-6">
-              Empresas, cidades, setores e cargos são gerenciados em <strong className="text-white">Gerenciar Vagas</strong> para manter uma única fonte de dados no sistema.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/jobs')}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-brand-orange hover:bg-orange-600 text-white font-medium rounded-lg transition-colors"
-            >
-              <ExternalLink size={18} /> Abrir Gerenciar Vagas
-            </button>
-          </div>
-        )}
         {activeTab === 'campos' && <FieldsManager candidateFields={candidateFields} />}
         {activeTab === 'pipeline' && <PipelineManager />}
         {activeTab === 'companies' && <CompaniesManager onShowToast={onShowToast} />}
         {activeTab === 'import' && <ImportExportManager onOpenCsvModal={onOpenCsvModal} onShowToast={onShowToast} />}
         {activeTab === 'users' && <UserManager userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={onSetUserRole} onRemoveUserRole={onRemoveUserRole} currentUserEmail={currentUserEmail} currentUserName={currentUserName} currentUserPhoto={currentUserPhoto} onShowToast={onShowToast} />}
-        {activeTab === 'emails' && <EmailTemplateManager />}
-        {activeTab === 'history' && <MassActionHistory />}
+        {activeTab === 'emails' && (
+          <>
+            <div className="mb-4 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-gray-400 text-sm">
+              <strong>Em desenvolvimento.</strong> Modelos de e-mail ainda não persistem no servidor.
+            </div>
+            <EmailTemplateManager />
+          </>
+        )}
+        {activeTab === 'history' && (
+          <>
+            <div className="mb-4 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-gray-400 text-sm">
+              <strong>Em desenvolvimento.</strong> Histórico de ações ainda não persiste no servidor.
+            </div>
+            <MassActionHistory />
+          </>
+        )}
         {activeTab === 'activity' && isAdmin && <ActivityLog activityLog={activityLog} />}
       </div>
     </div>

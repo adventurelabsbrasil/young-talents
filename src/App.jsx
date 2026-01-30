@@ -91,6 +91,7 @@ function getRecencyRowClass(recency) {
 
 // Dashboard com Gráficos
 const Dashboard = ({ 
+  candidatesLoading = false,
   filteredJobs, 
   filteredCandidates, 
   totalCandidatesCount = 0,
@@ -104,7 +105,6 @@ const Dashboard = ({
   interviews = [], 
   onScheduleInterview 
 }) => {
-  // Garante que sempre exista uma variável local `applications`
   const applications = applicationsProp || [];
   const [periodFilter, setPeriodFilter] = useState('today'); // Filtro de período para gráficos (padrão: Hoje)
   const [showCustomPeriod, setShowCustomPeriod] = useState(false);
@@ -425,6 +425,14 @@ const Dashboard = ({
     const [light, dark] = gradients[baseColor] || [baseColor, baseColor];
     return `url(#gradient-${index})`;
   };
+
+  if (candidatesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+        <span>Carregando candidatos...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="text-gray-900 dark:text-white space-y-6 overflow-y-auto h-full pb-6">
@@ -1898,6 +1906,7 @@ export default function App() {
   const [interviews, setInterviews] = useState([]); // Agendamentos de entrevistas
   const [userRoles, setUserRoles] = useState([{ email: DEV_USER.email, role: 'admin' }]); // Dev: role fixo
   const [activityLog, setActivityLog] = useState([]); // Log de atividades para admin
+  const [candidatesLoading, setCandidatesLoading] = useState(false);
   
   // Role do usuário atual (admin, editor, viewer) — exibido na UI como Administrador, Recrutador, Visualizador
   const currentUserRole = useMemo(() => {
@@ -1952,8 +1961,12 @@ export default function App() {
 
   const closeJobModal = () => {
     setEditingJob(null);
-    navigate(location.pathname);
-    setRoute(prev => ({ ...prev, modal: null, id: null }));
+    if (location.pathname === '/jobs/new' || /^\/jobs\/[^/]+$/.test(location.pathname)) {
+      navigate('/jobs');
+    } else {
+      navigate(location.pathname);
+    }
+    setRoute(prev => ({ ...prev, page: 'jobs', modal: null, id: null }));
   };
 
   const openCsvModal = () => {
@@ -2015,15 +2028,25 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  // Sync user_roles do Supabase (desativado em dev aberto)
+  // Sync user_roles do Supabase; manter pelo menos o usuário atual no dropdown de recrutador
   useEffect(() => {
+    if (!supabase) return;
     if (!user || user.email === DEV_USER.email) return;
     (async () => {
       const { data, error } = await supabase.from('user_roles').select('*');
-      if (!error && data) setUserRoles(data);
+      if (!error && data && data.length > 0) {
+        setUserRoles(data);
+      } else {
+        // Garantir que o usuário atual apareça no dropdown de recrutador
+        setUserRoles(prev => {
+          const hasCurrent = prev.some(r => r.email === user?.email);
+          if (hasCurrent) return prev;
+          return [{ email: user.email, name: user.user_metadata?.full_name || user.user_metadata?.name || '', role: 'editor' }, ...prev];
+        });
+      }
       const sub = supabase.channel('user_roles_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, async () => {
         const { data: d } = await supabase.from('user_roles').select('*');
-        if (d) setUserRoles(d);
+        if (d && d.length > 0) setUserRoles(d);
       }).subscribe();
       return () => sub.unsubscribe();
     })();
@@ -2032,26 +2055,32 @@ export default function App() {
   // Carregar candidatos do Supabase (view public.candidates → young_talents.candidates)
   // PostgREST limita 1000 linhas por request; paginamos em lotes de 1000 até trazer todos
   const loadCandidates = React.useCallback(async () => {
-    const PAGE_SIZE = 1000;
-    let allRows = [];
-    let offset = 0;
-    let hasMore = true;
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('candidates')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(offset, offset + PAGE_SIZE - 1);
-      if (error) {
-        console.error('Erro ao carregar candidatos:', error);
-        return;
+    if (!supabase) return;
+    setCandidatesLoading(true);
+    try {
+      const PAGE_SIZE = 1000;
+      let allRows = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('candidates')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (error) {
+          console.error('Erro ao carregar candidatos:', error);
+          return;
+        }
+        const chunk = data ?? [];
+        allRows = allRows.concat(chunk);
+        hasMore = chunk.length >= PAGE_SIZE;
+        offset += PAGE_SIZE;
       }
-      const chunk = data ?? [];
-      allRows = allRows.concat(chunk);
-      hasMore = chunk.length >= PAGE_SIZE;
-      offset += PAGE_SIZE;
+      setCandidates(mapCandidatesFromSupabase(allRows));
+    } finally {
+      setCandidatesLoading(false);
     }
-    setCandidates(mapCandidatesFromSupabase(allRows));
   }, []);
 
   // Carregar jobs, companies, cities, sectors, positions, applications do schema young_talents
@@ -2907,9 +2936,9 @@ export default function App() {
              <Settings size={18}/> Configurações
            </button>
 
-           {/* Diagnóstico */}
-           <button onClick={() => { setActiveTab('diagnostic'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'diagnostic' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
-             <AlertCircle size={18}/> Diagnóstico
+           {/* Diagnóstico — em desenvolvimento */}
+           <button onClick={() => { setActiveTab('diagnostic'); setIsSidebarOpen(false); }} title="Funcionalidade em desenvolvimento" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-70 ${activeTab === 'diagnostic' ? 'bg-gray-500 text-white dark:bg-gray-600' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+             <AlertCircle size={18}/> Diagnóstico <span className="text-xs ml-1">(em breve)</span>
            </button>
            
            {/* Ajuda */}
@@ -2982,10 +3011,10 @@ export default function App() {
                />
              </div>
            )}
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} totalSubmissionsCount={candidates.filter(c => !c.deletedAt).length} onOpenCandidates={setDashboardModalCandidates} onSetModalTitle={setDashboardModalTitle} onNavigateToCandidates={(path) => navigate(path)} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
-           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" highlightedCandidateId={highlightedCandidateId} />}
-           {activeTab === 'candidates' && <TalentBankView candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} onStatusChange={handleDragEnd} />}
-           {activeTab === 'submissions' && <SubmissionsView candidates={candidates.filter(c => !c.deletedAt)} onEdit={openCandidateProfile} />}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard candidatesLoading={candidatesLoading} filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} totalSubmissionsCount={candidates.filter(c => !c.deletedAt).length} onOpenCandidates={setDashboardModalCandidates} onSetModalTitle={setDashboardModalTitle} onNavigateToCandidates={(path) => navigate(path)} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
+           {activeTab === 'pipeline' && <PipelineView candidatesLoading={candidatesLoading} candidatesTotal={candidates.length} filteredCount={filteredCandidates.length} onClearFilters={() => setFilters(initialFilters)} candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" highlightedCandidateId={highlightedCandidateId} />}
+           {activeTab === 'candidates' && <TalentBankView candidatesLoading={candidatesLoading} candidatesTotal={candidates.length} filteredCount={filteredCandidates.length} onClearFilters={() => setFilters(initialFilters)} candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} onStatusChange={handleDragEnd} />}
+           {activeTab === 'submissions' && <SubmissionsView candidatesLoading={candidatesLoading} candidates={candidates.filter(c => !c.deletedAt)} onEdit={openCandidateProfile} />}
            {(activeTab === 'jobs' || activeTab === 'companies' || activeTab === 'positions' || activeTab === 'sectors' || activeTab === 'cities') && !/^\/jobs\/[^/]+$/.test(location.pathname) && (
              <JobsManagementPage
                jobs={jobs}
@@ -3237,7 +3266,7 @@ export default function App() {
 }
 
 // --- PIPELINE VIEW ---
-const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies, applications = [], interviews = [], forceViewMode = null, highlightedCandidateId = null }) => {
+const PipelineView = ({ candidatesLoading = false, candidatesTotal = 0, filteredCount = 0, onClearFilters, candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies, applications = [], interviews = [], forceViewMode = null, highlightedCandidateId = null }) => {
   const [viewMode, setViewMode] = useState(forceViewMode || 'kanban'); 
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
@@ -3399,6 +3428,31 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
       0
     ) / kanbanItemsPerPage
   ) || 1;
+
+  if (candidatesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+        <span>Carregando candidatos...</span>
+      </div>
+    );
+  }
+  if (processedData.length === 0 && candidatesTotal > 0 && typeof onClearFilters === 'function') {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[200px] text-gray-600 dark:text-gray-400">
+        <p className="mb-3">Nenhum candidato corresponde aos filtros atuais.</p>
+        <button type="button" onClick={onClearFilters} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+          Limpar filtros
+        </button>
+      </div>
+    );
+  }
+  if (processedData.length === 0 && candidatesTotal === 0) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[200px] text-gray-500 dark:text-gray-400">
+        <span>Nenhum candidato cadastrado. Os dados aparecerão após o carregamento ou envio de formulários.</span>
+      </div>
+    );
+  }
 
   return (
      <div className="flex flex-col h-full relative">
@@ -3879,7 +3933,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
 };
 
 // --- BANCO DE TALENTOS (TABELA COMPLETA) ---
-const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = [], onStatusChange }) => {
+const TalentBankView = ({ candidatesLoading = false, candidatesTotal = 0, filteredCount = 0, onClearFilters, candidates, jobs, companies, onEdit, applications = [], onStatusChange }) => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [localSearch, setLocalSearch] = useState('');
@@ -3982,6 +4036,31 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
     if (localSearch) count++;
     return count;
   }, [dateFilter, localSearch]);
+
+  if (candidatesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+        <span>Carregando candidatos...</span>
+      </div>
+    );
+  }
+  if (processedData.length === 0 && candidatesTotal > 0 && typeof onClearFilters === 'function') {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[200px] text-gray-600 dark:text-gray-400">
+        <p className="mb-3">Nenhum candidato corresponde aos filtros atuais.</p>
+        <button type="button" onClick={onClearFilters} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+          Limpar filtros
+        </button>
+      </div>
+    );
+  }
+  if (processedData.length === 0 && candidatesTotal === 0) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[200px] text-gray-500 dark:text-gray-400">
+        <span>Nenhum candidato cadastrado. Os dados aparecerão após o carregamento ou envio de formulários.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full p-6 overflow-hidden bg-white dark:bg-gray-900">
@@ -4278,7 +4357,7 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
 };
 
 // --- FORMULÁRIOS RECEBIDOS (todos os envios, uma linha por envio) ---
-const SubmissionsView = ({ candidates, onEdit }) => {
+const SubmissionsView = ({ candidatesLoading = false, candidates, onEdit }) => {
   const allSubmissions = useMemo(() => 
     (candidates || []).filter(c => !c.deletedAt).sort((a, b) => (getCandidateTimestamp(b) || 0) - (getCandidateTimestamp(a) || 0)),
     [candidates]
@@ -4305,6 +4384,13 @@ const SubmissionsView = ({ candidates, onEdit }) => {
     if (!ts) return 'N/A';
     return new Date(ts * 1000).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
+  if (candidatesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+        <span>Carregando formulários...</span>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col h-full p-6 overflow-hidden bg-white dark:bg-gray-900">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
@@ -5865,7 +5951,7 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
               >
                 <option value="">Selecione um recrutador...</option>
                 {availableRecruiters.map(u => (
-                  <option key={u.email} value={u.name || u.email}>{u.name || u.email}</option>
+                  <option key={u.email || u.id} value={u.email || ''}>{u.name || u.email || '—'}</option>
                 ))}
               </select>
             </div>
@@ -6046,17 +6132,19 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
           <button onClick={onClose} className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Cancelar</button>
           <button
             onClick={() => {
-              if (!d.company || !d.city) {
+              const company = (d.company || '').toString().trim();
+              const city = (d.city || '').toString().trim();
+              if (!company || !city) {
                 alert('Preencha os campos obrigatórios: Empresa e Cidade');
                 return;
               }
-              // Gera título automaticamente se não houver
-              if (!d.title && d.position && d.company) {
-                d.title = `${d.position} - ${d.company}`;
-              } else if (!d.title) {
-                d.title = `Vaga - ${d.company}`;
+              const toSave = { ...d, company, city };
+              if (!toSave.title && toSave.position && toSave.company) {
+                toSave.title = `${toSave.position} - ${toSave.company}`;
+              } else if (!toSave.title) {
+                toSave.title = `Vaga - ${toSave.company}`;
               }
-              onSave(d);
+              onSave(toSave);
             }}
             disabled={isSaving}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"

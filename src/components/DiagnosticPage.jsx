@@ -87,6 +87,9 @@ export default function DiagnosticPage({ candidates = [] }) {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="mb-4 px-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 text-sm">
+        <strong>Funcionalidade em desenvolvimento.</strong> Esta página ainda não foi totalmente implementada.
+      </div>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <AlertCircle size={24} /> Diagnóstico da Integração
