@@ -32,7 +32,7 @@ try {
       detectSessionInUrl: true
     },
     db: {
-      schema: 'young_talents' // Schema padrão para queries
+      schema: 'public' // Schema padrão para queries
     }
   });
 } catch (error) {

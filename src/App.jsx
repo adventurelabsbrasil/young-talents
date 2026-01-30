@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
-  FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
+  FileText, MapPin, Filter, Trophy, Menu, X, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
   CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ExternalLink,
   MessageSquare, History, ArrowRight, Palette, Copy, Info, BarChart3, HelpCircle, Clock
@@ -29,7 +29,6 @@ import CandidateProfilePage from './components/CandidateProfilePage';
 import DiagnosticPage from './components/DiagnosticPage';
 import PublicCandidateForm from './components/PublicCandidateForm';
 import ThankYouPage from './components/ThankYouPage';
-import ChangePasswordModal from './components/ChangePasswordModal';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
@@ -943,211 +942,6 @@ const Dashboard = ({
   );
 };
 
-// --- LOGIN ---
-const LoginScreen = ({ onLogin, onEmailLogin, onForgotPassword }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await onEmailLogin(email, password);
-    } catch (err) {
-      setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
-    try {
-      await onForgotPassword(forgotPasswordEmail);
-      setSuccess('Email de recuperação enviado! Verifique sua caixa de entrada.');
-      setTimeout(() => {
-        setShowForgotPassword(false);
-        setForgotPasswordEmail('');
-      }, 3000);
-    } catch (err) {
-      setError(err.message || 'Erro ao enviar email de recuperação.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl max-w-md w-full">
-        {/* Logo Young */}
-        <div className="flex justify-center mb-6">
-          <img 
-            src="/logo-young-empreendimentos.png" 
-            alt="Young Empreendimentos" 
-            className="h-16 w-auto"
-          />
-        </div>
-        
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 text-center">Young Talents ATS</h1>
-        <p className="text-gray-700 dark:text-gray-300 text-sm mb-6 text-center">Sistema de Gestão de Talentos</p>
-
-        {!showForgotPassword ? (
-          <>
-            {/* Formulário de Login com Email/Senha */}
-            <form onSubmit={handleEmailSubmit} className="space-y-4 mb-6">
-              {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-400">
-                  {error}
-                </div>
-              )}
-              
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  E-mail
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="seu@email.com"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Senha
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="••••••••"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline w-full text-right"
-              >
-                Esqueci minha senha
-              </button>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-bold transition-all shadow-lg"
-              >
-                {loading ? 'Entrando...' : 'Entrar'}
-              </button>
-            </form>
-
-            {/* Divisor */}
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">ou</span>
-              </div>
-            </div>
-
-            {/* Botão Google */}
-            <button 
-              onClick={onLogin} 
-              className="w-full bg-[#FF5722] hover:bg-[#E64A19] text-white py-3.5 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-3 shadow-lg"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Entrar com Google
-            </button>
-          </>
-        ) : (
-          <>
-            {/* Formulário de Recuperação de Senha */}
-            <form onSubmit={handleForgotPassword} className="space-y-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForgotPassword(false);
-                  setForgotPasswordEmail('');
-                  setError('');
-                  setSuccess('');
-                }}
-                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 flex items-center gap-2"
-              >
-                <ChevronLeft size={16} />
-                Voltar para login
-              </button>
-
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Recuperar Senha</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Digite seu e-mail e enviaremos um link para redefinir sua senha.
-              </p>
-
-              {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-400">
-                  {error}
-                </div>
-              )}
-
-              {success && (
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-700 dark:text-green-400">
-                  {success}
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  E-mail
-                </label>
-                <input
-                  id="forgot-email"
-                  type="email"
-                  value={forgotPasswordEmail}
-                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                  required
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="seu@email.com"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-bold transition-all shadow-lg"
-              >
-                {loading ? 'Enviando...' : 'Enviar Link de Recuperação'}
-              </button>
-            </form>
-          </>
-        )}
-        
-        <p className="text-xs text-gray-600 dark:text-gray-400 mt-6 text-center">© 2025 Young Empreendimentos</p>
-      </div>
-    </div>
-  );
-};
-
 // --- SIDEBAR FILTROS AVANÇADOS ---
 const FILTER_STORAGE_KEY = 'yt-filters';
 
@@ -1907,10 +1701,19 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
 };
 
 // --- APP PRINCIPAL ---
+// Usuário fixo para desenvolvimento (sem autenticação)
+const DEV_USER = {
+  id: 'dev-local',
+  email: 'dev@local',
+  displayName: 'Desenvolvimento',
+  user_metadata: {},
+  photoURL: null
+};
+
 export default function App() {
   const { isDark, toggleTheme } = useTheme();
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [user] = useState(DEV_USER);
+  const [authLoading] = useState(false);
   
   // Sistema de Rotas usando URL
   const location = useLocation();
@@ -1987,7 +1790,7 @@ export default function App() {
   const [statusMovements, setStatusMovements] = useState([]); // Log de movimentações de status
   const [applications, setApplications] = useState([]); // Candidaturas formais (candidato-vaga)
   const [interviews, setInterviews] = useState([]); // Agendamentos de entrevistas
-  const [userRoles, setUserRoles] = useState([]); // Roles de usuários do sistema
+  const [userRoles, setUserRoles] = useState([{ email: DEV_USER.email, role: 'admin' }]); // Dev: role fixo
   const [activityLog, setActivityLog] = useState([]); // Log de atividades para admin
   
   // Role do usuário atual (admin, recruiter, viewer)
@@ -2031,8 +1834,6 @@ export default function App() {
   const [dashboardModalTitle, setDashboardModalTitle] = useState('');
   const [highlightedCandidateId, setHighlightedCandidateId] = useState(null);
   const [interviewModalData, setInterviewModalData] = useState(null); // { candidate, job, application }
-  const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
-
   // Helpers para abrir modais com URL
   const openJobModal = (job = null) => {
     setEditingJob(job);
@@ -2106,225 +1907,17 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  useEffect(() => { 
-    try {
-      // Verificar sessão inicial
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setUser(session?.user || null);
-        setAuthLoading(false);
-      });
-
-      // Listener para mudanças de autenticação
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        setUser(session?.user || null);
-        setAuthLoading(false);
-        
-        // Verificar e atualizar role quando usuário faz login
-        if (event === 'SIGNED_IN' && session?.user) {
-          await checkAndUpdateUserRole(session.user);
-          
-          // Verificar se usuário precisa alterar senha (senha provisória)
-          // Verifica se há flag no user_metadata ou se é primeiro login
-          const needsPasswordChange = session.user.user_metadata?.needs_password_change || 
-                                     session.user.user_metadata?.is_temporary_password;
-          
-          if (needsPasswordChange) {
-            setShowPasswordChangeModal(true);
-          }
-        }
-      });
-      
-      return () => subscription.unsubscribe();
-    } catch (error) {
-      console.error('[Auth] Erro ao configurar listener de autenticação:', error);
-      setAuthLoading(false);
-    }
-  }, []);
-  const handleEmailLogin = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (error) throw error;
-      
-      // Verificar se usuário tem role
-      if (data.user) {
-        const { data: userRole } = await supabase
-          .from('user_roles')
-          .select('*')
-          .eq('user_id', data.user.id)
-          .single();
-        
-        if (!userRole) {
-          // Verificar se é primeiro usuário
-          const { data: allRoles } = await supabase
-            .from('user_roles')
-            .select('id');
-          
-          if (allRoles && allRoles.length === 0) {
-            // Criar admin para primeiro usuário
-            await supabase
-              .from('user_roles')
-              .insert([{
-                user_id: data.user.id,
-                email: data.user.email,
-                name: data.user.email,
-                role: 'admin'
-              }]);
-          } else {
-            await supabase.auth.signOut();
-            throw new Error('Acesso negado. Entre em contato com o administrador para solicitar acesso.');
-          }
-        }
-      }
-      
-      showToast('Login realizado com sucesso!', 'success');
-    } catch (error) {
-      let errorMessage = 'Erro ao fazer login.';
-      if (error.message?.includes('Invalid login credentials') || error.message?.includes('Email not confirmed')) {
-        errorMessage = 'Email ou senha incorretos.';
-      } else if (error.message?.includes('Acesso negado')) {
-        errorMessage = error.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      throw new Error(errorMessage);
-    }
-  };
-
-  const handleForgotPassword = async (email) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
-      });
-      
-      if (error) throw error;
-      showToast('Email de recuperação enviado!', 'success');
-    } catch (error) {
-      let errorMessage = 'Erro ao enviar email de recuperação.';
-      if (error.message?.includes('not found')) {
-        errorMessage = 'Usuário não encontrado.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      throw new Error(errorMessage);
-    }
-  };
-
-  const handleGoogleLogin = async () => { 
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}`,
-          queryParams: {
-            prompt: 'select_account'
-          }
-        }
-      });
-      
-      if (error) throw error;
-      
-      // OAuth redireciona, então o callback será tratado no onAuthStateChange
-    } catch (e) { 
-      console.error(e);
-      showToast('Erro ao fazer login com Google. Tente novamente mais tarde.', 'error');
-    } 
-  };
-  
-  // Função auxiliar para verificar e criar/atualizar role após login OAuth
-  const checkAndUpdateUserRole = async (user) => {
-    if (!user) return;
-    
-    try {
-      // Verificar se o usuário já existe em userRoles
-      const { data: existingRoles, error: fetchError } = await supabase
-        .from('user_roles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (fetchError) throw fetchError;
-      
-      const existingRole = existingRoles?.find(r => r.email === user.email);
-      const isFirstUser = !existingRoles || existingRoles.length === 0;
-      
-      // Verificar se o usuário tem permissão para acessar o sistema
-      if (!existingRole && !isFirstUser) {
-        // Usuário não autorizado - fazer logout
-        await supabase.auth.signOut();
-        showToast('Acesso negado. Entre em contato com o administrador para solicitar acesso.', 'error');
-        return;
-      }
-      
-      if (existingRole) {
-        // Atualizar nome e foto do Google se diferentes
-        const userMetadata = user.user_metadata || {};
-        if (existingRole.name !== userMetadata.full_name || existingRole.photo !== userMetadata.avatar_url) {
-          await supabase
-            .from('user_roles')
-            .update({
-              name: userMetadata.full_name || existingRole.name,
-              photo: userMetadata.avatar_url || existingRole.photo,
-              last_login: new Date().toISOString()
-            })
-            .eq('id', existingRole.id);
-        } else {
-          // Apenas atualizar last_login
-          await supabase
-            .from('user_roles')
-            .update({ last_login: new Date().toISOString() })
-            .eq('id', existingRole.id);
-        }
-      } else {
-        // Criar registro para primeiro usuário (admin)
-        const userMetadata = user.user_metadata || {};
-        await supabase
-          .from('user_roles')
-          .insert([{
-            user_id: user.id,
-            email: user.email,
-            name: userMetadata.full_name || user.email,
-            photo: userMetadata.avatar_url || null,
-            role: 'admin', // Primeiro usuário é admin
-            created_at: new Date().toISOString(),
-            last_login: new Date().toISOString()
-          }]);
-      }
-    } catch (err) {
-      console.error('Erro ao verificar/atualizar role:', err);
-    }
-  };
-
-  // Sync Data - Supabase only
+  // Sync user_roles do Supabase (desativado em dev aberto)
   useEffect(() => {
-    if (!user) return;
-    
-    // Roles de usuários - Supabase subscription
+    if (!user || user.email === DEV_USER.email) return;
     (async () => {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('*');
+      const { data, error } = await supabase.from('user_roles').select('*');
       if (!error && data) setUserRoles(data);
-      
-      // Subscription para mudanças em tempo real
-      const subscription = supabase
-        .channel('user_roles_changes')
-        .on('postgres_changes', 
-          { event: '*', schema: 'young_talents', table: 'user_roles' },
-          async () => {
-            const { data: updatedData } = await supabase
-              .from('user_roles')
-              .select('*');
-            if (updatedData) setUserRoles(updatedData);
-          }
-        )
-        .subscribe();
-      
-      return () => {
-        subscription.unsubscribe();
-      };
+      const sub = supabase.channel('user_roles_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, async () => {
+        const { data: d } = await supabase.from('user_roles').select('*');
+        if (d) setUserRoles(d);
+      }).subscribe();
+      return () => sub.unsubscribe();
     })();
   }, [user]);
 
@@ -2768,12 +2361,7 @@ export default function App() {
       <Route path="/apply" element={<PublicCandidateForm />} />
       <Route path="/apply/thank-you" element={<ThankYouPage />} />
       
-      {/* Rotas protegidas - requerem autenticação */}
-      {!user ? (
-        <Route path="*" element={<LoginScreen onLogin={handleGoogleLogin} onEmailLogin={handleEmailLogin} onForgotPassword={handleForgotPassword} />} />
-      ) : (
-        <>
-          <Route path="/candidate/:id" element={
+      <Route path="/candidate/:id" element={
         <CandidateProfilePage
           candidates={candidates}
           jobs={jobs}
@@ -2880,9 +2468,8 @@ export default function App() {
              <HelpCircle size={18}/> Ajuda
            </button>
         </nav>
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex items-center justify-between">
-           <div className="text-xs text-slate-400 truncate w-32">{user.email}</div>
-           <button onClick={()=>supabase.auth.signOut()}><LogOut size={16} className="text-red-400 hover:text-red-300"/></button>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30">
+           <div className="text-xs text-slate-400 truncate w-32">{user?.email || 'Desenvolvimento'}</div>
         </div>
       </div>
 
@@ -3110,30 +2697,7 @@ export default function App() {
       )}
     </div>
     } />
-        </>
-      )}
     </Routes>
-    
-    {/* Modal de alteração de senha provisória */}
-    {showPasswordChangeModal && user && (
-      <ChangePasswordModal
-        onClose={() => setShowPasswordChangeModal(false)}
-        onSuccess={async () => {
-          setShowPasswordChangeModal(false);
-          showToast('Senha alterada com sucesso!', 'success');
-          // Atualizar user_metadata para remover flag
-          try {
-            if (supabase?.auth) {
-              await supabase.auth.updateUser({
-                data: { needs_password_change: false, is_temporary_password: false }
-              });
-            }
-          } catch (error) {
-            console.error('Erro ao atualizar user_metadata:', error);
-          }
-        }}
-      />
-    )}
     </>
   );
 }
