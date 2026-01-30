@@ -1,13 +1,28 @@
-import React, { useState } from 'react';
-import { X, Save, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, Save, AlertTriangle, Briefcase, Search } from 'lucide-react';
 import { normalizeCity, getMainCitiesOptions } from '../../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../../utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from '../../utils/interestAreaNormalizer';
 import { REJECTION_REASONS } from '../../constants';
 
-export default function TransitionModal({ transition, onClose, onConfirm, cities, interestAreas, schooling, marital, origins }) {
-  // transition contém: { candidate, toStage, missingFields, isConclusion }
-  
+const STAGES_REQUIRING_APPLICATION = ['Considerado', 'Entrevista I', 'Testes', 'Entrevista II', 'Seleção', 'Contratado', 'Reprovado', 'Desistiu da vaga'];
+
+export default function TransitionModal({ transition, onClose, onConfirm, cities, interestAreas, schooling, marital, origins, jobs = [], applications = [], onCreateApplication }) {
+  const [jobSearch, setJobSearch] = useState('');
+  const [selectedJobId, setSelectedJobId] = useState('');
+  const [linkedSuccess, setLinkedSuccess] = useState(false);
+
+  const needsApplication = transition?.toStage && STAGES_REQUIRING_APPLICATION.includes(transition.toStage);
+  const candidateApps = useMemo(() => (applications || []).filter(a => a.candidateId === transition?.candidate?.id), [applications, transition?.candidate?.id]);
+  const hasApplication = candidateApps.length > 0;
+
+  const filteredJobs = useMemo(() => {
+    const list = (jobs || []).filter(j => (j.status === 'Aberta' || !j.status));
+    if (!jobSearch.trim()) return list;
+    const q = jobSearch.trim().toLowerCase();
+    return list.filter(j => (j.title || '').toLowerCase().includes(q) || (j.company || '').toLowerCase().includes(q));
+  }, [jobs, jobSearch]);
+
   const [data, setData] = useState(() => {
     const base = {
       feedback: '',
@@ -42,9 +57,11 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
   };
 
   const handleSave = () => {
-    // Validação básica dos campos faltantes
+    if (needsApplication && !hasApplication) {
+      alert('Vincule o candidato a uma vaga antes de confirmar a mudança de etapa.');
+      return;
+    }
     for (let field of transition.missingFields) {
-        // Verifica se o campo está vazio no state 'data'
         if (!data[field] || data[field] === '') {
             alert(`O campo ${fieldLabels[field] || field} é obrigatório para esta etapa.`);
             return;
@@ -261,6 +278,48 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
           <p className="text-sm text-slate-300">
             Movendo <strong>{transition.candidate.fullName}</strong> para <strong className="text-brand-cyan">{transition.toStage}</strong>.
           </p>
+
+          {needsApplication && !hasApplication && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 space-y-3">
+              <p className="text-sm font-semibold text-amber-200 flex items-center gap-2">
+                <Briefcase size={18} /> Vincular a uma vaga
+              </p>
+              <p className="text-xs text-slate-300">Esta etapa exige que o candidato esteja vinculado a pelo menos uma vaga. Selecione uma vaga abaixo e clique em Vincular.</p>
+              <input
+                type="text"
+                placeholder="Buscar vaga por título ou empresa..."
+                value={jobSearch}
+                onChange={e => setJobSearch(e.target.value)}
+                className="w-full bg-brand-dark border border-brand-border p-2 rounded text-white text-sm placeholder-slate-400"
+              />
+              <select
+                value={selectedJobId}
+                onChange={e => setSelectedJobId(e.target.value)}
+                className="w-full bg-brand-dark border border-brand-border p-2 rounded text-white text-sm"
+              >
+                <option value="">Selecione uma vaga...</option>
+                {filteredJobs.map(j => (
+                  <option key={j.id} value={j.id}>{j.title} – {j.company}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={!selectedJobId || !onCreateApplication}
+                onClick={async () => {
+                  if (!selectedJobId || !onCreateApplication || !transition?.candidate?.id) return;
+                  const ok = await onCreateApplication(transition.candidate.id, selectedJobId);
+                  if (ok) {
+                    setLinkedSuccess(true);
+                    setSelectedJobId('');
+                  }
+                }}
+                className="px-3 py-1.5 bg-brand-orange text-white rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-600"
+              >
+                Vincular
+              </button>
+              {linkedSuccess && <p className="text-xs text-green-400">Vaga vinculada. Você pode confirmar a mudança de etapa abaixo.</p>}
+            </div>
+          )}
 
           {/* Mostrar dados relevantes do candidato */}
           {transition.candidate.city && (

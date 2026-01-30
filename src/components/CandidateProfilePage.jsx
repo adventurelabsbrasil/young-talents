@@ -34,6 +34,20 @@ export default function CandidateProfilePage({
   const [editData, setEditData] = useState({});
   const [changeLog, setChangeLog] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [photoLoadError, setPhotoLoadError] = useState(false);
+
+  const photoDisplayUrl = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    const m = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/i) || url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+    if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+    return url;
+  };
+  const initials = (name) => {
+    if (!name || typeof name !== 'string') return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return (parts[0][0] || '?').toUpperCase();
+  };
 
   // Buscar candidato
   useEffect(() => {
@@ -51,6 +65,10 @@ export default function CandidateProfilePage({
       setLoading(false);
     }
   }, [id, candidates]);
+
+  useEffect(() => {
+    setPhotoLoadError(false);
+  }, [candidate?.id]);
 
   // Buscar log de alterações - TODO: Migrar para Supabase
   useEffect(() => {
@@ -279,6 +297,18 @@ export default function CandidateProfilePage({
               >
                 <ArrowLeft size={20} />
               </button>
+              <div className="w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden flex items-center justify-center text-lg font-bold text-gray-600 dark:text-gray-300">
+                {candidate.photoUrl && !photoLoadError ? (
+                  <img
+                    src={photoDisplayUrl(candidate.photoUrl) || candidate.photoUrl}
+                    alt={candidate.fullName}
+                    className="w-full h-full object-cover"
+                    onError={() => setPhotoLoadError(true)}
+                  />
+                ) : (
+                  <span>{initials(candidate.fullName)}</span>
+                )}
+              </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                   {candidate.fullName || 'Candidato sem nome'}
@@ -448,10 +478,11 @@ export default function CandidateProfilePage({
                       <select
                         value={editData.status || candidate.status || 'Inscrito'}
                         onChange={(e) => {
-                          handleFieldChange('status', e.target.value);
-                          // Se onStatusChange estiver disponível, chama imediatamente
-                          if (onStatusChange && e.target.value !== (candidate.status || 'Inscrito')) {
-                            onStatusChange(candidate.id, e.target.value);
+                          const newStatus = e.target.value;
+                          handleFieldChange('status', newStatus);
+                          if (onStatusChange && newStatus !== (candidate.status || 'Inscrito')) {
+                            if (!window.confirm(`Tem certeza que deseja alterar a etapa de ${candidate.fullName || 'este candidato'} para "${newStatus}"?`)) return;
+                            onStatusChange(candidate.id, newStatus);
                           }
                         }}
                         className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors cursor-pointer ${
@@ -470,12 +501,13 @@ export default function CandidateProfilePage({
                         onChange={async (e) => {
                           const newStatus = e.target.value;
                           if (newStatus === candidate.status) return;
-                          
+                          if (!window.confirm(`Tem certeza que deseja alterar a etapa de ${candidate.fullName || 'este candidato'} para "${newStatus}"?`)) return;
+
                           // Validações similares ao handleDragEnd
                           const PIPELINE_STAGES = ['Inscrito', 'Considerado', 'Entrevista', 'Seleção', 'Selecionado', 'Contratado', 'Reprovado', 'Desistência'];
                           const CLOSING_STATUSES = ['Contratado', 'Reprovado', 'Desistência'];
                           const stagesRequiringApplication = PIPELINE_STAGES.slice(PIPELINE_STAGES.indexOf('Considerado'));
-                          
+
                           // Verificar se precisa de candidatura
                           if (stagesRequiringApplication.includes(newStatus)) {
                             if (candidateApplications.length === 0) {
@@ -483,8 +515,7 @@ export default function CandidateProfilePage({
                               return;
                             }
                           }
-                          
-                          // Chamar onStatusChange
+
                           await onStatusChange(candidate.id, newStatus);
                         }}
                         className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors cursor-pointer ${

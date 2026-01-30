@@ -8,9 +8,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "delete-candidates": "node scripts/delete-candidates-collection.js"
+    "delete-candidates": "node scripts/delete-candidates-collection.js",
+    "import-candidates": "node scripts/import-candidates-from-csv.js"
   },
   "dependencies": {
+    "csv-parse": "^5.5.6",
     "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",
     "@dataconnect/generated": "file:src/dataconnect-generated",
     "@supabase/supabase-js": "^2.39.3",

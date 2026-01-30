@@ -53,3 +53,47 @@ export function mapCandidatesFromSupabase(rows) {
   if (!Array.isArray(rows)) return [];
   return rows.map(mapCandidateFromSupabase).filter(Boolean);
 }
+
+/**
+ * Mapeia candidato do app (camelCase) para payload Supabase (snake_case) para INSERT/UPDATE.
+ */
+export function candidateToSupabase(d) {
+  if (!d) return null;
+  const row = {
+    full_name: d.fullName,
+    email: d.email,
+    email_secondary: d.emailSecondary ?? null,
+    phone: d.phone,
+    birth_date: d.birthDate ?? null,
+    age: d.age ?? null,
+    marital_status: d.maritalStatus ?? null,
+    children_count: d.childrenCount ?? null,
+    has_license: d.hasLicense ?? null,
+    city: d.city ?? null,
+    photo_url: d.photoUrl ?? null,
+    education: d.education ?? null,
+    schooling_level: d.schoolingLevel ?? null,
+    institution: d.institution ?? null,
+    graduation_date: d.graduationDate ?? null,
+    is_studying: d.isStudying ?? null,
+    experience: d.experience ?? null,
+    courses: d.courses ?? null,
+    certifications: d.certifications ?? null,
+    interest_areas: d.interestAreas ?? null,
+    cv_url: d.cvUrl ?? null,
+    portfolio_url: d.portfolioUrl ?? null,
+    source: d.source ?? null,
+    referral: d.referral ?? null,
+    salary_expectation: d.salaryExpectation ?? null,
+    can_relocate: d.canRelocate ?? null,
+    professional_references: d.professionalReferences ?? null,
+    type_of_app: d.typeOfApp ?? null,
+    free_field: d.freeField ?? null,
+    status: d.status ?? 'Inscrito',
+    tags: d.tags ?? [],
+    origin: d.origin ?? null,
+    created_by: d.createdBy ?? null
+  };
+  if (d.id) row.id = d.id;
+  return row;
+}

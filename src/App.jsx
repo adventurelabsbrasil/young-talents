@@ -30,11 +30,21 @@ import DiagnosticPage from './components/DiagnosticPage';
 import PublicCandidateForm from './components/PublicCandidateForm';
 import ThankYouPage from './components/ThankYouPage';
 import FormSubmitTestPage from './components/FormSubmitTestPage';
+import LoginPage from './components/LoginPage';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
 import { getTimestampSeconds, getCandidateTimestamp } from './utils/timestampUtils';
-import { mapCandidatesFromSupabase } from './utils/candidateFromSupabase';
+import { mapCandidatesFromSupabase, candidateToSupabase } from './utils/candidateFromSupabase';
+import {
+  mapJobsFromSupabase,
+  mapCompaniesFromSupabase,
+  mapCitiesFromSupabase,
+  mapSectorsFromSupabase,
+  mapPositionsFromSupabase,
+  mapApplicationsFromSupabase,
+  jobToSupabase
+} from './utils/fromSupabase';
 import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail, formatValidationErrors } from './utils/validation';
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
@@ -980,14 +990,21 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
           let filteredOptions = [];
           
           if (field === 'city') {
-            const allOptions = (options.cities && options.cities.length > 0) 
-              ? options.cities.map(c => ({id: c.id, name: c.name})) 
-              : Array.from(new Set(candidates.map(x => x.city).filter(Boolean))).map((n, i) => ({id: i, name: n}));
+            const fromCandidates = Array.from(new Set(candidates.map(x => x.city).filter(Boolean))).map((n, i) => ({ id: i, name: n }));
+            const fromOptions = (options.cities && options.cities.length > 0) ? options.cities.map(c => ({ id: c.id, name: c.name })) : [];
+            const map = new Map();
+            fromCandidates.forEach(c => map.set(String(c.name).toLowerCase(), c));
+            fromOptions.forEach(c => { if (!map.has(String(c.name).toLowerCase())) map.set(String(c.name).toLowerCase(), c); });
+            const allOptions = Array.from(map.values());
             filteredOptions = filterBySearch(sortAlphabetically(allOptions), searchText);
           } else if (field === 'interestAreas') {
-            const allOptions = (options.interestAreas && options.interestAreas.length > 0) 
-              ? options.interestAreas.map(i => ({id: i.id, name: i.name})) 
-              : Array.from(new Set(candidates.map(x => x.interestAreas).filter(Boolean))).map((n, i) => ({id: i, name: n}));
+            const raw = candidates.flatMap(x => (typeof x.interestAreas === 'string' ? x.interestAreas.split(',').map(s => s.trim()) : (x.interestAreas ? [x.interestAreas] : [])));
+            const fromCandidates = Array.from(new Set(raw.filter(Boolean))).map((n, i) => ({ id: i, name: n }));
+            const fromOptions = (options.interestAreas && options.interestAreas.length > 0) ? options.interestAreas.map(i => ({ id: i.id, name: i.name })) : [];
+            const map = new Map();
+            fromCandidates.forEach(c => map.set(String(c.name).toLowerCase(), c));
+            fromOptions.forEach(c => { if (!map.has(String(c.name).toLowerCase())) map.set(String(c.name).toLowerCase(), c); });
+            const allOptions = Array.from(map.values());
             filteredOptions = filterBySearch(sortAlphabetically(allOptions), searchText);
           } else if (field === 'source') {
             const allOptions = (options.origins && options.origins.length > 0) 
@@ -1398,10 +1415,13 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                optionsList = filterBySearch(optionsList, searchTexts.city);
              }
              else if(field.value === 'interestAreas') {
-               optionsList = (options.interestAreas && options.interestAreas.length>0) 
-                 ? options.interestAreas.map(i=>({id:i.id,name:i.name})) 
-                 : Array.from(new Set(candidates.map(x=>x.interestAreas).filter(Boolean))).map((n,i)=>({id:i,name:n}));
-               optionsList = sortAlphabetically(optionsList);
+               const raw = candidates.flatMap(x => (typeof x.interestAreas === 'string' ? x.interestAreas.split(',').map(s => s.trim()) : (x.interestAreas ? [x.interestAreas] : [])));
+               const fromCandidates = Array.from(new Set(raw.filter(Boolean))).map((n, i) => ({ id: i, name: n }));
+               const fromOptions = (options.interestAreas && options.interestAreas.length > 0) ? options.interestAreas.map(i => ({ id: i.id, name: i.name })) : [];
+               const allOptionsMap = new Map();
+               fromCandidates.forEach(c => allOptionsMap.set(String(c.name).toLowerCase(), c));
+               fromOptions.forEach(c => { if (!allOptionsMap.has(String(c.name).toLowerCase())) allOptionsMap.set(String(c.name).toLowerCase(), c); });
+               optionsList = sortAlphabetically(Array.from(allOptionsMap.values()));
                optionsList = filterBySearch(optionsList, searchTexts.interestAreas);
              }
              else if(field.value === 'schoolingLevel') {
@@ -1703,7 +1723,6 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
 };
 
 // --- APP PRINCIPAL ---
-// Usuário fixo para desenvolvimento (sem autenticação)
 const DEV_USER = {
   id: 'dev-local',
   email: 'dev@local',
@@ -1712,11 +1731,33 @@ const DEV_USER = {
   photoURL: null
 };
 
+const PUBLIC_PATHS = ['/apply', '/apply/test', '/apply/thank-you', '/login'];
+
 export default function App() {
   const { isDark, toggleTheme } = useTheme();
-  const [user] = useState(DEV_USER);
-  const [authLoading] = useState(false);
-  
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Usuário efetivo: sessão ou DEV_USER quando Supabase não está configurado
+  const effectiveUser = user ?? (!supabase ? DEV_USER : null);
+
+  // Auth: sessão Supabase
+  useEffect(() => {
+    if (!supabase) {
+      setAuthLoading(false);
+      setUser(DEV_USER);
+      return;
+    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription?.unsubscribe();
+  }, []);
+
   // Sistema de Rotas usando URL
   const location = useLocation();
   const navigate = useNavigate();
@@ -1753,13 +1794,21 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Para ocultar menu em desktop
 
-  // Inicializar URL se necessário
+  // Redirecionar rota raiz para dashboard
   useEffect(() => {
-    // Redirecionar rota raiz para dashboard (apenas uma vez)
     if (location.pathname === '/' || location.pathname === '') {
       navigate('/dashboard', { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Proteger rotas: sem sessão e rota não pública -> login
+  const isPublicPath = PUBLIC_PATHS.some(p => location.pathname === p || location.pathname.startsWith(p + '/'));
+  useEffect(() => {
+    if (authLoading || !supabase) return;
+    if (!user && !isPublicPath) {
+      navigate('/login', { replace: true });
+    }
+  }, [authLoading, user, isPublicPath, location.pathname, navigate]);
   
   // Inicializar settingsTab na URL se estiver na página de settings
   useEffect(() => {
@@ -1797,10 +1846,10 @@ export default function App() {
   
   // Role do usuário atual (admin, recruiter, viewer)
   const currentUserRole = useMemo(() => {
-    if (!user?.email) return 'viewer';
-    const userRoleDoc = userRoles.find(r => r.email === user.email);
+    if (!effectiveUser?.email) return 'viewer';
+    const userRoleDoc = userRoles.find(r => r.email === effectiveUser.email);
     return userRoleDoc?.role || 'admin'; // Primeiro usuário é admin por padrão
-  }, [user, userRoles]);
+  }, [effectiveUser, userRoles]);
   
   // Verificar permissões
   const hasPermission = (action) => {
@@ -1933,9 +1982,54 @@ export default function App() {
     setCandidates(mapCandidatesFromSupabase(data ?? []));
   }, []);
 
+  // Carregar jobs, companies, cities, sectors, positions, applications do schema young_talents
+  const schema = () => supabase.schema('young_talents');
+  const loadJobs = React.useCallback(async () => {
+    const { data, error } = await schema().from('jobs').select('*').order('created_at', { ascending: false });
+    if (!error) setJobs(mapJobsFromSupabase(data ?? []));
+    else console.error('Erro ao carregar vagas:', error);
+  }, []);
+  const loadCompanies = React.useCallback(async () => {
+    const { data, error } = await schema().from('companies').select('*').order('name');
+    if (!error) setCompanies(mapCompaniesFromSupabase(data ?? []));
+    else console.error('Erro ao carregar empresas:', error);
+  }, []);
+  const loadCities = React.useCallback(async () => {
+    const { data, error } = await schema().from('cities').select('*').order('name');
+    if (!error) setCities(mapCitiesFromSupabase(data ?? []));
+    else console.error('Erro ao carregar cidades:', error);
+  }, []);
+  const loadSectors = React.useCallback(async () => {
+    const { data, error } = await schema().from('sectors').select('*').order('name');
+    if (!error) setSectors(mapSectorsFromSupabase(data ?? []));
+    else console.error('Erro ao carregar setores:', error);
+  }, []);
+  const loadRoles = React.useCallback(async () => {
+    const { data, error } = await schema().from('positions').select('*').order('name');
+    if (!error) setRoles(mapPositionsFromSupabase(data ?? []));
+    else console.error('Erro ao carregar cargos:', error);
+  }, []);
+  const loadApplications = React.useCallback(async () => {
+    const { data, error } = await schema().from('applications').select('*').order('created_at', { ascending: false });
+    if (!error) setApplications(mapApplicationsFromSupabase(data ?? []));
+    else console.error('Erro ao carregar candidaturas:', error);
+  }, []);
+
+  const loadAllData = React.useCallback(async () => {
+    await Promise.all([
+      loadCandidates(),
+      loadJobs(),
+      loadCompanies(),
+      loadCities(),
+      loadSectors(),
+      loadRoles(),
+      loadApplications()
+    ]);
+  }, [loadCandidates, loadJobs, loadCompanies, loadCities, loadSectors, loadRoles, loadApplications]);
+
   useEffect(() => {
-    if (!user) return;
-    loadCandidates();
+    if (!effectiveUser) return;
+    loadAllData();
     const channel = supabase
       .channel('candidates_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'young_talents', table: 'candidates' }, () => {
@@ -1951,36 +2045,156 @@ export default function App() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, loadCandidates]);
+  }, [effectiveUser, loadAllData]);
 
   const handleSaveGeneric = async (col, d, closeFn) => {
-    showToast('Esta funcionalidade precisa ser migrada para Supabase.', 'error');
-    // TODO: Migrar para Supabase
+    const schema = () => supabase.schema('young_talents');
+    try {
+      if (col === 'jobs') {
+        const payload = jobToSupabase(d);
+        if (d.id) {
+          const { id, ...rest } = payload;
+          const { error } = await schema().from('jobs').update(rest).eq('id', d.id);
+          if (error) throw error;
+          showToast('Vaga atualizada com sucesso.', 'success');
+        } else {
+          const { error } = await schema().from('jobs').insert(payload);
+          if (error) throw error;
+          showToast('Vaga criada com sucesso.', 'success');
+        }
+        await loadJobs();
+      } else if (col === 'companies') {
+        const payload = { name: d.name ?? d.name?.trim(), city: d.city ?? null };
+        if (d.id) {
+          const { error } = await schema().from('companies').update(payload).eq('id', d.id);
+          if (error) throw error;
+          showToast('Empresa atualizada.', 'success');
+        } else {
+          const { error } = await schema().from('companies').insert(payload);
+          if (error) throw error;
+          showToast('Empresa criada.', 'success');
+        }
+        await loadCompanies();
+      } else if (col === 'cities') {
+        const payload = { name: d.name ?? d.name?.trim() };
+        if (d.id) {
+          const { error } = await schema().from('cities').update(payload).eq('id', d.id);
+          if (error) throw error;
+          showToast('Cidade atualizada.', 'success');
+        } else {
+          const { error } = await schema().from('cities').insert(payload);
+          if (error) throw error;
+          showToast('Cidade criada.', 'success');
+        }
+        await loadCities();
+      } else if (col === 'sectors') {
+        const payload = { name: d.name ?? d.name?.trim() };
+        if (d.id) {
+          const { error } = await schema().from('sectors').update(payload).eq('id', d.id);
+          if (error) throw error;
+          showToast('Setor atualizado.', 'success');
+        } else {
+          const { error } = await schema().from('sectors').insert(payload);
+          if (error) throw error;
+          showToast('Setor criado.', 'success');
+        }
+        await loadSectors();
+      } else if (col === 'positions') {
+        const payload = { name: d.name ?? d.name?.trim(), level: d.level ?? null };
+        if (d.id) {
+          const { error } = await schema().from('positions').update(payload).eq('id', d.id);
+          if (error) throw error;
+          showToast('Cargo atualizado.', 'success');
+        } else {
+          const { error } = await schema().from('positions').insert(payload);
+          if (error) throw error;
+          showToast('Cargo criado.', 'success');
+        }
+        await loadRoles();
+      } else if (col === 'candidates') {
+        const payload = candidateToSupabase(d);
+        if (d.id) {
+          const { id, ...rest } = payload;
+          const { error } = await supabase.from('candidates').update(rest).eq('id', d.id);
+          if (error) throw error;
+          showToast('Candidato atualizado.', 'success');
+        } else {
+          const { error } = await supabase.from('candidates').insert(payload);
+          if (error) throw error;
+          showToast('Candidato criado.', 'success');
+        }
+        await loadCandidates();
+      } else {
+        showToast('Coleção não suportada para salvar.', 'error');
+        return;
+      }
+      closeFn?.();
+    } catch (err) {
+      console.error('Erro ao salvar:', err);
+      showToast(err?.message || 'Erro ao salvar. Tente novamente.', 'error');
+    }
   };
 
   const handleDeleteGeneric = async (col, id) => {
     if (!window.confirm('Tem certeza que deseja excluir este item?')) return;
-    showToast('Esta funcionalidade precisa ser migrada para Supabase.', 'error');
-    // TODO: Migrar para Supabase
+    const schema = () => supabase.schema('young_talents');
+    try {
+      if (col === 'jobs') {
+        const { error } = await schema().from('jobs').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+        if (error) throw error;
+        showToast('Vaga excluída.', 'success');
+        await loadJobs();
+      } else if (col === 'companies') {
+        const { error } = await schema().from('companies').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Empresa excluída.', 'success');
+        await loadCompanies();
+      } else if (col === 'cities') {
+        const { error } = await schema().from('cities').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Cidade excluída.', 'success');
+        await loadCities();
+      } else if (col === 'sectors') {
+        const { error } = await schema().from('sectors').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Setor excluído.', 'success');
+        await loadSectors();
+      } else if (col === 'positions') {
+        const { error } = await schema().from('positions').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Cargo excluído.', 'success');
+        await loadRoles();
+      } else if (col === 'candidates') {
+        const { error } = await supabase.from('candidates').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Candidato excluído.', 'success');
+        await loadCandidates();
+      } else {
+        showToast('Coleção não suportada para excluir.', 'error');
+      }
+    } catch (err) {
+      console.error('Erro ao excluir:', err);
+      showToast(err?.message || 'Erro ao excluir. Tente novamente.', 'error');
+    }
   };
 
   // Função para registrar histórico de ações
   const recordActionHistory = async ({ action, col, recordsAffected, details = {} }) => {
-    if (!user || !user.email) return;
+    if (!effectiveUser || !effectiveUser.email) return;
     // TODO: Migrar para Supabase
     console.log('Action history:', { action, col, recordsAffected, details });
   };
 
   // Função para registrar atividades gerais do sistema (log completo)
   const recordActivity = async (activityType, description, entityType = null, entityId = null, metadata = {}) => {
-    if (!user || !user.email) return;
+    if (!effectiveUser || !effectiveUser.email) return;
     // TODO: Migrar para Supabase
     console.log('Activity:', { activityType, description, entityType, entityId, metadata });
   };
 
   // Função para registrar log de movimentação de status do candidato
   const recordStatusMovement = async (candidateId, candidateName, previousStatus, newStatus) => {
-    if (!user || !user.email) return;
+    if (!effectiveUser || !effectiveUser.email) return;
     
     const isClosingStatus = CLOSING_STATUSES.includes(newStatus);
     
@@ -2002,7 +2216,7 @@ export default function App() {
   
   // Criar nova candidatura (candidato se candidata a uma vaga)
   const createApplication = async (candidateId, jobId) => {
-    if (!user || !user.email) return null;
+    if (!effectiveUser || !effectiveUser.email) return null;
     
     // Verifica se já existe candidatura
     const existingApp = applications.find(a => a.candidateId === candidateId && a.jobId === jobId);
@@ -2015,38 +2229,56 @@ export default function App() {
     const job = jobs.find(j => j.id === jobId);
     
     try {
-      const appData = {
-        candidateId,
-        candidateName: candidate?.fullName || 'Candidato',
-        candidateEmail: candidate?.email || '',
-        jobId,
-        jobTitle: job?.title || 'Vaga',
-        jobCompany: job?.company || '',
-        status: 'Inscrito', // Status inicial na vaga
-        appliedAt: new Date().toISOString(),
-        lastActivity: new Date().toISOString(), // Atualizado automaticamente
-        rating: 0, // Qualificação 1-5 estrelas
-        closedAt: null,
-        closedReason: null,
-        createdBy: user.email,
-        createdAt: new Date().toISOString(),
+      const payload = {
+        candidate_id: candidateId,
+        job_id: jobId,
+        candidate_name: candidate?.fullName || 'Candidato',
+        candidate_email: candidate?.email || '',
+        job_title: job?.title || 'Vaga',
+        job_company: job?.company || '',
+        status: 'Inscrito',
+        applied_at: new Date().toISOString(),
+        last_activity: new Date().toISOString(),
+        rating: 0,
+        closed_at: null,
+        closed_reason: null,
+        created_by: effectiveUser.email,
+        created_at: new Date().toISOString(),
         notes: []
       };
-      
-      // TODO: Migrar para Supabase
-      const docRef = { id: 'temp-' + Date.now() };
+      const { data: inserted, error } = await supabase.schema('young_talents').from('applications').insert(payload).select('*').single();
+      if (error) throw error;
+      await loadApplications();
+      const appData = inserted ? {
+        id: inserted.id,
+        candidateId: inserted.candidate_id,
+        jobId: inserted.job_id,
+        candidateName: inserted.candidate_name,
+        candidateEmail: inserted.candidate_email,
+        jobTitle: inserted.job_title,
+        jobCompany: inserted.job_company,
+        status: inserted.status,
+        appliedAt: inserted.applied_at,
+        lastActivity: inserted.last_activity,
+        rating: inserted.rating,
+        closedAt: inserted.closed_at,
+        closedReason: inserted.closed_reason,
+        createdBy: inserted.created_by,
+        createdAt: inserted.created_at,
+        notes: inserted.notes ?? []
+      } : null;
       showToast(`${candidate?.fullName} vinculado à vaga ${job?.title}`, 'success');
-      return { id: docRef.id, ...appData };
+      return appData;
     } catch (error) {
       console.error('Erro ao criar candidatura:', error);
-      showToast('Erro ao vincular candidato à vaga', 'error');
+      showToast(error?.message || 'Erro ao vincular candidato à vaga', 'error');
       return null;
     }
   };
   
   // Atualizar status da candidatura
   const updateApplicationStatus = async (applicationId, newStatus, notes = '') => {
-    if (!user || !user.email) return;
+    if (!effectiveUser || !effectiveUser.email) return;
     
     const app = applications.find(a => a.id === applicationId);
     if (!app) return;
@@ -2078,7 +2310,7 @@ export default function App() {
   
   // Adicionar nota à candidatura
   const addApplicationNote = async (applicationId, noteText) => {
-    if (!user || !user.email || !noteText.trim()) return;
+    if (!effectiveUser || !effectiveUser.email || !noteText.trim()) return;
     
     const app = applications.find(a => a.id === applicationId);
     if (!app) return;
@@ -2088,8 +2320,8 @@ export default function App() {
       const newNote = {
         text: noteText.trim(),
         timestamp: new Date().toISOString(),
-        userEmail: user.email,
-        userName: user.displayName || user.email
+        userEmail: effectiveUser.email,
+        userName: effectiveUser.displayName || effectiveUser.email
       };
       
       // TODO: Migrar para Supabase
@@ -2106,7 +2338,7 @@ export default function App() {
   
   // Criar agendamento de entrevista
   const scheduleInterview = async (data) => {
-    if (!user || !user.email) return null;
+    if (!effectiveUser || !effectiveUser.email) return null;
     if (!hasPermission('schedule_interviews') && !hasPermission('all')) {
       showToast('Sem permissão para agendar entrevistas', 'error');
       return null;
@@ -2130,7 +2362,7 @@ export default function App() {
         interviewers: data.interviewers || [], // emails dos entrevistadores
         notes: data.notes || '',
         status: 'Agendada', // Agendada, Confirmada, Realizada, Cancelada, NoShow
-        createdBy: user.email,
+        createdBy: effectiveUser.email,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -2152,7 +2384,7 @@ export default function App() {
   
   // Atualizar status da entrevista
   const updateInterviewStatus = async (interviewId, newStatus, feedback = '') => {
-    if (!user || !user.email) return;
+    if (!effectiveUser || !effectiveUser.email) return;
     
     try {
       // TODO: Migrar para Supabase
@@ -2357,7 +2589,7 @@ export default function App() {
     return data;
   }, [candidates, filters]);
 
-  const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags, userRoles, user };
+  const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags, userRoles, user: effectiveUser };
 
   // Verificar se Supabase foi inicializado corretamente
   if (!supabase) {
@@ -2385,11 +2617,21 @@ export default function App() {
   }
 
   if (authLoading) return <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400"><Loader2 className="animate-spin mr-2"/> Carregando...</div>;
-  
-  // Rotas públicas (acessíveis sem autenticação)
+
+  // Sem sessão em rota protegida -> mostrar apenas login (redirect já feito no useEffect)
+  if (!effectiveUser && !isPublicPath) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>} />
+      </Routes>
+    );
+  }
+
   return (
     <>
     <Routes>
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/apply" element={<PublicCandidateForm />} />
       <Route path="/apply/test" element={<FormSubmitTestPage />} />
       <Route path="/apply/thank-you" element={<ThankYouPage />} />
@@ -2449,9 +2691,9 @@ export default function App() {
              <Users size={18}/> Banco de Talentos
            </button>
            
-           {/* Vagas - com submenu */}
+           {/* Vagas - Gerenciar Vagas (página com abas) + Candidaturas */}
            <div>
-             <button onClick={() => { setActiveTab(activeTab === 'jobs' ? 'jobs' : 'jobs'); setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <button onClick={() => { setActiveTab(['jobs', 'applications'].includes(activeTab) ? activeTab : 'jobs'); setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
                <div className="flex items-center gap-3">
                  <Briefcase size={18}/> Vagas
                </div>
@@ -2459,23 +2701,11 @@ export default function App() {
              </button>
              {['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) && (
                <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-300 dark:border-gray-600 pl-4">
-                 <button onClick={() => { setActiveTab('jobs'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'jobs' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                   Vagas
+                 <button onClick={() => { setActiveTab('jobs'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${['jobs', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                   Gerenciar Vagas
                  </button>
                  <button onClick={() => { setActiveTab('applications'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'applications' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                    Candidaturas
-                 </button>
-                 <button onClick={() => { setActiveTab('companies'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'companies' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                   Empresas
-                 </button>
-                 <button onClick={() => { setActiveTab('positions'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'positions' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                   Cargos
-                 </button>
-                 <button onClick={() => { setActiveTab('sectors'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'sectors' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                   Setores
-                 </button>
-                 <button onClick={() => { setActiveTab('cities'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${activeTab === 'cities' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                   Cidades
                  </button>
                </div>
              )}
@@ -2501,8 +2731,20 @@ export default function App() {
              <HelpCircle size={18}/> Ajuda
            </button>
         </nav>
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30">
-           <div className="text-xs text-slate-400 truncate w-32">{user?.email || 'Desenvolvimento'}</div>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 space-y-2">
+           <div className="text-xs text-slate-400 truncate w-32" title={effectiveUser?.email}>{effectiveUser?.email || 'Desenvolvimento'}</div>
+           {supabase && user && (
+             <button
+               type="button"
+               onClick={async () => {
+                 await supabase.auth.signOut();
+                 navigate('/login', { replace: true });
+               }}
+               className="text-xs text-slate-500 hover:text-red-600 dark:hover:text-red-400 font-medium"
+             >
+               Sair
+             </button>
+           )}
         </div>
       </div>
 
@@ -2526,7 +2768,7 @@ export default function App() {
                {isSidebarCollapsed ? <Menu size={20} className="text-gray-600 dark:text-gray-400"/> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-400"/>}
              </button>
            <h2 className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : activeTab === 'diagnostic' ? 'Diagnóstico' : activeTab === 'reports' ? 'Relatórios' : activeTab === 'help' ? 'Ajuda' : 'Dashboard'}
+              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'candidates' ? 'Banco de Talentos' : ['jobs', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'Gerenciar Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : activeTab === 'diagnostic' ? 'Diagnóstico' : activeTab === 'reports' ? 'Relatórios' : activeTab === 'help' ? 'Ajuda' : 'Dashboard'}
            </h2>
            </div>
            <div className="flex items-center gap-3">
@@ -2543,16 +2785,30 @@ export default function App() {
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" highlightedCandidateId={highlightedCandidateId} />}
            {activeTab === 'candidates' && <TalentBankView candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} onStatusChange={handleDragEnd} />}
-           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('candidates')}} onViewCandidates={openJobCandidatesModal}/></div>}
+           {(activeTab === 'jobs' || activeTab === 'companies' || activeTab === 'positions' || activeTab === 'sectors' || activeTab === 'cities') && (
+             <JobsManagementPage
+               jobs={jobs}
+               candidates={candidates}
+               companies={companies}
+               cities={cities}
+               sectors={sectors}
+               roles={roles}
+               onOpenJobModal={openJobModal}
+               onDeleteGeneric={handleDeleteGeneric}
+               onSaveGeneric={handleSaveGeneric}
+               onShowToast={showToast}
+               onViewCandidates={openJobCandidatesModal}
+               setFilters={setFilters}
+               setActiveTab={setActiveTab}
+               filters={filters}
+               routeTab={activeTab}
+             />
+           )}
            {activeTab === 'applications' && <ApplicationsPage applications={applications} candidates={candidates} jobs={jobs} companies={companies} onUpdateApplicationStatus={updateApplicationStatus} onRemoveApplication={removeApplication} onAddApplicationNote={addApplicationNote} onEditCandidate={openCandidateProfile} onViewJob={openJobCandidatesModal} onCreateApplication={createApplication} />}
-           {activeTab === 'companies' && <MasterDataManager collection="companies" title="Empresas" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={companies} onShowToast={showToast} />}
-           {activeTab === 'positions' && <MasterDataManager collection="positions" title="Cargos" fields={[{key: 'name', label: 'Nome', required: true}, {key: 'level', label: 'Nível', required: false}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={roles} onShowToast={showToast} />}
-           {activeTab === 'sectors' && <MasterDataManager collection="sectors" title="Setores" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={sectors} onShowToast={showToast} />}
-           {activeTab === 'cities' && <MasterDataManager collection="cities" title="Cidades" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={cities} onShowToast={showToast} />}
            {activeTab === 'reports' && <ReportsPage candidates={candidates} jobs={jobs} applications={applications} statusMovements={statusMovements} />}
            {activeTab === 'help' && <HelpPage />}
            {activeTab === 'diagnostic' && <div className="p-6 overflow-y-auto h-full"><DiagnosticPage candidates={candidates} /></div>}
-           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { const params = new URLSearchParams(location.search); params.set('settingsTab', tab); navigate(`${location.pathname}?${params.toString()}`); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} currentUserName={user?.displayName} currentUserPhoto={user?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
+           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { const params = new URLSearchParams(location.search); params.set('settingsTab', tab); navigate(`${location.pathname}?${params.toString()}`); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={effectiveUser?.email} currentUserName={effectiveUser?.displayName} currentUserPhoto={effectiveUser?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
         </div>
       </div>
 
@@ -2581,8 +2837,8 @@ export default function App() {
           const newNote = {
             text: noteText,
             timestamp: new Date().toISOString(),
-            userEmail: user?.email || 'unknown',
-            userName: user?.displayName || user?.email || 'Usuário'
+            userEmail: effectiveUser?.email || 'unknown',
+            userName: effectiveUser?.displayName || effectiveUser?.email || 'Usuário'
           };
           // TODO: Migrar para Supabase
           console.log('Add candidate note:', { candidateRef, newNote, existingNotes });
@@ -2609,7 +2865,6 @@ export default function App() {
           transition={pendingTransition} 
           onClose={() => setPendingTransition(null)} 
           onConfirm={async d => {
-            // TODO: Migrar para Supabase
             const payload = {
               id: pendingTransition.candidate.id,
               ...d,
@@ -2619,8 +2874,6 @@ export default function App() {
             if (pendingTransition.isConclusion) {
               payload.closedAt = new Date().toISOString();
             }
-            console.log('Transition confirm:', payload);
-            
             handleSaveGeneric('candidates', payload, () => setPendingTransition(null));
           }} 
           cities={cities} 
@@ -2628,6 +2881,9 @@ export default function App() {
           schooling={schooling}
           marital={marital}
           origins={origins}
+          jobs={jobs}
+          applications={applications}
+          onCreateApplication={createApplication}
         />
       )}
       
@@ -3379,11 +3635,17 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
 
 // --- BANCO DE TALENTOS (TABELA COMPLETA) ---
 const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = [], onStatusChange }) => {
-  const [itemsPerPage, setItemsPerPage] = useState(10); // Padrão alterado para 10
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [localSearch, setLocalSearch] = useState('');
   const [localSort, setLocalSort] = useState('recent');
+  const [sortField, setSortField] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc');
   const [selectedIds, setSelectedIds] = useState([]);
+  const handleSort = (field) => {
+    if (sortField === field) setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortOrder('asc'); }
+  };
   const [dateFilter, setDateFilter] = useState('all'); // Filtro de data de criação
   const [customDateStart, setCustomDateStart] = useState('');
   const [customDateEnd, setCustomDateEnd] = useState('');
@@ -3431,24 +3693,34 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
       );
     }
     
-    data.sort((a, b) => {
-      if (localSort === 'recent') {
-        const tsA = getCandidateTimestamp(a) || 0;
-        const tsB = getCandidateTimestamp(b) || 0;
-        return tsB - tsA;
-      }
-      if (localSort === 'oldest') {
-        const tsA = getCandidateTimestamp(a) || 0;
-        const tsB = getCandidateTimestamp(b) || 0;
-        return tsA - tsB;
-      }
-      if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
-      if (localSort === 'za') return (b.fullName||'').localeCompare(a.fullName||'');
-      return 0;
-    });
-    
+    if (sortField) {
+      const key = sortField === 'created_at' ? (c => getCandidateTimestamp(c) || 0) : (c => (c[sortField] ?? ''));
+      const mult = sortOrder === 'asc' ? 1 : -1;
+      data.sort((a, b) => {
+        const va = typeof key(a) === 'number' ? key(a) : String(key(a)).toLowerCase();
+        const vb = typeof key(b) === 'number' ? key(b) : String(key(b)).toLowerCase();
+        if (typeof va === 'number' && typeof vb === 'number') return mult * (va - vb);
+        return mult * (va < vb ? -1 : va > vb ? 1 : 0);
+      });
+    } else {
+      data.sort((a, b) => {
+        if (localSort === 'recent') {
+          const tsA = getCandidateTimestamp(a) || 0;
+          const tsB = getCandidateTimestamp(b) || 0;
+          return tsB - tsA;
+        }
+        if (localSort === 'oldest') {
+          const tsA = getCandidateTimestamp(a) || 0;
+          const tsB = getCandidateTimestamp(b) || 0;
+          return tsA - tsB;
+        }
+        if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
+        if (localSort === 'za') return (b.fullName||'').localeCompare(a.fullName||'');
+        return 0;
+      });
+    }
     return data;
-  }, [candidates, localSearch, localSort, dateFilter, customDateStart, customDateEnd]);
+  }, [candidates, localSearch, localSort, sortField, sortOrder, dateFilter, customDateStart, customDateEnd]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -3642,16 +3914,16 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                 <input type="checkbox" className="accent-blue-600 dark:accent-blue-500" />
               </th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 w-12"></th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Nome</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 min-w-[160px]">Status</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Email</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Telefone</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Cidade</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('fullName')}>Nome {sortField === 'fullName' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 min-w-[160px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('status')}>Status {sortField === 'status' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('email')}>Email {sortField === 'email' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('phone')}>Telefone {sortField === 'phone' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('city')}>Cidade {sortField === 'city' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">CNH</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Área de Interesse</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Fonte</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Data Cadastro</th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Estado Civil</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('interestAreas')}>Área {sortField === 'interestAreas' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('source')}>Fonte {sortField === 'source' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('created_at')}>Data Cadastro {sortField === 'created_at' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none" onClick={() => handleSort('maritalStatus')}>Estado Civil {sortField === 'maritalStatus' && (sortOrder === 'asc' ? <ChevronUp size={12} className="inline" /> : <ChevronDown size={12} className="inline" />)}</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Ações</th>
             </tr>
           </thead>
@@ -3755,6 +4027,119 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// --- PÁGINA ÚNICA GERENCIAR VAGAS (com abas: Vagas, Empresas, Cidades, Setores, Cargos) ---
+const JOBS_PAGE_TAB_MAP = { jobs: 'vagas', companies: 'companies', cities: 'cities', sectors: 'sectors', positions: 'positions' };
+const JobsManagementPage = ({
+  jobs,
+  candidates,
+  companies,
+  cities,
+  sectors,
+  roles,
+  onOpenJobModal,
+  onDeleteGeneric,
+  onSaveGeneric,
+  onShowToast,
+  onViewCandidates,
+  setFilters,
+  setActiveTab,
+  filters,
+  routeTab,
+}) => {
+  const routeTabId = JOBS_PAGE_TAB_MAP[routeTab] || 'vagas';
+  const [jobsPageTab, setJobsPageTab] = useState(routeTabId);
+  // Sincronizar aba quando a rota mudar (ex.: /companies)
+  useEffect(() => {
+    setJobsPageTab(routeTabId);
+  }, [routeTabId]);
+  const tabs = [
+    { id: 'vagas', label: 'Vagas', icon: Briefcase },
+    { id: 'companies', label: 'Empresas', icon: Building2 },
+    { id: 'cities', label: 'Cidades', icon: MapPin },
+    { id: 'sectors', label: 'Setores', icon: BarChart3 },
+    { id: 'positions', label: 'Cargos', icon: Users },
+  ];
+  return (
+    <div className="p-6 overflow-y-auto h-full flex flex-col">
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4 gap-1">
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setJobsPageTab(id)}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${
+              jobsPageTab === id
+                ? 'bg-blue-600 text-white dark:bg-blue-500'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Icon size={18} />
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 min-h-0">
+        {jobsPageTab === 'vagas' && (
+          <JobsList
+            jobs={jobs}
+            candidates={candidates}
+            companies={companies}
+            onAdd={() => onOpenJobModal({})}
+            onEdit={(j) => onOpenJobModal(j)}
+            onDelete={(id) => onDeleteGeneric('jobs', id)}
+            onToggleStatus={onSaveGeneric}
+            onFilterPipeline={() => { setFilters({ ...filters, jobId: 'mock_id' }); setActiveTab('candidates'); }}
+            onViewCandidates={onViewCandidates}
+          />
+        )}
+        {jobsPageTab === 'companies' && (
+          <MasterDataManager
+            collection="companies"
+            title="Empresas"
+            fields={[{ key: 'name', label: 'Nome', required: true }]}
+            onSave={onSaveGeneric}
+            onDelete={onDeleteGeneric}
+            items={companies}
+            onShowToast={onShowToast}
+          />
+        )}
+        {jobsPageTab === 'cities' && (
+          <MasterDataManager
+            collection="cities"
+            title="Cidades"
+            fields={[{ key: 'name', label: 'Nome', required: true }]}
+            onSave={onSaveGeneric}
+            onDelete={onDeleteGeneric}
+            items={cities}
+            onShowToast={onShowToast}
+          />
+        )}
+        {jobsPageTab === 'sectors' && (
+          <MasterDataManager
+            collection="sectors"
+            title="Setores"
+            fields={[{ key: 'name', label: 'Nome', required: true }]}
+            onSave={onSaveGeneric}
+            onDelete={onDeleteGeneric}
+            items={sectors}
+            onShowToast={onShowToast}
+          />
+        )}
+        {jobsPageTab === 'positions' && (
+          <MasterDataManager
+            collection="positions"
+            title="Cargos"
+            fields={[{ key: 'name', label: 'Nome', required: true }, { key: 'level', label: 'Nível', required: false }]}
+            onSave={onSaveGeneric}
+            onDelete={onDeleteGeneric}
+            items={roles}
+            onShowToast={onShowToast}
+          />
+        )}
+      </div>
     </div>
   );
 };
@@ -6156,7 +6541,8 @@ const MasterDataManager = ({ collection, title, fields, items, onSave, onDelete,
       onShowToast('Preencha os campos obrigatórios', 'error');
       return;
     }
-    await onSave(collection, formData, () => {
+    const payload = editing?.id ? { ...formData, id: editing.id } : formData;
+    await onSave(collection, payload, () => {
       setEditing(null);
       setFormData({});
     });

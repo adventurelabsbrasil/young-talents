@@ -1,92 +1,79 @@
 /**
- * Script para criar usuário admin no Firebase Authentication
- * 
- * Execute: node scripts/create-admin-user.js
- * 
- * Requisitos:
- * - Ter as variáveis de ambiente do Firebase configuradas
- * - Ou ter o arquivo de credenciais do Firebase
+ * Cria usuário admin padrão no Supabase Auth e em young_talents.user_roles.
+ * Uso: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/create-admin-user.js
+ *
+ * Credenciais: admin@youngtalents.com.br / adventurelabs
  */
 
-import { initializeApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
-import dotenv from 'dotenv';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Carrega variáveis de ambiente
-dotenv.config();
+const ADMIN_EMAIL = 'admin@youngtalents.com.br';
+const ADMIN_PASSWORD = 'adventurelabs';
+const ADMIN_NAME = 'Admin Young Talents';
 
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VITE_FIREBASE_APP_ID
-};
-
-const ADMIN_EMAIL = 'admin@adventurelabs.com.br';
-const ADMIN_PASSWORD = 'admin123';
-
-async function createAdminUser() {
-  try {
-    console.log('Inicializando Firebase...');
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    console.log(`Criando usuário admin: ${ADMIN_EMAIL}...`);
-    
-    // Cria o usuário no Firebase Authentication
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      ADMIN_EMAIL,
-      ADMIN_PASSWORD
-    );
-
-    const user = userCredential.user;
-    console.log('✅ Usuário criado com sucesso!');
-    console.log(`   UID: ${user.uid}`);
-    console.log(`   Email: ${user.email}`);
-
-    // Cria o registro de role no Firestore
-    console.log('Configurando role de admin no Firestore...');
-    await setDoc(doc(db, 'userRoles', user.uid), {
-      email: ADMIN_EMAIL,
-      role: 'admin',
-      createdAt: new Date().toISOString(),
-      createdBy: 'system'
-    });
-
-    console.log('✅ Role de admin configurada com sucesso!');
-    console.log('\n🎉 Usuário admin criado e configurado!');
-    console.log(`\nCredenciais:`);
-    console.log(`   Email: ${ADMIN_EMAIL}`);
-    console.log(`   Senha: ${ADMIN_PASSWORD}`);
-    console.log('\n⚠️  IMPORTANTE: Altere a senha após o primeiro login!');
-
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Erro ao criar usuário admin:', error.message);
-    
-    if (error.code === 'auth/email-already-in-use') {
-      console.log('\n⚠️  O usuário já existe. Verificando role...');
-      // Se o usuário já existe, apenas atualiza a role
-      try {
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        // Busca o usuário pelo email (precisa fazer login primeiro ou usar Admin SDK)
-        console.log('Para atualizar a role de um usuário existente, use o Firebase Console ou Admin SDK.');
-        console.log('Ou execute este script após fazer login com o usuário.');
-      } catch (updateError) {
-        console.error('Erro ao atualizar role:', updateError.message);
-      }
-    }
-    
+async function main() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou use .env).');
     process.exit(1);
+  }
+
+  const { createClient } = await import('@supabase/supabase-js');
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+
+  console.log('Criando usuário no Auth...');
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email: ADMIN_EMAIL,
+    password: ADMIN_PASSWORD,
+    email_confirm: true,
+    user_metadata: { name: ADMIN_NAME }
+  });
+
+  if (authError) {
+    if (authError.message?.includes('already been registered')) {
+      console.log('Usuário já existe no Auth. Atualizando role...');
+      const { data: existing } = await supabase.auth.admin.listUsers();
+      const existingUser = existing?.users?.find(u => u.email === ADMIN_EMAIL);
+      if (!existingUser) {
+        console.error('Usuário não encontrado:', authError.message);
+        process.exit(1);
+      }
+      await upsertRole(supabase, existingUser.id, ADMIN_EMAIL, ADMIN_NAME);
+      console.log('Admin configurado. Login:', ADMIN_EMAIL, '/', ADMIN_PASSWORD);
+      return;
+    }
+    console.error('Erro ao criar usuário:', authError.message);
+    process.exit(1);
+  }
+
+  const userId = authData?.user?.id;
+  if (!userId) {
+    console.error('Usuário criado mas ID não retornado.');
+    process.exit(1);
+  }
+
+  await upsertRole(supabase, userId, ADMIN_EMAIL, ADMIN_NAME);
+  console.log('Admin criado. Login:', ADMIN_EMAIL, '/', ADMIN_PASSWORD);
+}
+
+async function upsertRole(supabase, userId, email, name) {
+  const { data: existing } = await supabase.schema('young_talents').from('user_roles').select('id').eq('email', email).maybeSingle();
+  const row = { user_id: userId, email, name, role: 'admin' };
+  if (existing?.id) {
+    const { error } = await supabase.schema('young_talents').from('user_roles').update(row).eq('id', existing.id);
+    if (error) {
+      console.error('Erro ao atualizar role:', error.message);
+      process.exit(1);
+    }
+  } else {
+    const { error } = await supabase.schema('young_talents').from('user_roles').insert(row);
+    if (error) {
+      console.error('Erro ao inserir role:', error.message);
+      process.exit(1);
+    }
   }
 }
 
-createAdminUser();
+main();

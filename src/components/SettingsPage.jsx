@@ -124,27 +124,27 @@ const FieldsManager = ({ candidateFields = [] }) => {
           type: f.type || 'text',
           category: f.category || 'geral',
           visible: true,
-          required: f.required || false
+          required: false
         }))
-      : CSV_FIELD_MAPPING_OPTIONS.map((f, i) => ({
+      : CSV_FIELD_MAPPING_OPTIONS.map((f) => ({
           id: f.value, 
           displayName: f.label.replace(':', ''),
           csvLabel: f.label,
           type: 'text', 
           visible: true, 
-          required: i < 3
+          required: false
         }));
     setCandidateFieldsState(defaultCandidateFields);
     
     const defaultJobFields = [
-      { id: 'title', displayName: 'Título', csvLabel: 'Título', type: 'text', visible: true, required: true },
-      { id: 'company', displayName: 'Empresa', csvLabel: 'Empresa', type: 'select', visible: true, required: true },
+      { id: 'title', displayName: 'Título', csvLabel: 'Título', type: 'text', visible: true, required: false },
+      { id: 'company', displayName: 'Empresa', csvLabel: 'Empresa', type: 'select', visible: true, required: false },
       { id: 'city', displayName: 'Cidade', csvLabel: 'Cidade da vaga', type: 'select', visible: true, required: false },
       { id: 'interestArea', displayName: 'Área', csvLabel: 'Área de interesse', type: 'select', visible: true, required: false },
       { id: 'description', displayName: 'Descrição', csvLabel: 'Descrição', type: 'textarea', visible: true, required: false },
       { id: 'requirements', displayName: 'Requisitos', csvLabel: 'Requisitos', type: 'textarea', visible: true, required: false },
       { id: 'salary', displayName: 'Salário', csvLabel: 'Faixa salarial', type: 'text', visible: true, required: false },
-      { id: 'status', displayName: 'Status', csvLabel: 'Status', type: 'select', visible: true, required: true },
+      { id: 'status', displayName: 'Status', csvLabel: 'Status', type: 'select', visible: true, required: false },
     ];
     setJobFieldsState(defaultJobFields);
     setLoading(false);
@@ -245,7 +245,7 @@ const FieldsManager = ({ candidateFields = [] }) => {
               <th className="p-4">Tipo</th>
               <th className="p-4 text-center">Categoria</th>
               <th className="p-4 text-center">Visível</th>
-              <th className="p-4 text-center">Obrigatório</th>
+              <th className="p-4 text-center hidden">Obrigatório</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-border">
@@ -278,7 +278,7 @@ const FieldsManager = ({ candidateFields = [] }) => {
                     title="Alternar visibilidade"
                   />
                 </td>
-                <td className="p-4 text-center">
+                <td className="p-4 text-center hidden">
                    <input
                      type="checkbox"
                      checked={field.required}
