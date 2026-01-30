@@ -1854,10 +1854,10 @@ export default function App() {
     });
   }, [location.pathname, location.search]);
 
-  // Reset de filtros ao sair de /candidates para que Dashboard/Pipeline/Banco mostrem dados
+  // Reset completo de filtros ao sair de /candidates para que Dashboard/Pipeline/Banco mostrem dados
   useEffect(() => {
     if (location.pathname !== '/candidates') {
-      setFilters(prev => ({ ...prev, dashboardFilter: null, status: 'all' }));
+      setFilters(initialFilters);
     }
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1915,6 +1915,7 @@ export default function App() {
   const [interviews, setInterviews] = useState([]); // Agendamentos de entrevistas
   const [userRoles, setUserRoles] = useState([{ email: DEV_USER.email, role: 'admin' }]); // Dev: role fixo
   const [activityLog, setActivityLog] = useState([]); // Log de atividades para admin
+  const activityLogUnavailableRef = React.useRef(false);
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   
   // Role do usuário atual (admin, editor, viewer) — exibido na UI como Administrador, Recrutador, Visualizador
@@ -2142,9 +2143,14 @@ export default function App() {
   }, []);
 
   const loadActivityLog = React.useCallback(async () => {
+    if (activityLogUnavailableRef.current) {
+      setActivityLog([]);
+      return;
+    }
     try {
       const { data, error } = await supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(500);
       if (error) {
+        activityLogUnavailableRef.current = true;
         setActivityLog([]);
         return;
       }
@@ -2163,6 +2169,7 @@ export default function App() {
         setActivityLog([]);
       }
     } catch (_e) {
+      activityLogUnavailableRef.current = true;
       setActivityLog([]);
     }
   }, []);
@@ -5592,11 +5599,12 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
   const positions = options?.roles ?? [];
   const functions = options?.functions ?? [];
 
+  // Inicialização do formulário apenas quando job ou isOpen mudam (evita reset ao escolher empresa/cidade)
   useEffect(() => {
     if (job?.id) {
       setD({ ...job });
     } else {
-      setD({ 
+      setD({
         title: '', code: '', company: '', city: '', interestArea: '',
         sector: '', position: '', function: '',
         status: 'Aberta', contractType: 'CLT', workModel: 'Presencial',
@@ -5610,14 +5618,7 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving, candidates 
     setShowNewSector(false);
     setShowNewPosition(false);
     setShowOptionalFields(false);
-    // Auto-preenche cidade quando empresa é selecionada
-    if (!job?.id && d.company) {
-      const selectedCompany = options.companies.find(c => c.name === d.company);
-      if (selectedCompany?.city && !d.city) {
-        setD(prev => ({...prev, city: selectedCompany.city}));
-      }
-    }
-  }, [job, isOpen, d.company, options.companies]);
+  }, [job, isOpen]);
 
   const handleCreateCompany = async () => {
     if (!newCompanyName.trim()) {
