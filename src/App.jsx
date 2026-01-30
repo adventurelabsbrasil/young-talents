@@ -2728,14 +2728,16 @@ export default function App() {
      handleDragEnd(cId, status); // Reutiliza a lógica do DragEnd para acionar o modal se necessário
   };
 
-  // Um candidato por email (último envio por timestamp) para listagem e contagem; múltiplos envios ficam nas linhas do banco
+  // Um candidato por email (último envio por timestamp) para listagem e contagem; múltiplos envios ficam nas linhas do banco.
+  // Candidatos sem email usam chave por id para não serem perdidos na deduplicação.
   const uniqueCandidatesByEmail = useMemo(() => {
-    const byEmail = {};
+    const byKey = {};
     candidates.filter(c => !c.deletedAt).forEach(c => {
+      const key = (c.email != null && String(c.email).trim() !== '') ? c.email : `no-email-${c.id}`;
       const ts = getCandidateTimestamp(c) || (c.createdAt ? new Date(c.createdAt).getTime() / 1000 : 0);
-      if (!byEmail[c.email] || (getCandidateTimestamp(byEmail[c.email]) || 0) < ts) byEmail[c.email] = c;
+      if (!byKey[key] || (getCandidateTimestamp(byKey[key]) || 0) < ts) byKey[key] = c;
     });
-    return Object.values(byEmail);
+    return Object.values(byKey);
   }, [candidates]);
 
   // Filtra candidatos baseado nos filtros da Sidebar (Avançados) — usa lista única por email
@@ -3030,6 +3032,15 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
+           {/* Aviso quando há envios mas os filtros ocultam todos os candidatos no Pipeline/Banco */}
+           {!candidatesLoading && (activeTab === 'pipeline' || activeTab === 'candidates') && filteredCandidates.length === 0 && (uniqueCandidatesByEmail.length > 0 || candidates.filter(c => !c.deletedAt).length > 0) && (
+             <div className="flex items-center justify-between gap-4 px-4 py-3 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-200 text-sm">
+               <span>Os filtros estão ocultando todos os candidatos. Limpe os filtros para ver o Pipeline e o Banco de Talentos.</span>
+               <button type="button" onClick={() => setFilters(initialFilters)} className="shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium text-sm transition-colors">
+                 Limpar filtros
+               </button>
+             </div>
+           )}
            {/^\/jobs\/[^/]+$/.test(location.pathname) && (
              <div className="p-6 overflow-y-auto h-full">
                <JobModal
