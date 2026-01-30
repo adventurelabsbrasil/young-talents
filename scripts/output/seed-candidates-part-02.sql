@@ -1,6 +1,6 @@
 -- Parte 2 de 9 (até 300 linhas por arquivo para caber no SQL Editor)
 -- Cole no SQL Editor do Supabase → Run. Depois execute a próxima parte.
--- ON CONFLICT (email) DO NOTHING: emails já existentes são ignorados.
+-- Tabela permite múltiplos envios por email (cada linha = um envio com timestamp).
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -660,7 +660,7 @@ Já trabalhei como copeira no fórum de Alegrete,como caixa em alguns postos de 
 Cursei segurança do trabalho que é algo que gosto bastante porém não concluí quando troquei de cidade.
 Gosto de fazer bolos também já fiz um curso .
 Gosto de trabalhar em equipe aprender e passar meu conhecimento .','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2021-11-04T18:41:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -1620,7 +1620,7 @@ Até mais!','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2021-12-
 (Meu gerente durante o período de trabalho)
 +55 51 9401-5626
 Magazine luiza','Comercial','Me considero uma pessoa muito comunicativa, expressiva e animada, sempre procuro manter o ambiente em que estou alegre e prosperando como um todo, tenho facilidade com a língua inglesa e consigo trabalhar muito bem em equipe, arranho um pouco na arte da cozinha então algumas jantas da empresa poderão ser feitas por mim.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2021-12-02T16:20:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2925,7 +2925,7 @@ Função principal: Professor de Informática. Exerci outras funções como: ate
 
 Nos empregos anteriores trabalhava em fábrica de calçados na função de costureira.',NULL,NULL,'Administrativa, Estágio, Financeiro, Marketing','https://drive.google.com/open?id=1m3rklPkclyIc-mHvhlDTlQwd69KXu2lO',NULL,'Indicação','Sim, Lucas','R$1.500,00','Sim','Escola de Qualificação Profissional Mundo Office - 36625041','Estágio Administrativo','Sou uma pessoa muito sociável, gosto de frequentar academia, estudar e curtir com a família e amigos. Tenho conhecimento das ferramentas do pacote office, assim como Photoshop e Corel Draw','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2022-02-16T19:56:00.000Z'::timestamptz),
   ('Vanessa Fraga da Silveira','vanessasilveira369@gmail.com',NULL,'995815771','2002-05-23',23,'Solteiro(a)','0','Sim','Caraá/rs','https://drive.google.com/uc?export=view&id=16HjoXuxJj3W6laVXzTgSr4WO93PIHwJR','Ciências Contábeis','Ensino Superior Incompleto','Centro Universitário UniSantaCruz','2026-01-03','Sim, estou estudando e com a matrícula ativa na Faculdade/Universidade.','Atelier de calçados Moro LTDA. Costureira. 01/09/2019 até o momento.','Rotinas Administrativas (escola-jovem profissional)',NULL,'Administrativa, Financeiro, Licenciamentos',NULL,NULL,'Indicação','Nao','1700','Sim',NULL,'Estágio Financeiro',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2022-02-16T22:03:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -3347,4 +3347,4 @@ Operar o caixa e auxiliar nas vendas.','Marketing, Assistente Administrativo e I
   ('CÍCERO ANDRADE LOPES','cicero0lopes78@gmail.com',NULL,'51997002814','1997-03-04',28,'Solteiro(a)','0','Sim','Santo Antônio da Patrulha/RS','https://drive.google.com/uc?export=view&id=1SioyRk-mLOdmX3kkm8XVatQ94QnyOSa9','Ciências Contábeis','Ensino Médio Completo','UNIASSELVI','2022-11-23','Sim, estou estudando e com a matrícula ativa na Faculdade/Universidade.','FAMP Portões Eletrônicos – Ajudante instalador – 2016 - 2017
 Arroz DEMELLO – Controle de qualidade – 2017 - 2019
 INB Telecom Eireli – Monitor de sistema e suporte ao usuário – 2019 – 2020',NULL,NULL,'Comercial, Estágio, Financeiro, Marketing',NULL,NULL,'Abertura Ilha Dos Açores, Fica Em Frente Onde Eu Moro','não, apenas tive contato com guilherme','R$2.500,00','Sim',NULL,'Quero inscrever-me no banco de talentos da Young!',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2022-05-14T00:02:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;

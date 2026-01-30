@@ -42,6 +42,8 @@ import {
   mapCitiesFromSupabase,
   mapSectorsFromSupabase,
   mapPositionsFromSupabase,
+  mapJobLevelsFromSupabase,
+  mapActivityAreasFromSupabase,
   mapApplicationsFromSupabase,
   jobToSupabase
 } from './utils/fromSupabase';
@@ -75,6 +77,7 @@ const Dashboard = ({
   filteredJobs, 
   filteredCandidates, 
   totalCandidatesCount = 0,
+  totalSubmissionsCount = 0,
   onOpenCandidates, 
   statusMovements = [], 
   applications: applicationsProp = [], 
@@ -410,7 +413,7 @@ const Dashboard = ({
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold">Dashboard</h2>
           <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium">
-            Total geral: {totalCandidatesCount} candidatos
+            Total geral: {totalCandidatesCount} pessoas {totalSubmissionsCount > totalCandidatesCount && <span className="text-slate-500">({totalSubmissionsCount} envios)</span>}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -1773,7 +1776,7 @@ export default function App() {
     const path = location.pathname;
     if (path === '/' || path === '') return 'dashboard';
     const slug = path.replace(/^\//, '').split('/')[0];
-    const validTabs = ['dashboard', 'pipeline', 'candidates', 'jobs', 'applications', 'companies', 'positions', 'sectors', 'cities', 'reports', 'help', 'settings', 'diagnostic'];
+    const validTabs = ['dashboard', 'pipeline', 'candidates', 'submissions', 'jobs', 'applications', 'companies', 'positions', 'sectors', 'cities', 'job_levels', 'activity_areas', 'reports', 'help', 'settings', 'diagnostic'];
     return validTabs.includes(slug) ? slug : 'dashboard';
   };
 
@@ -1839,6 +1842,8 @@ export default function App() {
   const [cities, setCities] = useState([]);
   const [interestAreas, setInterestAreas] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [jobLevels, setJobLevels] = useState([]);
+  const [activityAreas, setActivityAreas] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [origins, setOrigins] = useState([]);
   const [schooling, setSchooling] = useState([]);
@@ -2020,6 +2025,16 @@ export default function App() {
     if (!error) setRoles(mapPositionsFromSupabase(data ?? []));
     else console.error('Erro ao carregar cargos:', error);
   }, []);
+  const loadJobLevels = React.useCallback(async () => {
+    const { data, error } = await schema().from('job_levels').select('*').order('name');
+    if (!error) setJobLevels(mapJobLevelsFromSupabase(data ?? []));
+    else console.error('Erro ao carregar níveis de cargo:', error);
+  }, []);
+  const loadActivityAreas = React.useCallback(async () => {
+    const { data, error } = await schema().from('activity_areas').select('*').order('name');
+    if (!error) setActivityAreas(mapActivityAreasFromSupabase(data ?? []));
+    else console.error('Erro ao carregar áreas de atuação:', error);
+  }, []);
   const loadApplications = React.useCallback(async () => {
     const { data, error } = await schema().from('applications').select('*').order('created_at', { ascending: false });
     if (!error) setApplications(mapApplicationsFromSupabase(data ?? []));
@@ -2034,9 +2049,11 @@ export default function App() {
       loadCities(),
       loadSectors(),
       loadRoles(),
+      loadJobLevels(),
+      loadActivityAreas(),
       loadApplications()
     ]);
-  }, [loadCandidates, loadJobs, loadCompanies, loadCities, loadSectors, loadRoles, loadApplications]);
+  }, [loadCandidates, loadJobs, loadCompanies, loadCities, loadSectors, loadRoles, loadJobLevels, loadActivityAreas, loadApplications]);
 
   useEffect(() => {
     if (!effectiveUser) return;
@@ -2111,7 +2128,12 @@ export default function App() {
         }
         await loadSectors();
       } else if (col === 'positions') {
-        const payload = { name: d.name ?? d.name?.trim(), level: d.level ?? null };
+        const payload = {
+          name: d.name ?? d.name?.trim(),
+          level: d.level ?? null,
+          level_id: d.levelId ?? null,
+          activity_area_id: d.activityAreaId ?? null
+        };
         if (d.id) {
           const { error } = await schema().from('positions').update(payload).eq('id', d.id);
           if (error) throw error;
@@ -2122,6 +2144,30 @@ export default function App() {
           showToast('Cargo criado.', 'success');
         }
         await loadRoles();
+      } else if (col === 'job_levels') {
+        const payload = { name: d.name ?? d.name?.trim() };
+        if (d.id) {
+          const { error } = await schema().from('job_levels').update(payload).eq('id', d.id);
+          if (error) throw error;
+          showToast('Nível atualizado.', 'success');
+        } else {
+          const { error } = await schema().from('job_levels').insert(payload);
+          if (error) throw error;
+          showToast('Nível criado.', 'success');
+        }
+        await loadJobLevels();
+      } else if (col === 'activity_areas') {
+        const payload = { name: d.name ?? d.name?.trim() };
+        if (d.id) {
+          const { error } = await schema().from('activity_areas').update(payload).eq('id', d.id);
+          if (error) throw error;
+          showToast('Área de atuação atualizada.', 'success');
+        } else {
+          const { error } = await schema().from('activity_areas').insert(payload);
+          if (error) throw error;
+          showToast('Área de atuação criada.', 'success');
+        }
+        await loadActivityAreas();
       } else if (col === 'candidates') {
         const payload = candidateToSupabase(d);
         if (d.id) {
@@ -2175,6 +2221,16 @@ export default function App() {
         if (error) throw error;
         showToast('Cargo excluído.', 'success');
         await loadRoles();
+      } else if (col === 'job_levels') {
+        const { error } = await schema().from('job_levels').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Nível excluído.', 'success');
+        await loadJobLevels();
+      } else if (col === 'activity_areas') {
+        const { error } = await schema().from('activity_areas').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Área de atuação excluída.', 'success');
+        await loadActivityAreas();
       } else if (col === 'candidates') {
         const { error } = await supabase.from('candidates').delete().eq('id', id);
         if (error) throw error;
@@ -2711,6 +2767,11 @@ export default function App() {
              <Users size={18}/> Banco de Talentos
            </button>
            
+           {/* Formulários recebidos (todos os envios) */}
+           <button onClick={() => { setActiveTab('submissions'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'submissions' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <FileText size={18}/> Formulários recebidos
+           </button>
+           
            {/* Vagas - Gerenciar Vagas (página com abas) + Candidaturas */}
            <div>
              <button onClick={() => { setActiveTab(['jobs', 'applications'].includes(activeTab) ? activeTab : 'jobs'); setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${['jobs', 'applications', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
@@ -2788,7 +2849,7 @@ export default function App() {
                {isSidebarCollapsed ? <Menu size={20} className="text-gray-600 dark:text-gray-400"/> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-400"/>}
              </button>
            <h2 className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'candidates' ? 'Banco de Talentos' : ['jobs', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'Gerenciar Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : activeTab === 'diagnostic' ? 'Diagnóstico' : activeTab === 'reports' ? 'Relatórios' : activeTab === 'help' ? 'Ajuda' : 'Dashboard'}
+              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'submissions' ? 'Formulários recebidos' : ['jobs', 'companies', 'positions', 'sectors', 'cities'].includes(activeTab) ? 'Gerenciar Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : activeTab === 'diagnostic' ? 'Diagnóstico' : activeTab === 'reports' ? 'Relatórios' : activeTab === 'help' ? 'Ajuda' : 'Dashboard'}
            </h2>
            </div>
            <div className="flex items-center gap-3">
@@ -2802,9 +2863,10 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} totalCandidatesCount={uniqueCandidatesByEmail.length} totalSubmissionsCount={candidates.filter(c => !c.deletedAt).length} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={openCandidateProfile} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" highlightedCandidateId={highlightedCandidateId} />}
            {activeTab === 'candidates' && <TalentBankView candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={openCandidateProfile} applications={applications} onStatusChange={handleDragEnd} />}
+           {activeTab === 'submissions' && <SubmissionsView candidates={candidates.filter(c => !c.deletedAt)} onEdit={openCandidateProfile} />}
            {(activeTab === 'jobs' || activeTab === 'companies' || activeTab === 'positions' || activeTab === 'sectors' || activeTab === 'cities') && (
              <JobsManagementPage
                jobs={jobs}
@@ -2813,6 +2875,8 @@ export default function App() {
                cities={cities}
                sectors={sectors}
                roles={roles}
+               jobLevels={jobLevels}
+               activityAreas={activityAreas}
                onOpenJobModal={openJobModal}
                onDeleteGeneric={handleDeleteGeneric}
                onSaveGeneric={handleSaveGeneric}
@@ -4104,8 +4168,117 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
   );
 };
 
-// --- PÁGINA ÚNICA GERENCIAR VAGAS (com abas: Vagas, Empresas, Cidades, Setores, Cargos) ---
-const JOBS_PAGE_TAB_MAP = { jobs: 'vagas', companies: 'companies', cities: 'cities', sectors: 'sectors', positions: 'positions' };
+// --- FORMULÁRIOS RECEBIDOS (todos os envios, uma linha por envio) ---
+const SubmissionsView = ({ candidates, onEdit }) => {
+  const allSubmissions = useMemo(() => 
+    (candidates || []).filter(c => !c.deletedAt).sort((a, b) => (getCandidateTimestamp(b) || 0) - (getCandidateTimestamp(a) || 0)),
+    [candidates]
+  );
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(() => {
+    if (!search.trim()) return allSubmissions;
+    const s = search.toLowerCase();
+    return allSubmissions.filter(c =>
+      (c.fullName || '').toLowerCase().includes(s) ||
+      (c.email || '').toLowerCase().includes(s) ||
+      (c.city || '').toLowerCase().includes(s)
+    );
+  }, [allSubmissions, search]);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+  const formatEnvio = (c) => {
+    const ts = getCandidateTimestamp(c);
+    if (!ts) return 'N/A';
+    return new Date(ts * 1000).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+  return (
+    <div className="flex flex-col h-full p-6 overflow-hidden bg-white dark:bg-gray-900">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Formulários recebidos</h2>
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium">
+            {filtered.length} envios
+          </span>
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nome, e-mail ou cidade..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+              className="pl-10 pr-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white w-64 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <select
+            value={itemsPerPage}
+            onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+            className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
+            <option value={10}>10 por página</option>
+            <option value={25}>25 por página</option>
+            <option value={50}>50 por página</option>
+            <option value={100}>100 por página</option>
+            <option value={500}>500 por página</option>
+          </select>
+        </div>
+      </div>
+      <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
+            <tr>
+              <th className="p-3 font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Data do envio</th>
+              <th className="p-3 font-semibold text-gray-700 dark:text-gray-300">Nome</th>
+              <th className="p-3 font-semibold text-gray-700 dark:text-gray-300">E-mail</th>
+              <th className="p-3 font-semibold text-gray-700 dark:text-gray-300">Cidade</th>
+              <th className="p-3 font-semibold text-gray-700 dark:text-gray-300">Origem</th>
+              <th className="p-3 font-semibold text-gray-700 dark:text-gray-300">Status</th>
+              <th className="p-3 font-semibold text-gray-700 dark:text-gray-300 w-24">Ação</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {paginated.map(c => (
+              <tr
+                key={c.id}
+                className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+                onClick={() => onEdit(c)}
+              >
+                <td className="p-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatEnvio(c)}</td>
+                <td className="p-3 text-gray-900 dark:text-white font-medium">{c.fullName || '—'}</td>
+                <td className="p-3 text-gray-700 dark:text-gray-300">{c.email || '—'}</td>
+                <td className="p-3 text-gray-700 dark:text-gray-300">{c.city || '—'}</td>
+                <td className="p-3 text-gray-700 dark:text-gray-300">{c.origin || c.source || '—'}</td>
+                <td className="p-3 text-gray-700 dark:text-gray-300">{c.status || '—'}</td>
+                <td className="p-3" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => onEdit(c)} className="text-blue-600 dark:text-blue-400 hover:underline text-xs font-medium">Ver perfil</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {totalPages > 1 && (
+        <div className="mt-4 flex justify-between items-center">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Mostrando {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length} envios
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm disabled:opacity-50">Anterior</button>
+            <span className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300">Página {currentPage} de {totalPages}</span>
+            <button type="button" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm disabled:opacity-50">Próxima</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- PÁGINA ÚNICA GERENCIAR VAGAS (com abas: Vagas, Empresas, Cidades, Setores, Cargos, Níveis, Áreas) ---
+const JOBS_PAGE_TAB_MAP = { jobs: 'vagas', companies: 'companies', cities: 'cities', sectors: 'sectors', positions: 'positions', job_levels: 'job_levels', activity_areas: 'activity_areas' };
 const JobsManagementPage = ({
   jobs,
   candidates,
@@ -4113,6 +4286,8 @@ const JobsManagementPage = ({
   cities,
   sectors,
   roles,
+  jobLevels = [],
+  activityAreas = [],
   onOpenJobModal,
   onDeleteGeneric,
   onSaveGeneric,
@@ -4135,6 +4310,8 @@ const JobsManagementPage = ({
     { id: 'cities', label: 'Cidades', icon: MapPin },
     { id: 'sectors', label: 'Setores', icon: BarChart3 },
     { id: 'positions', label: 'Cargos', icon: Users },
+    { id: 'job_levels', label: 'Níveis de cargo', icon: Clock },
+    { id: 'activity_areas', label: 'Áreas de atuação', icon: BarChart3 },
   ];
   return (
     <div className="p-6 overflow-y-auto h-full flex flex-col">
@@ -4205,10 +4382,37 @@ const JobsManagementPage = ({
           <MasterDataManager
             collection="positions"
             title="Cargos"
-            fields={[{ key: 'name', label: 'Nome', required: true }, { key: 'level', label: 'Nível', required: false }]}
+            fields={[
+              { key: 'name', label: 'Nome', required: true },
+              { key: 'levelId', label: 'Nível de cargo', type: 'select', optionsKey: 'jobLevels', required: false },
+              { key: 'activityAreaId', label: 'Área de atuação', type: 'select', optionsKey: 'activityAreas', required: false }
+            ]}
+            options={{ jobLevels, activityAreas }}
             onSave={onSaveGeneric}
             onDelete={onDeleteGeneric}
             items={roles}
+            onShowToast={onShowToast}
+          />
+        )}
+        {jobsPageTab === 'job_levels' && (
+          <MasterDataManager
+            collection="job_levels"
+            title="Níveis de cargo"
+            fields={[{ key: 'name', label: 'Nome', required: true }]}
+            onSave={onSaveGeneric}
+            onDelete={onDeleteGeneric}
+            items={jobLevels}
+            onShowToast={onShowToast}
+          />
+        )}
+        {jobsPageTab === 'activity_areas' && (
+          <MasterDataManager
+            collection="activity_areas"
+            title="Áreas de atuação"
+            fields={[{ key: 'name', label: 'Nome', required: true }]}
+            onSave={onSaveGeneric}
+            onDelete={onDeleteGeneric}
+            items={activityAreas}
             onShowToast={onShowToast}
           />
         )}
@@ -6593,7 +6797,7 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
 };
 
 // --- MASTER DATA MANAGER ---
-const MasterDataManager = ({ collection, title, fields, items, onSave, onDelete, onShowToast }) => {
+const MasterDataManager = ({ collection, title, fields, items, onSave, onDelete, onShowToast, options = {} }) => {
   const [editing, setEditing] = useState(null);
   const [formData, setFormData] = useState({});
   const [search, setSearch] = useState('');
@@ -6660,7 +6864,9 @@ const MasterDataManager = ({ collection, title, fields, items, onSave, onDelete,
               <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                 {fields.map(f => (
                   <td key={f.key} className="px-4 py-3 text-gray-900 dark:text-white">
-                    {item[f.key] || '-'}
+                    {f.optionsKey && options[f.optionsKey]
+                      ? (options[f.optionsKey].find(o => o.id === item[f.key])?.name ?? '-')
+                      : (item[f.key] ?? '-')}
                   </td>
                 ))}
                 <td className="px-4 py-3 text-right">
@@ -6703,13 +6909,26 @@ const MasterDataManager = ({ collection, title, fields, items, onSave, onDelete,
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {f.label} {f.required && <span className="text-red-500">*</span>}
                   </label>
-                  <input
-                    type="text"
-                    value={formData[f.key] || ''}
-                    onChange={e => setFormData({...formData, [f.key]: e.target.value})}
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
-                    required={f.required}
-                  />
+                  {f.type === 'select' && f.optionsKey && options[f.optionsKey] ? (
+                    <select
+                      value={formData[f.key] || ''}
+                      onChange={e => setFormData({ ...formData, [f.key]: e.target.value || null })}
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    >
+                      <option value="">— Selecionar —</option>
+                      {options[f.optionsKey].map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formData[f.key] || ''}
+                      onChange={e => setFormData({...formData, [f.key]: e.target.value})}
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                      required={f.required}
+                    />
+                  )}
                 </div>
               ))}
             </div>

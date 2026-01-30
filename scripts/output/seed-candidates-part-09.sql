@@ -1,6 +1,6 @@
 -- Parte 9 de 9 (até 300 linhas por arquivo para caber no SQL Editor)
 -- Cole no SQL Editor do Supabase → Run. Depois execute a próxima parte.
--- ON CONFLICT (email) DO NOTHING: emails já existentes são ignorados.
+-- Tabela permite múltiplos envios por email (cada linha = um envio com timestamp).
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -774,7 +774,7 @@ Maurício Loeser - CEO da DGT: 555198211427','Assistente de Projetos','Sou curio
 Na área profissional, gosto de unir técnica e criatividade, buscando sempre soluções práticas e eficientes. Tenho conhecimento em AutoCAD, SketchUp e pacote Office, e estou sempre em busca de aprimorar minhas habilidades e aprender novas ferramentas.
 
 Fora do trabalho e dos estudos, gosto de música, arte, natureza e de tudo que envolva descoberta e crescimento. Acredito que cada experiência, pessoal ou profissional, contribui para construir quem somos e o que podemos oferecer.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-11-12T16:06:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -1852,7 +1852,7 @@ Atendimento ao público, visitas a clientes etc.
 ING Guindastes 
 Analista de planejamento 
 Programação de suprimentos da fábrica',NULL,NULL,'Administrativa, Comercial, Financeiro, Marketing',NULL,NULL,'Agência de Empregos','Não','2800','Sim',NULL,'Quero inscrever-me no banco de talentos da Young!','Tenho habilidade no pacote Office, trabalho com o público também criando um vínculo com o cliente. Técnicas de planejamento e resolução de problemas.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-12-29T19:15:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2799,7 +2799,7 @@ Experiência em escritórios (1 ano atuando no escritório de manutenção da em
 Sou uma pessoa organizada,  focada e pro ativa.
 Me adapto a qualquer ambiente e função.',NULL,NULL,'Administrativa, Comercial, Financeiro',NULL,NULL,'Facebook','Infelizmente nao','1950','Sim',NULL,'Assistente financeiro','Eu sou uma pessoa que amo trabalhar com papel ,com responsabilidade,  gosto tambem de trabalhar em equipe,  eu sai da antiga empresas agora dia 8/12 eu estava trabalhando na rede Chevrolet eu atuava como garantista,  onde eu era responsável por todo processo de garantia tanto de veículos novos como semi novos.
 Eu so prende uma oportunidade para mostrar que eu faço a diferença na equipe .','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2026-01-13T18:45:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -3201,4 +3201,4 @@ Atuei 2 anos como estagiária no Banrisul, na plataforma PF e PJ da agência, na
 3) 06/11/2024 - 24/11/2025
 4) Realização de conferências em execução e acabamento dos colaboradores na obra, realizava função de coordenação das atividades para atingir prazos, realizava atendimento aos clientes, leitura de projetos para a execução na obra e realização de vistorias de qualidade dos apartamentos.','Atualmente estou cursando Arquitetura e Urbanismo, na faculdade realizamos diversos projetos em grupo, também estudamos sobre materiais de construção e da execução. Já realizei curso de Autocad no início da graduação, hoje estou no 7° semestre e já tenho conhecimento dos demais softwares que foram ensinados na faculdade como Revit e Archicad.',NULL,'Arquitetura',NULL,'https://drive.google.com/open?id=1s7MVR7GeHtauuMuL8C6anD7FNZ0px22w, https://drive.google.com/open?id=1_sfIduDYBr0kQn083cpxFMuvmTZL4Q0a, https://drive.google.com/open?id=1XwPKC5JvNl5xe1S9cFmkvyHzUu0EjxCx, https://drive.google.com/open?id=1_pqZ7QOOlyaA52VIkU3lNNguO7QuMb_D','Ciee Rs','Não','R$2.000','Não',NULL,'Estágio Engenharia e/ou Arquitetura','Oii tudo bem? Ksksk
 Tenho 20 anos gosto bastante de ficar em casa, passei parte das férias da faculdade jogando com minha namorada, passei um tempo na praia, gosto muito de pescar com meu pai e tenho dois gatos. Já fiz trabalhos voluntários no passado, participava de um grupo que arrecadava materiais, roupas e brinquedos para escolas de uma zona que precisava. Sobre o estágio, estou buscando minha primeira experiência em um escritório, já trabalhei em obra e aprendi muitas coisas e agora quero amadurecer mais meus conhecimentos em relação a realização de projetos, atualmente tenho conhecimentos sobre Revit, Archicad, Sketchup e Autocad. Em meu portfólio sinalizei cada software que foi utilizado (tive que partir ele pois não aceitava a memória ksksk). Sobre idiomas eu sou bem intermediário, consigo viajar e pedir comida para não passar fome ksks. Mas seria isso ksksk, gostaria de fazer parte da equipe e aprender mais e talvez ser efetivado.😁','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2026-01-29T18:33:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;

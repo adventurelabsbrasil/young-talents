@@ -1,6 +1,6 @@
 -- Parte 1 de 9 (até 300 linhas por arquivo para caber no SQL Editor)
 -- Cole no SQL Editor do Supabase → Run. Depois execute a próxima parte.
--- ON CONFLICT (email) DO NOTHING: emails já existentes são ignorados.
+-- Tabela permite múltiplos envios por email (cada linha = um envio com timestamp).
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -749,7 +749,7 @@ Estágio – Delegacia de Polícia 10/06/2019-02/07/2019
 Clínica Luz Medicina e Ortodontia 
 Estágio 17/02/2020 – vigente 
 •  Atendimento ao público, secretaria e serviços administrativos.','Sou formada no curso de ocupações administrativas, atualmente faço curso de inglês e de edição de vídeos e imagens.',NULL,'Administrativa, Comercial, Marketing',NULL,NULL,'Instagram',NULL,NULL,'Sim',NULL,'Quero inscrever-me no banco de talentos da Young!','Sou formada em maquiagem e ocupações administrativas, crio conteúdo para o Instagram, e pretendo me especializar em marketing após concluir a graduação, sou líder de jovens da minha igreja e realizo trabalhos voluntários de forma regular, doações de sangue, arrecadação de alimentos e outros, através do projeto Missão Calebe, estou fazendo curso de inglês e de edição de vídeo e fotos.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2021-01-20T18:28:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -1405,7 +1405,7 @@ Esse é um pequeno resumo sobre mim :).','Inscrito',ARRAY[]::text[],'csv_import'
   ('Renata da Silva Xavier','renataurc_2016@outlook.com',NULL,'55996222826','1998-05-24',27,'Solteiro(a)',NULL,'Não','Alegrete/RS','https://drive.google.com/uc?export=view&id=15Fut9ab-qTeQ4UKCV7hsb8Ri2rjDwsF-',NULL,'Ensino Superior Incompleto','URCAMP','2022-12-23','Sim, estou estudando e com a matrícula ativa na Faculdade/Universidade.','1)Empresa: Panvel/Dimed: assistente de atendimento e caixa operador 
 2) Empresa: Nosso Guia: Agente de Registro/Certificado Digital 
 3)Estágio atual: 2° Tabelionato Blaskesi/ Estagiária','Direito',NULL,'Estágio, Marketing, Novos Negócios, Engenharia','https://drive.google.com/open?id=1hqhku4rYliaZ5jErRxfxyo4-BuLbaFKv',NULL,'Instagram',NULL,NULL,'Sim',NULL,'Quero inscrever-me no banco de talentos da Young!',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2021-04-18T11:30:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2039,7 +2039,7 @@ Visual Arquitetura - (55) 99713-8223','Quero inscrever-me no banco de talentos d
 venda permite conectar pessoas de uma forma única, pois de um lado estão as que buscam algo (necessidades) e de outro que ofertam (resultado).
 O sucesso da venda está em conhecer a transformação que o seu produto/serviço causa na vida das pessoas.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2021-06-24T18:39:00.000Z'::timestamptz),
   ('Karen Danielle Coelho da Silva','karendaniellecoelho@gmail.com','karendaniellecoelho@gmail.com','+55991097036','1993-02-09',33,'Solteiro(a)','0','Não','São Borja/RS','https://drive.google.com/uc?export=view&id=1_sv6di3Z5jQCOYos7Zpgp7Q3anVE-bCF','Técnico de Logística','Ensino Superior Completo','Instituto Federal Farroupilha - Campus São Borja','2021-06-07','Não, no momento pausei/parei por um período.','Auxiliar em Comércio exterior- operações de importação. Empresa: Tito Smart Modal Logística. Atuando na área desde 2009, é o emprego atual.',NULL,NULL,'Administrativa, Marketing','https://drive.google.com/open?id=1EyADBldg27Ux07IvxN4R3sAa5iXd2_lh',NULL,'Facebook',NULL,'R$ 2.500,00 a negociar.','Sim',NULL,'Quero inscrever-me no banco de talentos da Young!','Tenho interessa em adquirir novas experiências e aprendizados. Busco inovar em minha carreira profissional. Estou aberta a novas oportunidades. Adoro viajar e obter novos conhecimentos.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2021-06-28T23:35:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2381,4 +2381,4 @@ Eduardo - 55 3430-1466 - Assessoria Contábil Koltermann','Quero inscrever-me no
   ('Carina Fontani Morteu','carifmorteu95@gmail.com',NULL,'55997001380','1995-07-02',30,'Solteiro(a)','0','Sim','Alegrete/RS','https://drive.google.com/uc?export=view&id=1bvW5NhdM06u-X6mOsO08ggh0I6gjw_Km',NULL,'Ensino Médio Completo',NULL,NULL,'Não, no momento pausei/parei por um período.','Rogério gás e água: atendente; período: 1 ano
 Crocodillos grill e lanches: garçonete e caixa; período: 1 ano 8 meses.
 Milk shake up: atendente; periodo: 2 meses.','Auxiliar administrativo; informática completa',NULL,'Administrativa, Comercial, Financeiro','https://drive.google.com/open?id=1ux3IhgohNF1boB9o5MsAcAAT7YuY3drD',NULL,'Facebook',NULL,'1.300,00','Sim',NULL,'Comercial',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2021-10-05T13:48:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;

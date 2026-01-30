@@ -1,9 +1,10 @@
 /**
- * Gera um arquivo .sql a partir do CSV para rodar no SQL Editor do Supabase.
- * Preenche apenas linhas novas (ON CONFLICT (email) DO NOTHING).
+ * Gera arquivos .sql a partir do CSV para rodar no SQL Editor do Supabase.
+ * Este script NÃO executa SQL no Supabase — apenas gera os .sql em scripts/output/.
+ * No SQL Editor do Supabase, use os arquivos seed-candidates-part-01.sql, part-02.sql, etc.
  *
- * Uso: node scripts/generate-candidates-sql.js
- * Saída: scripts/output/seed-candidates.sql (criar pasta output se não existir)
+ * Uso: node scripts/generate-candidates-sql.js  (ou: npm run generate-candidates-sql)
+ * Saída: scripts/output/seed-candidates-part-01.sql, part-02.sql, ...
  */
 
 import fs from 'fs';

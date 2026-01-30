@@ -1,6 +1,6 @@
 -- Parte 8 de 9 (até 300 linhas por arquivo para caber no SQL Editor)
 -- Cole no SQL Editor do Supabase → Run. Depois execute a próxima parte.
--- ON CONFLICT (email) DO NOTHING: emails já existentes são ignorados.
+-- Tabela permite múltiplos envios por email (cada linha = um envio com timestamp).
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -978,7 +978,7 @@ Rotina de escritório','Libras intermediário-
 Escola para surdos Frei Pacífico
 
 Inglês intermediário- Intercultural Language Institute',NULL,'Administrativa, Financeiro',NULL,NULL,'Instagram','Não.','2.100','Não',NULL,'Quero inscrever-me no banco de talentos da Young!',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-09-10T17:35:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -1715,7 +1715,7 @@ EMATER/RS
 Estágio - Analista de suporte
 06/2024 - atualmente
 Atendimento e abertura de chamados, instalação de programas, formatação, limpeza e manutenção de computadores.','Tenho alguns cursos de manutenção de computadores e programação, tenho conhecimento do pacote office e os aprendizados nas cadeiras da faculdade',NULL,'Administrativa, Estágio, Engenharia',NULL,NULL,'Instagram','Não','2000','Não',NULL,'Quero inscrever-me no banco de talentos da Young!','Tenho conhecimento em algumas linguagens de programação, estou fazendo um curso para JavaScript que lida com sites, tenho conhecimento na linguagem Python e C, sei usar o Pacote Office, tenho facilidade em aprender o que eu não souber','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-10-06T21:04:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2382,7 +2382,7 @@ Auxiliar de crédito e cobrança',NULL,'Administrativa, Comercial, Novos Negóci
   ('Clayton Barros Assunção','claytonbarrosassuncao@gmail.com',NULL,'55991191206','1984-02-15',42,'União estável','3','Sim','Alegrete/RS','https://drive.google.com/uc?export=view&id=132sqELzvloTB_egVSTcaVjBP9z2g6dlb',NULL,'Ensino Superior Incompleto',NULL,NULL,'Não, no momento pausei/parei por um período.','Executivo comercial',NULL,NULL,'Administrativa, Comercial, Marketing, Novos Negócios',NULL,NULL,'Agência de Empregos','Não','3000','Sim','Rede card','Comercial',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-10-22T16:50:00.000Z'::timestamptz),
   ('Michela carpes de Oliveira','michelacarpesdeoliveira@gmail.com',NULL,'51989507285','1982-04-16',43,'Casado(a)','3','Não','Guaíba/RS','https://drive.google.com/uc?export=view&id=1kY9-Q3DYxO7AVQlY4wz0moxrUvBRAlwL','Administração de empresas','Ensino Superior Incompleto','Unifatecie','2026-03-31','Sim, estou estudando e com a matrícula ativa na Faculdade/Universidade.','De estagiária a analista comercial em uma distribuidora de medicamentos, Cervosul, 4 anos no projeto escola aberta, com público em geral, aos sábados, estou assistente de vendas na indústria de cosméticos e faço venda direta via whats','Tenho técnico em administração, Excel, gestão de Farmácia pelo Instituo Bulla, estou cursando Marketing digital na EAD Radiante',NULL,'Comercial, Marketing, Novos Negócios, Engenharia',NULL,NULL,'Instagram','Não','R$2.800,00','Sim','Mario Wagner , Cervosul +55 51 9602-0943','Quero inscrever-me no banco de talentos da Young!','Eu fui exclusivamente mãe até os 32, assinei a carteira profissional aos 37. Me considero no início da minha carreira e ainda em busca do que realmente me dá prazer no trabalho. Quero algo mais dinâmico, para além de apenas mexer em planilhas e organizar as coisas.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-10-23T10:45:00.000Z'::timestamptz),
   ('Lays Molina','layssmolina@gmail.com',NULL,'55999359899','1999-08-13',26,'Solteiro(a)','1','Não','São Borja/RS','https://drive.google.com/uc?export=view&id=1YnYKHpI5tV4re6MXWz9iqEcZtQRtmA6C',NULL,'Ensino Superior Incompleto',NULL,NULL,'Não, no momento pausei/parei por um período.','Sirtec; Gestão de clientes e fornecedores; 2024; Contato direto com clientes e fornecedores, fechando contratos de prestação de serviço. | Corsan; Atendente; 2025; Atendimento ao cliente e operações em loja (trâmites administrativos, religações, ligações novas de água e outros)','Curso completo de informática, Pacote Office, Excel, Aux. Administrativo.',NULL,'Administrativa, Comercial, Estágio',NULL,NULL,'Agência de Empregos','Não fui','R$1.700,00','Sim',NULL,'Quero inscrever-me no banco de talentos da Young!',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-10-23T11:15:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2981,4 +2981,4 @@ Estágio em Arquivo Administrativo | set/2018 – set/2019
 Tenho muito conhecimento prático em informática, aprendo com muita facilidade, em uma empresa que trabalhei fazia criação de imagens profissionais, e atividades de cobranças e entrega de documentos, mais em específico contratos.
 
 Assim que possível quero fazer uma pós-graduação em Negócios Imobiliários que tem me despertado bastante interesse.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-11-02T14:11:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;

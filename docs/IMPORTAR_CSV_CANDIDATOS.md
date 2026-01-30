@@ -155,26 +155,59 @@ Se no CSV você tem **2698 linhas** e no Supabase só **2193**, as demais (~505)
 **Como completar os dados:**
 
 1. **Arquivos SQL para colar no Supabase (não depende de chave)**  
-   Gera vários `.sql` pequenos (cada um com até ~300 linhas) para caber no **SQL Editor** do Supabase. Emails já existentes são ignorados (`ON CONFLICT (email) DO NOTHING`).
+   Gera vários `.sql` pequenos (cada um com até ~300 linhas) para caber no **SQL Editor** do Supabase.
    ```bash
    npm run generate-candidates-sql
    ```
-   Os arquivos saem em **`scripts/output/`**: `seed-candidates-part-01.sql`, `part-02.sql`, … No Supabase: **SQL Editor → New query → cole o conteúdo do part-01 → Run**. Depois repita com part-02, part-03, … **em ordem**, até o último.
+   Os arquivos saem em **`scripts/output/`**: `seed-candidates-part-01.sql`, `part-02.sql`, … No Supabase: **SQL Editor → New query → cole o conteúdo do part-01 → Run**. Depois repita com part-02, part-03, … **em ordem**, até o último. (Desde a migration 011 a tabela permite múltiplos envios por email; o SQL gerado não usa mais `ON CONFLICT (email)`.)
 
 2. **Script Node (precisa de chave no .env)**  
    Coloque a chave anon **real** no `.env` e rode:
    ```bash
    npm run import-candidates
    ```
-   Duplicatas (mesmo email) serão ignoradas; apenas linhas novas ou que antes falharam serão inseridas.
+   Se ainda houver constraint única em email, duplicatas serão ignoradas; caso contrário todas as linhas do CSV são inseridas.
 
 3. **Import pelo frontend**  
-   Configurações → Importação em massa (CSV). Envie o mesmo CSV; o sistema insere em lotes e pula emails duplicados.
+   Configurações → Importação em massa (CSV). Envie o mesmo CSV; o sistema insere em lotes e pula emails duplicados (quando houver constraint).
 
 Depois de importar, **recarregue a página** (com usuário logado). Com o `.range(0, 9999)`, o front passa a exibir até 10.000 candidatos.
 
 ---
 
-## 9. Ajustar cabeçalhos do CSV (planilha diferente)
+## 9. Igualar a contagem ao backup original (ex.: CSV com 25.528 linhas, banco com 4.948)
+
+Se você rodou só **parte** dos arquivos SQL (ex.: 9 partes ≈ 2.700 linhas) e o **backup em CSV tem bem mais linhas** (ex.: 25.528), para ficar com a **mesma quantidade de linhas do backup** faça **uma** das opções abaixo.
+
+### Opção recomendada: truncar e importar o CSV inteiro via script
+
+1. **No Supabase → SQL Editor**, execute **uma vez** (isso apaga todos os candidatos e reinicia a sequência de IDs):
+   ```sql
+   TRUNCATE young_talents.candidates RESTART IDENTITY CASCADE;
+   ```
+2. No projeto, com `.env` configurado (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), rode:
+   ```bash
+   npm run import-candidates
+   ```
+3. O script lê **todo** o `assets/candidates/candidates.csv` e insere em lotes. Com a migration 011 (múltiplos envios por email), **todas** as linhas com email são inseridas. Ao final você fica com o mesmo número de linhas do CSV (ex.: 25.528).
+4. Recarregue o app (logado); os candidatos aparecem no painel.
+
+### Opção alternativa: gerar todas as partes SQL e rodar no Supabase
+
+1. Garanta que o CSV completo está em `assets/candidates/candidates.csv` (ex.: 25.529 linhas = 1 cabeçalho + 25.528 dados).
+2. Rode o gerador:
+   ```bash
+   npm run generate-candidates-sql
+   ```
+   Serão criadas **várias partes** em `scripts/output/` (ex.: ~86 partes de 300 linhas).
+3. No Supabase → SQL Editor, execute **uma vez**:
+   ```sql
+   TRUNCATE young_talents.candidates RESTART IDENTITY CASCADE;
+   ```
+4. Execute **cada** arquivo em ordem: `seed-candidates-part-01.sql`, `part-02.sql`, … até o último. Assim a tabela fica com a mesma quantidade de linhas do backup.
+
+---
+
+## 10. Ajustar cabeçalhos do CSV (planilha diferente)
 
 Se a sua planilha tiver **2698 linhas e colunas de A a AG** com nomes diferentes dos listados no script, edite o objeto **CSV_TO_DB** em `scripts/import-candidates-from-csv.js`: à esquerda coloque o **nome exato da coluna no CSV** (como aparece na primeira linha), à direita o nome da coluna no banco (snake_case). Consulte também `docs/MAPEAMENTO_CAMPOS.md` e a tabela `young_talents.candidates` (ou a view em `supabase/migrations/006_public_candidates_view.sql`) para ver todos os campos disponíveis.

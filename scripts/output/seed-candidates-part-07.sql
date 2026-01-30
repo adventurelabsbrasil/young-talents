@@ -1,6 +1,6 @@
 -- Parte 7 de 9 (até 300 linhas por arquivo para caber no SQL Editor)
 -- Cole no SQL Editor do Supabase → Run. Depois execute a próxima parte.
--- ON CONFLICT (email) DO NOTHING: emails já existentes são ignorados.
+-- Tabela permite múltiplos envios por email (cada linha = um envio com timestamp).
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -650,7 +650,7 @@ Auxiliar de recepção e expedição, funções administrativas, análises labor
 Vendedor automotivo na G7 automoveis por 1 ano.','Técnico em transações imobiliárias e Técnico em Administração.',NULL,'Administrativa, Comercial',NULL,NULL,'Instagram','Anúncio de vaga pelo Instagram para Bagé','Mínimo de R$ 3.500','Não',NULL,'Comercial','Tenho experiência no ramo imobiliário, tendo trabalhado na área por 9 anos, com formação em 2015.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-07-05T14:23:00.000Z'::timestamptz),
   ('Marcelo Monteiro','marceloluyseeduarda@gmail.com',NULL,'53991468668','1981-12-04',44,'Solteiro(a)','2','Sim','Bagé/RS','https://drive.google.com/uc?export=view&id=14TVI17UXRqV4g5BFnZGs-NB47z0gP0uu','Gestão pública','Ensino Superior Completo','Anhanguera','2023-06-16','Sou formado','Ditalia, vendedor,04/05/2023','Elétrica',NULL,'Comercial',NULL,NULL,'Facebook','N','A combinar','Sim',NULL,'Vendendor',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-07-06T17:19:00.000Z'::timestamptz),
   ('Marcelo Monteiro','marceloluyseeduarda@gmail.com',NULL,'53991468668','1981-12-04',44,'Solteiro(a)','2','Sim','Bagé/RS','https://drive.google.com/uc?export=view&id=1FVfxkUrSUsByUKn0SlV89JZcLvFSK81B','Gestão pública','Ensino Superior Completo','Anhanguera','2023-07-04','Sou formado','New Life, vendedor e coordenador de equipe 12/05/2022*08092023','Elétrica',NULL,'Comercial',NULL,'https://drive.google.com/open?id=1kUkTUjX7XY3rds5VxV9KZR1_IENtl7AP','Facebook','N','A combinar','Sim',NULL,'Comercial','Comunicativo e resiliente','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-07-06T18:39:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -1358,7 +1358,7 @@ Secretária na empresa Fame sistemas de segurança, organização de contas a pa
 Estágio na prefeitura Municipal de Santo Antônio da Patrulha, departamento de compras, orçamentos.',NULL,NULL,'Administrativa',NULL,NULL,'Instagram','Não','R$2.000,00','Não',NULL,'Assistente de Rh',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-08-08T16:05:00.000Z'::timestamptz),
   ('Patrícia Pinheiro','patynanda2009@gmail.com',NULL,'53999748226','1988-07-19',37,'Solteiro(a)','1','Não','Bagé/RS','https://drive.google.com/uc?export=view&id=1JtNAIY27XzjyOIDJXjhkS5WXyS-E2ruc','Administração de empresas','Pós-graduação Completa','Faculdade Sobresp','2019-07-27','Sou formado','Faculdade Sobresp/ assistente administrativo/ 01/04/2019 a 4/11/2024 admissão e rescisão, conciliação bancária, várias da folha de pagamento, Fies e Prouni, compras e acompanhamento de obras, contratação dos serviços.','Tenho NBA em gestão de pessoas e MKT, técnico em enfermagem o qual me auxílio bastante na época da pandemia com o auxílio aos meus colegas, e também auxiliar sobre questões de pressão alta, uso de medicamentos.',NULL,'Administrativa, Financeiro, Engenharia',NULL,NULL,'Facebook','Não','R$2.400,00','Sim',NULL,'Assistente de RH','Sou formada em técnico de enfermagem, onde fiz trabalho voluntário com os familiares da Kiss em Santa Maria, na pandemia vacinei os alunos, e sempre prestei auxílio aos meus colegas que precisavam.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-08-08T16:18:00.000Z'::timestamptz),
   ('Gislaine Santos Neves','giszjo@gmail.com',NULL,'51995598884','1979-05-04',46,'União estável','2','Não','Osório/RS','https://drive.google.com/uc?export=view&id=1K7sdPvquvWXS9iInhZAs-2_Nn0E-aUvu','Gestão recursos humanos','Ensino Superior Completo','Uniasselvi',NULL,'Sou formado','Solar rede construir',NULL,NULL,'Administrativa, Financeiro',NULL,NULL,'Instagram','Não','2300','Sim',NULL,'Quero inscrever-me no banco de talentos da Young!',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-08-08T16:22:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2486,7 +2486,7 @@ Após o expediente de serviço vou à academia em média de 02 máximo 03 dias n
 Boa capacidade de comunicação com clientes e
 fornecedores, gestão de tempo e auxílio administrativo','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-08-21T13:59:00.000Z'::timestamptz),
   ('Luis Mello','luishenriquemorais.sp1@gmail.com',NULL,'11998895177','2003-07-18',22,'Solteiro(a)','0','Sim','Santo Antônio da Patrulha/RS','https://drive.google.com/uc?export=view&id=1PgQRRf6Ci2Sa7NZNdANQX9ej9dVVk1Rd',NULL,'Ensino Superior Incompleto','FURG','2027-01-01','Sim, estou estudando e com a matrícula ativa na Faculdade/Universidade.','Tenho 5 anos de experiência na área de vendas e na área administrativa','Estou cursando ADM',NULL,'Administrativa, Comercial, Financeiro, Marketing',NULL,NULL,'Instagram','Nunca fui','3000','Sim',NULL,'Quero inscrever-me no banco de talentos da Young!',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-08-21T16:34:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -3102,4 +3102,4 @@ Temos um grupo de voluntariado chamado liga heróica, onde leva personagens a co
 * Participo de um projeto que alimenta crianças em um orfanato em Moçambique.
 
 * Durante minha trajetória no instituto mix, fiz vários cursos de vendas oferecidos pela própria empresa para aprimoramento de vendas.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-08-28T21:26:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;

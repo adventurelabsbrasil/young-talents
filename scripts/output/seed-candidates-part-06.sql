@@ -1,6 +1,6 @@
 -- Parte 6 de 9 (até 300 linhas por arquivo para caber no SQL Editor)
 -- Cole no SQL Editor do Supabase → Run. Depois execute a próxima parte.
--- ON CONFLICT (email) DO NOTHING: emails já existentes são ignorados.
+-- Tabela permite múltiplos envios por email (cada linha = um envio com timestamp).
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -733,7 +733,7 @@ Período: 07/06/2021 a 27/01/2022
 Carga horária: PJ
 Atividades:
 Prospecção de cliente, atendimento e acompanhamento, negociação e venda de veículos.','Estou no 8º semestre de Eng Civil, informática e pacote Office avançado, eletricista predial de baixa tensão e Inglês C1 com certificado.','Informática e Excel Avançado, Eletricista Predial de baixa tensão e Inglês avançado C1 (certificado ESF)','Administrativa, Engenharia','https://drive.google.com/open?id=1exQDa8Y02XpTeu95AigA09xZ5Bza2WLo',NULL,'Facebook','Não','2500-3500','Sim',NULL,'Estágio Engenharia e/ou Arquitetura',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-01-11T20:15:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -1418,7 +1418,7 @@ Cargo: Telemarketing
 Período: 03/2023 à 09/2024
 
 Realizava captação de novos leads por meio de redes sociais e listas de indicações, oferecendo planos e tratamentos odontológicos.','Técnico em Transações Imobiliárias',NULL,'Comercial','https://drive.google.com/open?id=1ZSrEFxbygpOxkg0Ks188BalQcb73kU0j',NULL,'Instagram','Não','De R$1.500,00 à R$2.000,00','Não',NULL,'Quero inscrever-me no banco de talentos da Young!','Quero ingressar em uma empresa conceituada, com oportunidade de crescimento, onde eu possa somar com minhas experiências e adquirir mais conhecimento, podendo assim, ampliar minhas habilidades profissionais. Me considero uma pessoa proativa, com facilidade em resolução de problemas. Atendimento personalizado ao cliente é um ponto forte.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-02-05T18:12:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -1858,7 +1858,7 @@ Empresa:Demolidora Santo Antonio- Cargo:Auxiliar de escritório- Período:19/09/
 Minimercado De Mattos, operador de caixa, 2014 - 2021, abertura e fechamento, organização, recebimento de mercadorias, controle de estoque, compras com fornecedores.
 Autônomo 2021 - dias atuais, atuo com projetos de interiores, projetos residencial e execução de obras, gestão de obras.','Técnico em Design de Interiores 2021 SENACRS
 Técnico em Edificações 2023 CPETRN','Design de Interiores SENACRS, Técnico em Edificações CPETRN','Estágio','https://drive.google.com/open?id=1W9oCc86p-4shc2Gbn63ExqYhlnQCZDoH',NULL,'Facebook','Não','Como estagiário compatível com a categoria, como profissional inicial R$3000,00 e progressão compatível com a categoria.','Sim',NULL,'Estágio Engenharia e/ou Arquitetura','Habilidade com software Sketchup, Autocad, Revit, Layout','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-03-15T16:06:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2202,4 +2202,4 @@ Depois de um tempo,iniciei meu curso superior,e com o objetivo de ingressar na �
 3 29/06/12 até 05/11/24
 4 Era responsável pela montagem dos carros, conforme as métricas e definições da empresa. Nesse período desenvolvi habilidades de resolução de problemas, orientação para resultados e processos de manufatura enxuta. No período final estava responsavel por liderar um time de produção.','Curso inglês intermediário 
 Curso informática / excel',NULL,'Administrativa, Financeiro',NULL,NULL,'Facebook','Não','R$2.500,00','Sim',NULL,'Assistente finaceiro',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2025-04-28T19:37:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;

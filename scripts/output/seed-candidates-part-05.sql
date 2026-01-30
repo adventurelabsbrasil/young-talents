@@ -1,6 +1,6 @@
 -- Parte 5 de 9 (até 300 linhas por arquivo para caber no SQL Editor)
 -- Cole no SQL Editor do Supabase → Run. Depois execute a próxima parte.
--- ON CONFLICT (email) DO NOTHING: emails já existentes são ignorados.
+-- Tabela permite múltiplos envios por email (cada linha = um envio com timestamp).
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -706,7 +706,7 @@ Empresa: Prefeitura Municipal de Sant’Ana do Livramento, atualmente
 Estágio: auxiliar na digitação e elaboração de planilhas e documentos, atendimento ao publico e telefone, e demais atividades da área.',NULL,NULL,'Administrativa, Estágio, Novos Negócios, Engenharia',NULL,NULL,'Facebook','Não','1600','Sim',NULL,'Quero inscrever-me no banco de talentos da Young!','Busco me dedicar sempre ao trabalho que é me designado, sou uma pessoa responsável, me preocupo em trabalhar em lugar que todos estejam bem e em harmonia.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2024-02-19T01:41:00.000Z'::timestamptz),
   ('Maísa Rosa da Rocha','maisarosadarocha123@gmail.com',NULL,'51996708019','2006-02-20',20,'Solteiro(a)','0','Não','Santo Antônio da Patrulha/RS','https://drive.google.com/uc?export=view&id=1GaKHM6VVbXCEFrug5FDGoQFBB4_x3MHP','Engenharia de Produção','Ensino Médio Completo','FURG',NULL,'Sim, estou estudando e com a matrícula ativa na Faculdade/Universidade.','Trabalho no salão Berê Godoi, atualmente ocupo o cargo de atendente e maquiadora. Trabalho nesta empresa desde 16/04/2022 e continuo neste cargo.',NULL,NULL,'Administrativa, Comercial, Estágio, Financeiro','https://drive.google.com/open?id=1eU5c4xC1Opcmbf02rNqIWvg24j4_pl4U',NULL,'Indicação','Amanda Consul Portal','Um salário mínimo.','Não','Berê Godoi, 51997867533, Salão Berê Godoi','Estágio Engenharia e/ou Arquitetura','Estudei sobre estética e com cursos de maquiagem profissionais me possibilitei de ter meu primeiro trabalho. 
 Trabalho em equipe, trabalhando com a empresa e meu crescimento profissional. Tenho noções de computação.','Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2024-02-20T02:02:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -1722,7 +1722,7 @@ inspeção e verificação de serviços;
  Fechamento de medição de mão de obra própria e empreiteiros; 
  Acompanhamento de produção de lajes pré-moldadas em obra, e içamentos das 
 mesmas nas torres.',NULL,NULL,'Engenharia','https://drive.google.com/open?id=1AJlzRYpE4MlaA7gSITlNL_-MARL4obZj','https://drive.google.com/open?id=1GfuFqLkkIlcG7_bcRuRlXGFOA3ua0N91','Instagram','Não','R$9.000,00','Sim',NULL,'Engenheiro Civil',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2024-05-07T14:10:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -2697,7 +2697,7 @@ Como mencionei em uma das caixas de perguntas anteriores, já trabalhei em uma �
   ('Marcus Leite da Silva','msmarcus22@gmail.com',NULL,'55999205173','1998-01-05',28,'Solteiro(a)','0','Sim','Sant''Ana do Livramento/RS','https://drive.google.com/uc?export=view&id=19A5PR1Q96ok1rYJ7bb-t3a8yl86wNCuZ','Ciências Contábeis','Ensino Superior Incompleto','Universidade Federal do Pampa - UNIPAMPA','2027-03-01','Sim, estou estudando e com a matrícula ativa na Faculdade/Universidade.','Estágio - IIcila 
 Frentista - Espigão
 Repositor - Aviário Nicolini',NULL,NULL,'Administrativa, Estágio, Engenharia','https://drive.google.com/open?id=1xT7IzEaRfJVdJUAC-m-j18S1C8MYXX61',NULL,'Instagram','Não','1.200','Não',NULL,'Quero inscrever-me no banco de talentos da Young!',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2024-08-11T01:02:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;
 
 INSERT INTO young_talents.candidates (full_name, email, email_secondary, phone, birth_date, age, marital_status, children_count, has_license, city, photo_url, education, schooling_level, institution, graduation_date, is_studying, experience, courses, certifications, interest_areas, cv_url, portfolio_url, source, referral, salary_expectation, can_relocate, professional_references, type_of_app, free_field, status, tags, origin, created_by, original_timestamp)
 VALUES
@@ -3139,4 +3139,4 @@ de um modelo para analisar o período de inundação dos rios (Mestrado). E uma 
   ('Vanessa Fraga da Silveira','vanessasilveira369@gmail.com',NULL,'519995815771','2002-05-23',23,'Solteiro(a)','0','Sim','Santo Antônio da Patrulha/RS','https://drive.google.com/uc?export=view&id=1EguLfTd97SiqnQN63zsN5-dtCRfFIqi7','Ciências Contábeis','Ensino Superior Incompleto','UniSantaCruz','2026-01-06','Sim, estou estudando e com a matrícula ativa na Faculdade/Universidade.','Mauro Moro Atelier - costureira- 01/09/2019- 10/12/2022
 Banco do Estado do Rio Grande do Sul- 12/12/2022
 Vero- 15/07/2024',NULL,NULL,'Administrativa, Comercial, Estágio, Financeiro',NULL,NULL,'Agência de Empregos','Nao','2200','Sim',NULL,'Estágio Financeiro',NULL,'Inscrito',ARRAY[]::text[],'csv_import','Importação CSV','2024-10-14T18:51:00.000Z'::timestamptz)
-ON CONFLICT (email) DO NOTHING;
+;

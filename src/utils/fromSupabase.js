@@ -51,7 +51,23 @@ export function mapSectorFromSupabase(row) {
 
 export function mapPositionFromSupabase(row) {
   if (!row) return null;
-  return { id: row.id, name: row.name, level: row.level };
+  return {
+    id: row.id,
+    name: row.name,
+    level: row.level,
+    levelId: row.level_id ?? null,
+    activityAreaId: row.activity_area_id ?? null
+  };
+}
+
+export function mapJobLevelFromSupabase(row) {
+  if (!row) return null;
+  return { id: row.id, name: row.name };
+}
+
+export function mapActivityAreaFromSupabase(row) {
+  if (!row) return null;
+  return { id: row.id, name: row.name };
 }
 
 export function mapApplicationFromSupabase(row) {
@@ -90,6 +106,12 @@ export function mapSectorsFromSupabase(rows) {
 }
 export function mapPositionsFromSupabase(rows) {
   return (rows ?? []).map(mapPositionFromSupabase).filter(Boolean);
+}
+export function mapJobLevelsFromSupabase(rows) {
+  return (rows ?? []).map(mapJobLevelFromSupabase).filter(Boolean);
+}
+export function mapActivityAreasFromSupabase(rows) {
+  return (rows ?? []).map(mapActivityAreaFromSupabase).filter(Boolean);
 }
 export function mapApplicationsFromSupabase(rows) {
   return (rows ?? []).map(mapApplicationFromSupabase).filter(Boolean);
