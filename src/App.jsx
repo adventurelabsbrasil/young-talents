@@ -29,6 +29,7 @@ import CandidateProfilePage from './components/CandidateProfilePage';
 import DiagnosticPage from './components/DiagnosticPage';
 import PublicCandidateForm from './components/PublicCandidateForm';
 import ThankYouPage from './components/ThankYouPage';
+import FormSubmitTestPage from './components/FormSubmitTestPage';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
@@ -2359,6 +2360,7 @@ export default function App() {
     <>
     <Routes>
       <Route path="/apply" element={<PublicCandidateForm />} />
+      <Route path="/apply/test" element={<FormSubmitTestPage />} />
       <Route path="/apply/thank-you" element={<ThankYouPage />} />
       
       <Route path="/candidate/:id" element={

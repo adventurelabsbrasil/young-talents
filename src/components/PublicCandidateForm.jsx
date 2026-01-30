@@ -8,7 +8,55 @@ import { normalizeInterestAreasString, getMainInterestAreasOptions } from '../ut
 import { normalizeChildrenForStorage, CHILDREN_OPTIONS } from '../utils/childrenNormalizer';
 import { validateBirthDate } from '../utils/validation';
 import { getAllRSCities, searchRSCities } from '../utils/rsCities';
-import { Loader2, CheckCircle, AlertCircle, Send, ChevronRight, ChevronLeft, Upload, Link as LinkIcon, FileText, X, Check, Info } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Send, ChevronRight, ChevronLeft, Upload, Link as LinkIcon, FileText, X, Check, Info, FlaskConical } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+// Dados realistas para preencher o formulário em modo teste (camelCase, datas DD/MM/YYYY)
+const getTestFormData = () => {
+  const ts = Date.now();
+  return {
+    fullName: 'Maria Fernanda Silva Santos',
+    email: `teste.cadastro.${ts}@exemplo.com.br`,
+    email_secondary: 'maria.fernanda.pessoal@gmail.com',
+    phone: '(51) 99876-5432',
+    birthDate: '15/05/1992',
+    age: '32',
+    maritalStatus: 'Casado(a)',
+    childrenCount: '2',
+    hasLicense: 'Sim',
+    city: 'Porto Alegre/RS',
+    cityCustom: '',
+    photoUrl: '',
+    photoFile: null,
+    photoDriveUrl: '',
+    photoType: 'url',
+    education: 'Engenharia Civil',
+    schoolingLevel: 'Superior Completo',
+    institution: 'Universidade Federal do Rio Grande do Sul',
+    graduationDate: '20/12/2015',
+    isStudying: 'Não',
+    experience: '5 anos em obras de infraestrutura. Atuação em coordenação de equipe e acompanhamento de cronograma. Experiência com obras públicas e privadas.',
+    courses: 'Gestão de Projetos (FGV), BIM Básico (SENAC)',
+    certifications: 'CREA-RS ativo, PMP em andamento',
+    interestAreas: 'Engenharia, Gestão de Projetos, Obras',
+    source: 'LinkedIn',
+    sourceCustom: '',
+    referral: 'João da Silva (colaborador Young)',
+    salaryExpectation: 'R$ 12.000,00',
+    canRelocate: 'Sim',
+    references: 'Carlos Mendes - Eng. Coordenador - Construtora XYZ - (51) 3333-4444. Ana Costa - Diretora - Empresa ABC.',
+    typeOfApp: 'Banco de Talentos',
+    freeField: 'Busco oportunidade de atuar em projetos de grande porte. Tenho disponibilidade para viagens e grande interesse em desenvolvimento na área de gestão.',
+    cvUrl: 'https://drive.google.com/exemplo-curriculo-maria',
+    cvFile: null,
+    cvDriveUrl: '',
+    cvType: 'url',
+    portfolioUrl: '',
+    portfolioFile: null,
+    portfolioDriveUrl: '',
+    portfolioType: 'url'
+  };
+};
 
 const PublicCandidateForm = () => {
   const navigate = useNavigate();
@@ -712,9 +760,29 @@ const PublicCandidateForm = () => {
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                 1. Identificação e Contato
               </h2>
-              <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm">
+              <p className="text-gray-600 dark:text-gray-300 mb-2 text-sm">
                 Vamos começar pelas suas informações pessoais.
               </p>
+              <div className="flex flex-wrap items-center gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(getTestFormData());
+                    setCitySearchTerm('Porto Alegre');
+                    setShowCityCustom(false);
+                    setShowSourceCustom(false);
+                    setErrors({});
+                    setFieldErrors({});
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border border-young-orange text-young-orange rounded-lg hover:bg-young-orange hover:text-white transition-colors"
+                >
+                  <FlaskConical size={16} />
+                  Preencher com dados de teste
+                </button>
+                <Link to="/apply/test" className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-young-orange">
+                  Ou enviar direto pelo teste de envio →
+                </Link>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
