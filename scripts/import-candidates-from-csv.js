@@ -110,6 +110,8 @@ function toDbRow(record, normalizers) {
   row.status = row.status || 'Inscrito';
   row.origin = row.origin || 'csv_import';
   row.created_by = row.created_by || 'Importação CSV';
+  // Tabela exige phone NOT NULL: usar string vazia quando faltar
+  if (row.phone == null || row.phone === '') row.phone = '';
   return row;
 }
 

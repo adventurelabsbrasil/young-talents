@@ -548,13 +548,13 @@ export default function CsvImportModal({ isOpen, onClose, onImportData, existing
     setStep(4); // Vai para tela de validação
   };
 
-  const finishImport = () => {
+  const finishImport = async () => {
     if (finalCandidates.length === 0) {
       alert('⚠️ Nenhum candidato válido para importar.');
       return;
     }
 
-    onImportData(finalCandidates, importMode);
+    await onImportData(finalCandidates, importMode);
     onClose();
   };
 

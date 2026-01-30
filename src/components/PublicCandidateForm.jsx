@@ -137,7 +137,8 @@ const PublicCandidateForm = () => {
       try {
         const { data, error } = await supabase
           .from('candidates')
-          .select('id, email');
+          .select('id, email')
+          .range(0, 9999);
         
         if (error) throw error;
         setExistingCandidates(data || []);

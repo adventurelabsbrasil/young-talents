@@ -1973,8 +1973,13 @@ export default function App() {
   }, [user]);
 
   // Carregar candidatos do Supabase (view public.candidates → young_talents.candidates)
+  // Supabase retorna no máximo 1000 linhas por padrão; usamos range para trazer até 10.000
   const loadCandidates = React.useCallback(async () => {
-    const { data, error } = await supabase.from('candidates').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('candidates')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(0, 9999);
     if (error) {
       console.error('Erro ao carregar candidatos:', error);
       return;
@@ -2894,36 +2899,78 @@ export default function App() {
         onImportData={async (candidatesData, importMode) => {
           setIsSaving(true);
           try {
-            const BATCH_SIZE = 400; // Limite do Firestore é 500, usamos 400 para segurança
+            const BATCH_SIZE = 100;
             let imported = 0;
             let skipped = 0;
             let updated = 0;
             let duplicated = 0;
 
-            // TODO: Migrar para Supabase
-            console.log('CSV import:', { candidatesData, importMode });
-            showToast('Importação precisa ser migrada para Supabase', 'error');
-            setIsSaving(false);
-            return;
-            
-            // Registra histórico da importação
+            // Helper: link Drive -> URL direta para exibição
+            const driveLinkToDirect = (url) => {
+              if (!url || typeof url !== 'string') return url;
+              const m = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/i) || url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+              return m ? `https://drive.google.com/uc?export=view&id=${m[1]}` : url;
+            };
+
+            const rows = candidatesData
+              .filter(c => c && c.email)
+              .map(c => {
+                const payload = candidateToSupabase(c);
+                delete payload.id;
+                payload.phone = payload.phone ?? '';
+                payload.origin = 'csv_import';
+                payload.created_by = effectiveUser?.email || 'Importação CSV';
+                payload.original_timestamp = c.original_timestamp || c.createdAt || null;
+                if (payload.photo_url) payload.photo_url = driveLinkToDirect(payload.photo_url);
+                payload.tags = Array.isArray(payload.tags) ? payload.tags : (payload.tags ? [payload.tags] : []);
+                return payload;
+              });
+
+            for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+              const chunk = rows.slice(i, i + BATCH_SIZE);
+              const { error } = await supabase.from('candidates').insert(chunk);
+              if (error) {
+                if (error.code === '23505') {
+                  for (const row of chunk) {
+                    const { error: oneErr } = await supabase.from('candidates').insert([row]);
+                    if (oneErr && oneErr.code === '23505') {
+                      duplicated++;
+                    } else if (oneErr) {
+                      skipped++;
+                    } else {
+                      imported++;
+                    }
+                  }
+                } else {
+                  skipped += chunk.length;
+                  console.error('Erro no lote CSV:', error.message);
+                }
+              } else {
+                imported += chunk.length;
+              }
+            }
+
+            await loadCandidates();
+
             const totalAffected = imported + updated + duplicated;
             if (totalAffected > 0) {
-              await recordActionHistory({
-                action: 'importação_csv',
-                collection: 'candidates',
-                recordsAffected: totalAffected,
-                details: {
-                  imported,
-                  updated,
-                  duplicated,
-                  skipped,
-                  importMode,
-                  totalProcessed: candidatesData.length
-                }
-              });
+              try {
+                await recordActionHistory({
+                  action: 'importação_csv',
+                  col: 'candidates',
+                  recordsAffected: totalAffected,
+                  details: {
+                    imported,
+                    updated,
+                    duplicated,
+                    skipped,
+                    importMode,
+                    totalProcessed: candidatesData.length
+                  }
+                });
+              } catch (_) { /* histórico opcional */ }
             }
-            
+
             const message = `Importação concluída! ${imported} novos, ${updated} atualizados, ${duplicated} duplicados, ${skipped} ignorados.`;
             showToast(message, 'success');
             closeCsvModal();
