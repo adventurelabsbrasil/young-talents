@@ -112,6 +112,7 @@ const PublicCandidateForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [existingCandidates, setExistingCandidates] = useState([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [citySearchTerm, setCitySearchTerm] = useState('');
   const [showCityCustom, setShowCityCustom] = useState(false);
   const [showSourceCustom, setShowSourceCustom] = useState(false);
@@ -513,6 +514,14 @@ const PublicCandidateForm = () => {
             (!formData.interestAreasOther || formData.interestAreasOther.trim() === '')) {
           stepErrors.interestAreas = 'Áreas de interesse são obrigatórias';
         }
+        if (!formData.cvUrl || formData.cvUrl.trim() === '') {
+          stepErrors.cvUrl = 'Currículo é obrigatório';
+        } else {
+          const cvValidation = validateAllowedDomain(formData.cvUrl);
+          if (!cvValidation.valid) {
+            stepErrors.cvUrl = cvValidation.message;
+          }
+        }
         break;
       case 4: // Processo e Fit Cultural
         if ((!formData.source || formData.source.trim() === '') && 
@@ -536,14 +545,6 @@ const PublicCandidateForm = () => {
         }
         break;
       case 5: // Anexos
-        if (!formData.cvUrl || formData.cvUrl.trim() === '') {
-          stepErrors.cvUrl = 'Currículo é obrigatório';
-        } else {
-          const cvValidation = validateAllowedDomain(formData.cvUrl);
-          if (!cvValidation.valid) {
-            stepErrors.cvUrl = cvValidation.message;
-          }
-        }
         if (formData.photoUrl && formData.photoUrl.trim() !== '') {
           const photoValidation = validateAllowedDomain(formData.photoUrl);
           if (!photoValidation.valid) {
@@ -604,9 +605,7 @@ const PublicCandidateForm = () => {
     validateEmail(formData.email).valid &&
     checkDuplicateEmail(formData.email, existingCandidates).isDuplicate;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
+  const submitForm = async () => {
     // Rate limiting (Segurança Adicional - FIREBASE_SECURITY_FORM.md)
     const lastSubmit = localStorage.getItem('lastFormSubmit');
     if (lastSubmit) {
@@ -720,6 +719,19 @@ const PublicCandidateForm = () => {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Validar antes de mostrar modal
+    if (!validateForm()) {
+      setCurrentStep(1); // Volta para o primeiro passo se houver erro
+      return;
+    }
+
+    // Mostrar modal de confirmação
+    setShowConfirmModal(true);
+  };
+
   const mainSources = getMainSourcesOptions();
   const mainInterestAreas = getMainInterestAreasOptions();
 
@@ -827,11 +839,6 @@ const PublicCandidateForm = () => {
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Campos marcados com <span className="text-red-500">*</span> são obrigatórios
-          </p>
-          <p className="text-sm mt-3">
-            <Link to="/apply/test" className="inline-flex items-center gap-1.5 text-young-orange hover:underline font-medium">
-              Teste de envio (validar Supabase)
-            </Link>
           </p>
         </div>
 
@@ -1303,6 +1310,14 @@ const PublicCandidateForm = () => {
                   </div>
                   {errors.interestAreas && <p className="text-red-500 text-xs mt-1">{errors.interestAreas}</p>}
                 </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Currículo <span className="text-red-500">*</span>
+                  </label>
+                  {renderAttachmentField('cv', 'Currículo', 'cv')}
+                  {errors.cvUrl && <p className="text-red-500 text-xs mt-1">{errors.cvUrl}</p>}
+                </div>
               </div>
             </section>
           )}
@@ -1334,7 +1349,7 @@ const PublicCandidateForm = () => {
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                       >
                         <option value="">Selecione...</option>
-                        {mainSources.map(source => (
+                        {mainSources.filter(source => source.name !== 'Outros').map(source => (
                           <option key={source.id} value={source.name}>{source.name}</option>
                         ))}
                         <option value="outro">Outro (especifique)</option>
@@ -1479,12 +1494,8 @@ const PublicCandidateForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Currículo <span className="text-red-500">*</span>
+                    Portfólio (opcional)
                   </label>
-                  {renderAttachmentField('cv', 'Currículo', 'cv')}
-                  {errors.cvUrl && <p className="text-red-500 text-xs mt-1">{errors.cvUrl}</p>}
-                </div>
-                <div>
                   {renderAttachmentField('portfolio', 'Portfólio', 'portfolio')}
                 </div>
               </div>
@@ -1532,6 +1543,42 @@ const PublicCandidateForm = () => {
             )}
           </div>
         </form>
+
+        {/* Modal de Confirmação */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertCircle className="w-6 h-6 text-amber-500" />
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Confirmar Envio
+                </h3>
+              </div>
+              <p className="text-gray-700 dark:text-gray-300 mb-6">
+                Você conferiu todas as informações e tem certeza que deseja enviar o formulário?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmModal(false)}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    submitForm();
+                  }}
+                  className="px-4 py-2 bg-young-orange hover:bg-young-orange-hover text-white rounded-lg font-medium transition-colors"
+                >
+                  Sim, tenho certeza
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-8 text-center">© 2025 Young Empreendimentos</p>
       </div>
