@@ -184,10 +184,35 @@ const PublicCandidateForm = () => {
           .select('*')
           .order('name');
         
-        if (error) throw error;
-        setCitiesFromDB(data || []);
+        if (error) {
+          console.warn('Erro ao carregar cidades do banco:', error);
+          // Se não houver cidades no banco, usar lista padrão do RS
+          const rsCities = getAllRSCities();
+          setCitiesFromDB(rsCities.map((cityName, idx) => ({
+            id: `rs_${idx}`,
+            name: cityName // Já está no formato "Cidade/RS"
+          })));
+        } else {
+          // Se houver cidades no banco, usar elas
+          if (data && data.length > 0) {
+            setCitiesFromDB(data);
+          } else {
+            // Se não houver cidades, usar lista padrão do RS como fallback
+            const rsCities = getAllRSCities();
+            setCitiesFromDB(rsCities.map((cityName, idx) => ({
+              id: `rs_${idx}`,
+              name: cityName // Já está no formato "Cidade/RS"
+            })));
+          }
+        }
       } catch (error) {
         console.error('Erro ao carregar cidades:', error);
+        // Fallback para lista do RS
+        const rsCities = getAllRSCities();
+        setCitiesFromDB(rsCities.map((cityName, idx) => ({
+          id: `rs_${idx}`,
+          name: cityName // Já está no formato "Cidade/RS"
+        })));
       }
     };
     loadCities();
@@ -657,18 +682,18 @@ const PublicCandidateForm = () => {
         created_at: new Date().toISOString()
       };
 
-      // Remover campos vazios/null
+      // Remover campos vazios/null e garantir que não há campos não existentes na tabela
       Object.keys(normalizedData).forEach(key => {
         if (normalizedData[key] === '' || normalizedData[key] === null || normalizedData[key] === undefined) {
           delete normalizedData[key];
         }
       });
-
-      // Gerar ID único para este envio
-      const submissionId = `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      normalizedData.submission_id = submissionId;
+      
+      // Garantir que não há submission_id (caso tenha sido adicionado em algum lugar)
+      delete normalizedData.submission_id;
 
       // Enviar para Supabase (view public.candidates redireciona para young_talents.candidates)
+      // O ID gerado automaticamente pelo Supabase será usado para identificar este envio
       const { data: insertedData, error } = await supabase
         .from('candidates')
         .insert([normalizedData])
@@ -677,8 +702,7 @@ const PublicCandidateForm = () => {
       
       if (error) throw error;
       
-      // O ID retornado pelo Supabase será usado para identificar este envio
-      console.log('Candidato criado com ID:', insertedData?.id, 'Submission ID:', submissionId);
+      console.log('Candidato criado com ID:', insertedData?.id);
 
       localStorage.setItem('lastFormSubmit', Date.now().toString());
       setSubmitSuccess(true);
@@ -1034,11 +1058,17 @@ const PublicCandidateForm = () => {
                           } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                         >
                           <option value="">Selecione uma cidade...</option>
-                          {citiesFromDB.map((city) => (
-                            <option key={city.id} value={city.state ? `${city.name}/${city.state}` : city.name}>
-                              {city.state ? `${city.name}/${city.state}` : city.name}
-                            </option>
-                          ))}
+                          {citiesFromDB.map((city) => {
+                            // Se a cidade já está no formato "Nome/UF", usa direto
+                            // Se não, assume que é apenas o nome e precisa adicionar /RS
+                            const cityValue = city.name?.includes('/') ? city.name : `${city.name}/RS`;
+                            const cityDisplay = city.name?.includes('/') ? city.name : `${city.name}/RS`;
+                            return (
+                              <option key={city.id} value={cityValue}>
+                                {cityDisplay}
+                              </option>
+                            );
+                          })}
                         </select>
                         <button
                           type="button"
