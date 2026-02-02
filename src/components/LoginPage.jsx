@@ -29,14 +29,33 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const { error: err } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+      // Obter URL atual para redirecionamento após OAuth
+      const redirectUrl = window.location.origin + '/dashboard';
+      
+      const { data, error: err } = await supabase.auth.signInWithOAuth({ 
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+      
       if (err) throw err;
-      // Redirect is handled by OAuth flow
+      
+      // O redirect é gerenciado pelo fluxo OAuth do Supabase
+      // O usuário será redirecionado para Google, depois volta para redirectTo
+      // Não precisamos fazer nada aqui, o Supabase cuida do fluxo
+      
     } catch (err) {
-      setError(err?.message || 'Erro ao entrar com Google.');
-    } finally {
+      console.error('Erro no login com Google:', err);
+      setError(err?.message || 'Erro ao entrar com Google. Verifique se o Google OAuth está configurado no Supabase.');
       setLoading(false);
     }
+    // Nota: não resetamos loading aqui porque o usuário será redirecionado
+    // Se houver erro, já resetamos no catch
   };
 
   return (

@@ -1918,15 +1918,28 @@ export default function App() {
   const activityLogUnavailableRef = React.useRef(false);
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   
+  // Verificar se usuário é desenvolvedor (baseado em email ou flag)
+  const isDeveloper = useMemo(() => {
+    if (!effectiveUser?.email) return false;
+    // Verificar se é DEV_USER ou email de desenvolvedor
+    const devEmails = ['dev@local', 'dev@adventurelabs.com.br', 'developer@adventurelabs.com.br'];
+    return effectiveUser.email === DEV_USER.email || devEmails.includes(effectiveUser.email.toLowerCase());
+  }, [effectiveUser]);
+  
   // Role do usuário atual (admin, editor, viewer) — exibido na UI como Administrador, Recrutador, Visualizador
   const currentUserRole = useMemo(() => {
     if (!effectiveUser?.email) return 'viewer';
+    // Desenvolvedores têm permissões de admin
+    if (isDeveloper) return 'admin';
     const userRoleDoc = userRoles.find(r => r.email === effectiveUser.email);
     return userRoleDoc?.role || 'admin'; // Primeiro usuário é admin por padrão
-  }, [effectiveUser, userRoles]);
+  }, [effectiveUser, userRoles, isDeveloper]);
   
   // Verificar permissões
   const hasPermission = (action) => {
+    // Desenvolvedores têm todas as permissões
+    if (isDeveloper) return true;
+    
     const permissions = {
       admin: ['all'],
       editor: ['view', 'edit_candidates', 'move_pipeline', 'schedule_interviews', 'add_notes'],
@@ -2038,28 +2051,76 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  // Sync user_roles do Supabase; manter pelo menos o usuário atual no dropdown de recrutador
+  // Sync user_roles do Supabase; sincronizar dados do usuário após login
   useEffect(() => {
     if (!supabase) return;
     if (!user || user.email === DEV_USER.email) return;
-    if (!supabase) return;
+    
     (async () => {
-      const { data, error } = await supabase.from('user_roles').select('*');
-      if (!error && data && data.length > 0) {
-        setUserRoles(data);
-      } else {
-        // Garantir que o usuário atual apareça no dropdown de recrutador
-        setUserRoles(prev => {
-          const hasCurrent = prev.some(r => r.email === user?.email);
-          if (hasCurrent) return prev;
-          return [{ email: user.email, name: user.user_metadata?.full_name || user.user_metadata?.name || '', role: 'editor' }, ...prev];
-        });
+      try {
+        const schema = () => supabase.schema('young_talents');
+        
+        // Carregar todos os user_roles
+        const { data, error } = await schema().from('user_roles').select('*').order('created_at', { ascending: false });
+        
+        if (!error && data) {
+          setUserRoles(data);
+          
+          // Sincronizar dados do usuário atual se necessário
+          const currentUserRole = data.find(r => r.email === user.email);
+          if (currentUserRole && user.id) {
+            // Atualizar user_id, name e photo se necessário
+            const needsUpdate = 
+              currentUserRole.user_id !== user.id ||
+              (user.user_metadata?.full_name || user.user_metadata?.name) !== currentUserRole.name ||
+              (user.user_metadata?.avatar_url || user.user_metadata?.picture) !== currentUserRole.photo;
+            
+            if (needsUpdate) {
+              const { error: updateError } = await schema()
+                .from('user_roles')
+                .update({
+                  user_id: user.id,
+                  name: user.user_metadata?.full_name || user.user_metadata?.name || currentUserRole.name,
+                  photo: user.user_metadata?.avatar_url || user.user_metadata?.picture || currentUserRole.photo,
+                  last_login: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', currentUserRole.id);
+              
+              if (!updateError) {
+                // Recarregar após atualização
+                const { data: updatedData } = await schema().from('user_roles').select('*').order('created_at', { ascending: false });
+                if (updatedData) setUserRoles(updatedData);
+              }
+            }
+          }
+        } else if (error) {
+          console.error('Erro ao carregar user_roles:', error);
+          // Em caso de erro, manter estado anterior ou array vazio
+          if (error.code !== 'PGRST116' && error.code !== '42P01') {
+            // Erro não é de tabela não encontrada, logar
+            console.warn('Não foi possível carregar user_roles:', error.message);
+          }
+        }
+        
+        // Subscribe para mudanças em tempo real
+        const sub = supabase
+          .channel('user_roles_changes')
+          .on('postgres_changes', 
+            { event: '*', schema: 'young_talents', table: 'user_roles' }, 
+            async () => {
+              const { data: d } = await schema().from('user_roles').select('*').order('created_at', { ascending: false });
+              if (d) setUserRoles(d);
+            }
+          )
+          .subscribe();
+        
+        return () => {
+          sub.unsubscribe();
+        };
+      } catch (err) {
+        console.error('Erro ao sincronizar user_roles:', err);
       }
-      const sub = supabase.channel('user_roles_changes').on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, async () => {
-        const { data: d } = await supabase.from('user_roles').select('*');
-        if (d && d.length > 0) setUserRoles(d);
-      }).subscribe();
-      return () => sub.unsubscribe();
     })();
   }, [user]);
 
@@ -2662,21 +2723,86 @@ export default function App() {
       return;
     }
     
+    if (!supabase) {
+      showToast('Erro de conexão com o servidor', 'error');
+      return;
+    }
+    
     try {
-      const existingRole = userRoles.find(r => r.email === email);
+      const normalizedEmail = email.trim().toLowerCase();
+      const existingRole = userRoles.find(r => r.email === normalizedEmail);
+      
+      const schema = () => supabase.schema('young_talents');
       
       if (existingRole) {
-        // TODO: Migrar para Supabase
-        console.log('Update user role:', { existingRole, role, userName });
+        // Atualizar role existente
+        const { error } = await schema()
+          .from('user_roles')
+          .update({
+            role: role,
+            name: userName || existingRole.name || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingRole.id);
+        
+        if (error) {
+          // Se erro de constraint ou RLS, tentar por email
+          if (error.code === '42501' || error.message?.includes('policy')) {
+            throw new Error('Você não tem permissão para atualizar este usuário');
+          }
+          throw error;
+        }
+        
+        showToast(`Permissão de ${normalizedEmail} atualizada para ${role}`, 'success');
       } else {
-        // TODO: Migrar para Supabase
-        console.log('Create user role:', { email, role, userName });
+        // Criar novo registro (user_id será NULL até o primeiro login)
+        const { error } = await schema()
+          .from('user_roles')
+          .insert({
+            email: normalizedEmail,
+            name: userName || null,
+            role: role,
+            user_id: null, // Será preenchido automaticamente no primeiro login
+            created_at: new Date().toISOString()
+          });
+        
+        if (error) {
+          // Se erro de constraint unique (email duplicado), tentar atualizar
+          if (error.code === '23505') {
+            const { error: updateError } = await schema()
+              .from('user_roles')
+              .update({
+                role: role,
+                name: userName || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('email', normalizedEmail);
+            
+            if (updateError) throw updateError;
+            showToast(`Permissão de ${normalizedEmail} atualizada para ${role}`, 'success');
+          } else if (error.code === '42501' || error.message?.includes('policy')) {
+            throw new Error('Você não tem permissão para criar este usuário');
+          } else {
+            throw error;
+          }
+        } else {
+          showToast(`Usuário ${normalizedEmail} adicionado com perfil ${role}`, 'success');
+        }
       }
       
-      showToast(`Permissão de ${email} atualizada para ${role}`, 'success');
+      // Recarregar lista de usuários
+      const { data: updatedRoles, error: fetchError } = await schema()
+        .from('user_roles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (!fetchError && updatedRoles) {
+        setUserRoles(updatedRoles);
+      }
+      
     } catch (error) {
       console.error('Erro ao definir role:', error);
-      showToast('Erro ao atualizar permissão', 'error');
+      showToast('Erro ao atualizar permissão: ' + (error.message || 'Erro desconhecido'), 'error');
     }
   };
   
@@ -2689,13 +2815,41 @@ export default function App() {
     
     if (!window.confirm('Remover acesso deste usuário?')) return;
     
+    if (!supabase) {
+      showToast('Erro de conexão com o servidor', 'error');
+      return;
+    }
+    
     try {
-      // TODO: Migrar para Supabase
-      console.log('Remove user role:', { roleId });
+      const schema = () => supabase.schema('young_talents');
+      
+      const { error } = await schema()
+        .from('user_roles')
+        .delete()
+        .eq('id', roleId);
+      
+      if (error) {
+        if (error.code === '42501' || error.message?.includes('policy')) {
+          throw new Error('Você não tem permissão para remover este usuário');
+        }
+        throw error;
+      }
+      
       showToast('Acesso removido', 'success');
+      
+      // Recarregar lista de usuários
+      const { data: updatedRoles, error: fetchError } = await schema()
+        .from('user_roles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (!fetchError && updatedRoles) {
+        setUserRoles(updatedRoles);
+      }
+      
     } catch (error) {
       console.error('Erro ao remover usuário:', error);
-      showToast('Erro ao remover acesso', 'error');
+      showToast('Erro ao remover acesso: ' + (error.message || 'Erro desconhecido'), 'error');
     }
   };
 
