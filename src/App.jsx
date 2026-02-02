@@ -2042,6 +2042,7 @@ export default function App() {
   useEffect(() => {
     if (!supabase) return;
     if (!user || user.email === DEV_USER.email) return;
+    if (!supabase) return;
     (async () => {
       const { data, error } = await supabase.from('user_roles').select('*');
       if (!error && data && data.length > 0) {
@@ -2089,7 +2090,8 @@ export default function App() {
         hasMore = chunk.length >= PAGE_SIZE;
         offset += PAGE_SIZE;
       }
-      setCandidates(mapCandidatesFromSupabase(allRows));
+      const mapped = mapCandidatesFromSupabase(allRows);
+      setCandidates(mapped);
     } catch (e) {
       console.error('Erro ao carregar candidatos:', e);
       setCandidates([]);
@@ -2100,43 +2102,51 @@ export default function App() {
   }, []);
 
   // Carregar jobs, companies, cities, sectors, positions, applications do schema young_talents
-  const schema = () => supabase.schema('young_talents');
+  const schema = () => supabase?.schema('young_talents');
   const loadJobs = React.useCallback(async () => {
+    if (!supabase) return;
     const { data, error } = await schema().from('jobs').select('*').order('created_at', { ascending: false });
     if (!error) setJobs(mapJobsFromSupabase(data ?? []));
     else console.error('Erro ao carregar vagas:', error);
   }, []);
   const loadCompanies = React.useCallback(async () => {
+    if (!supabase) return;
     const { data, error } = await schema().from('companies').select('*').order('name');
     if (!error) setCompanies(mapCompaniesFromSupabase(data ?? []));
     else console.error('Erro ao carregar empresas:', error);
   }, []);
   const loadCities = React.useCallback(async () => {
+    if (!supabase) return;
     const { data, error } = await schema().from('cities').select('*').order('name');
     if (!error) setCities(mapCitiesFromSupabase(data ?? []));
     else console.error('Erro ao carregar cidades:', error);
   }, []);
   const loadSectors = React.useCallback(async () => {
+    if (!supabase) return;
     const { data, error } = await schema().from('sectors').select('*').order('name');
     if (!error) setSectors(mapSectorsFromSupabase(data ?? []));
     else console.error('Erro ao carregar setores:', error);
   }, []);
   const loadRoles = React.useCallback(async () => {
+    if (!supabase) return;
     const { data, error } = await schema().from('positions').select('*').order('name');
     if (!error) setRoles(mapPositionsFromSupabase(data ?? []));
     else console.error('Erro ao carregar cargos:', error);
   }, []);
   const loadJobLevels = React.useCallback(async () => {
+    if (!supabase) return;
     const { data, error } = await schema().from('job_levels').select('*').order('name');
     if (!error) setJobLevels(mapJobLevelsFromSupabase(data ?? []));
     else console.error('Erro ao carregar níveis de cargo:', error);
   }, []);
   const loadActivityAreas = React.useCallback(async () => {
+    if (!supabase) return;
     const { data, error } = await schema().from('activity_areas').select('*').order('name');
     if (!error) setActivityAreas(mapActivityAreasFromSupabase(data ?? []));
     else console.error('Erro ao carregar áreas de atuação:', error);
   }, []);
   const loadApplications = React.useCallback(async () => {
+    if (!supabase) return;
     const { data, error } = await schema().from('applications').select('*').order('created_at', { ascending: false });
     if (!error) setApplications(mapApplicationsFromSupabase(data ?? []));
     else console.error('Erro ao carregar candidaturas:', error);
@@ -2147,9 +2157,18 @@ export default function App() {
       setActivityLog([]);
       return;
     }
+    if (!supabase) {
+      activityLogUnavailableRef.current = true;
+      setActivityLog([]);
+      return;
+    }
     try {
       const { data, error } = await supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(500);
       if (error) {
+        // Suprimir erro 404 (tabela não existe) - é esperado se a migration não foi executada
+        if (error.code !== 'PGRST116' && error.code !== '42P01') {
+          console.warn('[ActivityLog] Erro ao carregar:', error.message);
+        }
         activityLogUnavailableRef.current = true;
         setActivityLog([]);
         return;
@@ -2192,6 +2211,7 @@ export default function App() {
     if (!effectiveUser) return;
     loadAllData();
     if (currentUserRole === 'admin') loadActivityLog();
+    if (!supabase) return;
     const channel = supabase
       .channel('candidates_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'young_talents', table: 'candidates' }, () => {
@@ -2205,11 +2225,12 @@ export default function App() {
       })
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      if (supabase) supabase.removeChannel(channel);
     };
   }, [effectiveUser, loadAllData, loadActivityLog, currentUserRole]);
 
   const handleSaveGeneric = async (col, d, closeFn) => {
+    if (!supabase) return;
     const schema = () => supabase.schema('young_talents');
     try {
       if (col === 'jobs') {
@@ -2331,6 +2352,7 @@ export default function App() {
 
   const handleDeleteGeneric = async (col, id) => {
     if (!window.confirm('Tem certeza que deseja excluir este item?')) return;
+    if (!supabase) return;
     const schema = () => supabase.schema('young_talents');
     try {
       if (col === 'jobs') {
@@ -2732,7 +2754,8 @@ export default function App() {
   // Candidatos sem email usam chave por id para não serem perdidos na deduplicação.
   const uniqueCandidatesByEmail = useMemo(() => {
     const byKey = {};
-    candidates.filter(c => !c.deletedAt).forEach(c => {
+    const filtered = candidates.filter(c => !c.deletedAt);
+    filtered.forEach(c => {
       const key = (c.email != null && String(c.email).trim() !== '') ? c.email : `no-email-${c.id}`;
       const ts = getCandidateTimestamp(c) || (c.createdAt ? new Date(c.createdAt).getTime() / 1000 : 0);
       if (!byKey[key] || (getCandidateTimestamp(byKey[key]) || 0) < ts) byKey[key] = c;
@@ -2754,8 +2777,8 @@ export default function App() {
     };
 
     Object.keys(filters).forEach(key => {
-       if(filters[key] !== 'all' && filters[key] !== '') {
-          if (key === 'createdAtPreset' || key === 'customDateStart' || key === 'customDateEnd' || key === 'tags') return;
+       if(filters[key] !== 'all' && filters[key] !== '' && filters[key] !== null && filters[key] !== undefined) {
+          if (key === 'createdAtPreset' || key === 'customDateStart' || key === 'customDateEnd' || key === 'tags' || key === 'dashboardFilter') return;
           
           // Suporta arrays para seleção múltipla
           if (Array.isArray(filters[key])) {
@@ -2763,7 +2786,7 @@ export default function App() {
               data = data.filter(c => filters[key].includes(c[key]));
             }
           } else {
-          data = data.filter(c => c[key] === filters[key]);
+            data = data.filter(c => c[key] === filters[key]);
           }
        }
     });
@@ -3169,6 +3192,10 @@ export default function App() {
         onClose={closeCsvModal}
         existingCandidates={candidates}
         onImportData={async (candidatesData, importMode) => {
+          if (!supabase) {
+            showToast('Supabase não configurado. Configure as variáveis de ambiente.', 'error');
+            return;
+          }
           setIsSaving(true);
           try {
             const BATCH_SIZE = 100;

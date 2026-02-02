@@ -9,7 +9,7 @@ SELECT
   experience, courses, certifications, interest_areas, cv_url, portfolio_url,
   source, referral, salary_expectation, can_relocate, professional_references,
   type_of_app, free_field, status, tags, origin, created_by,
-  original_timestamp, created_at, updated_at
+  original_timestamp, created_at, updated_at, deleted_at
 FROM young_talents.candidates;
 
 -- Trigger INSTEAD OF INSERT
