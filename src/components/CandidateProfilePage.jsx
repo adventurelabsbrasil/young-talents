@@ -229,24 +229,25 @@ export default function CandidateProfilePage({
       console.log('Save candidate:', { id, editData, changes });
 
       // Registra cada alteração no log
-      if (user && changes.length > 0) {
-        for (const change of changes) {
-          await recordChange(
-            change.field,
-            change.oldValue,
-            change.newValue,
-            user.email,
-            user.displayName || user.email
-          );
-        }
-      }
+      // TODO: Implementar registro de alterações quando migrar para Supabase
+      // if (user && changes.length > 0) {
+      //   for (const change of changes) {
+      //     await recordChange(
+      //       change.field,
+      //       change.oldValue,
+      //       change.newValue,
+      //       user.email,
+      //       user.displayName || user.email
+      //     );
+      //   }
+      // }
 
       // Atualiza estado local
-      setCandidate({ ...candidate, ...updateData });
+      setCandidate({ ...candidate, ...editData });
       setIsEditing(false);
       
       if (onUpdateCandidate) {
-        onUpdateCandidate({ id, ...updateData });
+        onUpdateCandidate({ id, ...editData });
       }
     } catch (error) {
       console.error('Erro ao salvar:', error);
@@ -455,13 +456,13 @@ export default function CandidateProfilePage({
                       </p>
                     </div>
                   </div>
-                  {candidate.email_secondary && (
+                  {candidate.emailSecondary && (
                     <div className="flex items-center gap-3">
                       <Mail size={16} className="text-gray-400" />
                       <div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">E-mail Secundário</p>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {candidate.email_secondary}
+                          {candidate.emailSecondary}
                         </p>
                       </div>
                     </div>
@@ -630,12 +631,12 @@ export default function CandidateProfilePage({
                 {isEditing ? (
                   <input
                     type="email"
-                    value={editData.email_secondary || ''}
-                    onChange={(e) => handleFieldChange('email_secondary', e.target.value)}
+                    value={editData.emailSecondary || ''}
+                    onChange={(e) => handleFieldChange('emailSecondary', e.target.value)}
                     className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
                   />
                 ) : (
-                  <p className="text-gray-900 dark:text-white">{candidate.email_secondary || 'Não informado'}</p>
+                  <p className="text-gray-900 dark:text-white">{candidate.emailSecondary || 'Não informado'}</p>
                 )}
               </div>
               <div>
@@ -707,6 +708,38 @@ export default function CandidateProfilePage({
                   </select>
                 ) : (
                   <p className="text-gray-900 dark:text-white">{formatChildrenForDisplay(candidate.childrenCount) || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Data de Nascimento
+                </label>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={editData.birthDate || ''}
+                    onChange={(e) => handleFieldChange('birthDate', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.birthDate ? formatDate(candidate.birthDate) : 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Idade
+                </label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    value={editData.age || ''}
+                    onChange={(e) => handleFieldChange('age', e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    min="0"
+                    max="120"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.age ? `${candidate.age} anos` : 'Não informado'}</p>
                 )}
               </div>
               <div>
@@ -873,6 +906,119 @@ export default function CandidateProfilePage({
                   <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{candidate.courses || 'Não informado'}</p>
                 )}
               </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Certificações Adicionais
+                </label>
+                {isEditing ? (
+                  <textarea
+                    value={editData.certifications || ''}
+                    onChange={(e) => handleFieldChange('certifications', e.target.value)}
+                    rows={3}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    placeholder="Liste certificações adicionais"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{candidate.certifications || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Pretensão Salarial
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.salaryExpectation || ''}
+                    onChange={(e) => handleFieldChange('salaryExpectation', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    placeholder="Ex: R$ 3.000,00"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.salaryExpectation || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Pode se Relocar
+                </label>
+                {isEditing ? (
+                  <select
+                    value={editData.canRelocate || ''}
+                    onChange={(e) => handleFieldChange('canRelocate', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Selecione</option>
+                    <option value="Sim">Sim</option>
+                    <option value="Não">Não</option>
+                  </select>
+                ) : (
+                  <p className={`font-medium ${candidate.canRelocate === 'Sim' ? 'text-green-600 dark:text-green-400' : candidate.canRelocate === 'Não' ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>{candidate.canRelocate || 'Não informado'}</p>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Referências Profissionais
+                </label>
+                {isEditing ? (
+                  <textarea
+                    value={editData.professionalReferences || ''}
+                    onChange={(e) => handleFieldChange('professionalReferences', e.target.value)}
+                    rows={4}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    placeholder="Nome, empresa, telefone, e-mail"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{candidate.professionalReferences || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Tipo de Aplicação
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.typeOfApp || ''}
+                    onChange={(e) => handleFieldChange('typeOfApp', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.typeOfApp || 'Não informado'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Indicação
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.referral || ''}
+                    onChange={(e) => handleFieldChange('referral', e.target.value)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    placeholder="Nome de quem indicou"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{candidate.referral || 'Não informado'}</p>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Campo Livre
+                </label>
+                {isEditing ? (
+                  <textarea
+                    value={editData.freeField || ''}
+                    onChange={(e) => handleFieldChange('freeField', e.target.value)}
+                    rows={3}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white"
+                    placeholder="Informações adicionais"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{candidate.freeField || 'Não informado'}</p>
+                )}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Possui CNH Tipo B
@@ -1032,29 +1178,134 @@ export default function CandidateProfilePage({
 
             {/* Histórico de Movimentações */}
             <div>
-              <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+              <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <History size={18} />
-                Histórico de Movimentações ({candidateMovements.length})
+                Log de Movimentações no Funil ({candidateMovements.length})
               </h3>
               {candidateMovements.length > 0 ? (
-                <div className="space-y-2">
-                  {candidateMovements.map((movement, idx) => (
-                    <div key={movement.id || idx} className="border-l-4 border-blue-500 pl-4 py-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {movement.previousStatus || 'Inscrito'} → {movement.newStatus}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {formatTimestamp(movement.timestamp)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="relative">
+                  {/* Timeline vertical */}
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600"></div>
+                  
+                  <div className="space-y-4">
+                    {candidateMovements
+                      .sort((a, b) => {
+                        const tsA = a.timestamp?.seconds || a.timestamp?._seconds || (a.timestamp ? new Date(a.timestamp).getTime() / 1000 : 0);
+                        const tsB = b.timestamp?.seconds || b.timestamp?._seconds || (b.timestamp ? new Date(b.timestamp).getTime() / 1000 : 0);
+                        return tsB - tsA; // Mais recente primeiro
+                      })
+                      .map((movement, idx) => {
+                        const isContratado = movement.newStatus === 'Contratado';
+                        const isReprovado = movement.newStatus === 'Reprovado';
+                        const isDesistencia = movement.newStatus === 'Desistência';
+                        const isProgresso = PIPELINE_STAGES.includes(movement.newStatus) && 
+                                          PIPELINE_STAGES.indexOf(movement.newStatus) > 
+                                          (movement.previousStatus ? PIPELINE_STAGES.indexOf(movement.previousStatus) : -1);
+                        const isRegresso = PIPELINE_STAGES.includes(movement.newStatus) && 
+                                          PIPELINE_STAGES.indexOf(movement.newStatus) < 
+                                          (movement.previousStatus ? PIPELINE_STAGES.indexOf(movement.previousStatus) : 999);
+                        
+                        let iconColor = 'bg-blue-500';
+                        let borderColor = 'border-blue-500';
+                        let bgColor = 'bg-blue-50 dark:bg-blue-900/20';
+                        
+                        if (isContratado) {
+                          iconColor = 'bg-green-500';
+                          borderColor = 'border-green-500';
+                          bgColor = 'bg-green-50 dark:bg-green-900/20';
+                        } else if (isReprovado || isDesistencia) {
+                          iconColor = 'bg-red-500';
+                          borderColor = 'border-red-500';
+                          bgColor = 'bg-red-50 dark:bg-red-900/20';
+                        } else if (isProgresso) {
+                          iconColor = 'bg-green-500';
+                          borderColor = 'border-green-500';
+                          bgColor = 'bg-green-50 dark:bg-green-900/20';
+                        } else if (isRegresso) {
+                          iconColor = 'bg-yellow-500';
+                          borderColor = 'border-yellow-500';
+                          bgColor = 'bg-yellow-50 dark:bg-yellow-900/20';
+                        }
+                        
+                        return (
+                          <div key={movement.id || idx} className="relative pl-12">
+                            {/* Ícone na timeline */}
+                            <div className={`absolute left-0 top-1 w-8 h-8 rounded-full ${iconColor} border-4 border-white dark:border-gray-800 flex items-center justify-center z-10`}>
+                              {isContratado ? (
+                                <CheckCircle size={16} className="text-white" />
+                              ) : isReprovado || isDesistencia ? (
+                                <XCircle size={16} className="text-white" />
+                              ) : isProgresso ? (
+                                <TrendingUp size={16} className="text-white" />
+                              ) : (
+                                <ClockIcon size={16} className="text-white" />
+                              )}
+                            </div>
+                            
+                            {/* Card da movimentação */}
+                            <div className={`${bgColor} border-l-4 ${borderColor} rounded-lg p-4 shadow-sm`}>
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[movement.previousStatus] || 'bg-gray-500'} text-white`}>
+                                      {movement.previousStatus || 'Inscrito'}
+                                    </span>
+                                    <span className="text-gray-400 dark:text-gray-500">→</span>
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${STATUS_COLORS[movement.newStatus] || 'bg-gray-500'} text-white`}>
+                                      {movement.newStatus}
+                                    </span>
+                                  </div>
+                                  
+                                  {isContratado && (
+                                    <p className="text-sm font-semibold text-green-700 dark:text-green-400 mb-1">
+                                      ✓ Candidato Contratado
+                                    </p>
+                                  )}
+                                  {isReprovado && (
+                                    <p className="text-sm font-semibold text-red-700 dark:text-red-400 mb-1">
+                                      ✗ Candidato Reprovado
+                                    </p>
+                                  )}
+                                  {isDesistencia && (
+                                    <p className="text-sm font-semibold text-orange-700 dark:text-orange-400 mb-1">
+                                      ⚠ Candidato Desistiu
+                                    </p>
+                                  )}
+                                  {isProgresso && !isContratado && (
+                                    <p className="text-sm font-semibold text-green-700 dark:text-green-400 mb-1">
+                                      ↑ Progresso no Funil
+                                    </p>
+                                  )}
+                                  {isRegresso && (
+                                    <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400 mb-1">
+                                      ↓ Regresso no Funil
+                                    </p>
+                                  )}
+                                  
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    <ClockIcon size={12} className="inline mr-1" />
+                                    {formatTimestamp(movement.timestamp)}
+                                  </p>
+                                  
+                                  {movement.userId && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      Alterado por: {movement.userName || movement.userId}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
               ) : (
-                <p className="text-gray-500 dark:text-gray-400">Nenhuma movimentação registrada</p>
+                <div className="text-center py-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+                  <History size={48} className="mx-auto text-gray-400 dark:text-gray-500 mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400">Nenhuma movimentação registrada ainda</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">As mudanças de status no funil aparecerão aqui</p>
+                </div>
               )}
             </div>
           </div>

@@ -8,7 +8,7 @@ import { normalizeInterestAreasString, getMainInterestAreasOptions } from '../ut
 import { normalizeChildrenForStorage, CHILDREN_OPTIONS } from '../utils/childrenNormalizer';
 import { validateBirthDate } from '../utils/validation';
 import { getAllRSCities, searchRSCities } from '../utils/rsCities';
-import { Loader2, CheckCircle, AlertCircle, Send, ChevronRight, ChevronLeft, Upload, Link as LinkIcon, FileText, X, Check, Info, FlaskConical } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Send, ChevronRight, ChevronLeft, Link as LinkIcon, FileText, Check, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 // Dados realistas para preencher o formulário em modo teste (camelCase, datas DD/MM/YYYY)
@@ -79,9 +79,6 @@ const PublicCandidateForm = () => {
     city: '',
     cityCustom: '',
     photoUrl: '',
-    photoFile: null,
-    photoDriveUrl: '',
-    photoType: 'url', // 'url', 'file', 'drive'
     
     // Formação e Experiência
     education: '',
@@ -92,7 +89,8 @@ const PublicCandidateForm = () => {
     experience: '',
     courses: '',
     certifications: '',
-    interestAreas: '',
+    interestAreas: [],
+    interestAreasOther: '',
     
     // Processo e Fit Cultural
     source: '',
@@ -106,13 +104,7 @@ const PublicCandidateForm = () => {
     
     // Anexos
     cvUrl: '',
-    cvFile: null,
-    cvDriveUrl: '',
-    cvType: 'url', // 'url', 'file', 'drive'
-    portfolioUrl: '',
-    portfolioFile: null,
-    portfolioDriveUrl: '',
-    portfolioType: 'url' // 'url', 'file', 'drive'
+    portfolioUrl: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -124,11 +116,45 @@ const PublicCandidateForm = () => {
   const [showCityCustom, setShowCityCustom] = useState(false);
   const [showSourceCustom, setShowSourceCustom] = useState(false);
   const [filteredCities, setFilteredCities] = useState(getAllRSCities().slice(0, 50));
+  const [citiesFromDB, setCitiesFromDB] = useState([]);
+  const [showInterestAreasOther, setShowInterestAreasOther] = useState(false);
   
-  const fileInputRefs = {
-    photo: useRef(null),
-    cv: useRef(null),
-    portfolio: useRef(null)
+  // Domínios permitidos para uploads
+  const ALLOWED_DOMAINS = [
+    'drive.google.com',
+    'dropbox.com',
+    'icloud.com',
+    'onedrive.live.com',
+    'onedrive.com',
+    'box.com',
+    'wetransfer.com',
+    'mediafire.com'
+  ];
+
+  // Validar se a URL é de um domínio permitido
+  const validateAllowedDomain = (url) => {
+    if (!url || url.trim() === '') return { valid: true, message: '' };
+    
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.toLowerCase();
+      
+      // Verificar se o domínio está na lista permitida
+      const isAllowed = ALLOWED_DOMAINS.some(domain => 
+        hostname === domain || hostname.endsWith('.' + domain)
+      );
+      
+      if (!isAllowed) {
+        return {
+          valid: false,
+          message: `URL não permitida. Use links públicos de: Google Drive, Dropbox, iCloud, OneDrive, Box, WeTransfer ou MediaFire.`
+        };
+      }
+      
+      return { valid: true, message: '' };
+    } catch (e) {
+      return { valid: false, message: 'URL inválida' };
+    }
   };
 
   // Carregar candidatos existentes para verificação de duplicatas
@@ -147,6 +173,24 @@ const PublicCandidateForm = () => {
       }
     };
     loadCandidates();
+  }, []);
+
+  // Carregar cidades do banco de dados
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('cities')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        setCitiesFromDB(data || []);
+      } catch (error) {
+        console.error('Erro ao carregar cidades:', error);
+      }
+    };
+    loadCities();
   }, []);
 
   // Converter data de formato DD/MM/YYYY para YYYY-MM-DD
@@ -312,43 +356,69 @@ const PublicCandidateForm = () => {
     }
   };
 
-  // Manipular upload de arquivo
-  const handleFileChange = (field, file) => {
-    if (!file) return;
-    
-    // Validação de tamanho (5MB máximo)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      setFieldErrors(prev => ({ 
-        ...prev, 
-        [field]: 'Arquivo muito grande. Tamanho máximo: 5MB' 
-      }));
-      return;
+  // Validação em tempo real de URLs de anexos
+  useEffect(() => {
+    if (formData.photoUrl && formData.photoUrl.trim() !== '') {
+      const validation = validateAllowedDomain(formData.photoUrl);
+      if (!validation.valid) {
+        setFieldErrors(prev => ({ ...prev, photoUrl: validation.message }));
+      } else {
+        setFieldErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.photoUrl;
+          return newErrors;
+        });
+      }
+    } else {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.photoUrl;
+        return newErrors;
+      });
     }
-    
-    // Validação de formato
-    const allowedTypes = {
-      photo: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
-      cv: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-      portfolio: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-    };
-    
-    const fieldType = field.includes('photo') ? 'photo' : field.includes('cv') ? 'cv' : 'portfolio';
-    if (!allowedTypes[fieldType].includes(file.type)) {
-      setFieldErrors(prev => ({ 
-        ...prev, 
-        [field]: `Formato inválido. Aceitos: ${fieldType === 'photo' ? 'JPG, PNG, WEBP' : 'PDF, DOC, DOCX'}` 
-      }));
-      return;
+  }, [formData.photoUrl]);
+
+  useEffect(() => {
+    if (formData.cvUrl && formData.cvUrl.trim() !== '') {
+      const validation = validateAllowedDomain(formData.cvUrl);
+      if (!validation.valid) {
+        setFieldErrors(prev => ({ ...prev, cvUrl: validation.message }));
+      } else {
+        setFieldErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.cvUrl;
+          return newErrors;
+        });
+      }
+    } else {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.cvUrl;
+        return newErrors;
+      });
     }
-    
-    handleChange(field, file);
-    setFieldErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[field];
-      return newErrors;
-    });
-  };
+  }, [formData.cvUrl]);
+
+  useEffect(() => {
+    if (formData.portfolioUrl && formData.portfolioUrl.trim() !== '') {
+      const validation = validateAllowedDomain(formData.portfolioUrl);
+      if (!validation.valid) {
+        setFieldErrors(prev => ({ ...prev, portfolioUrl: validation.message }));
+      } else {
+        setFieldErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.portfolioUrl;
+          return newErrors;
+        });
+      }
+    } else {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.portfolioUrl;
+        return newErrors;
+      });
+    }
+  }, [formData.portfolioUrl]);
 
   const validateStep = (step) => {
     const stepErrors = {};
@@ -375,13 +445,92 @@ const PublicCandidateForm = () => {
           }
         }
         break;
-      case 2: // Dados Pessoais - sem campos obrigatórios
+      case 2: // Dados Pessoais
+        if (!formData.birthDate || formData.birthDate.trim() === '') {
+          stepErrors.birthDate = 'Data de nascimento é obrigatória';
+        }
+        if (!formData.maritalStatus || formData.maritalStatus.trim() === '') {
+          stepErrors.maritalStatus = 'Estado civil é obrigatório';
+        }
+        if (!formData.childrenCount || formData.childrenCount.trim() === '') {
+          stepErrors.childrenCount = 'Quantidade de filhos é obrigatória';
+        }
+        if (!formData.hasLicense || formData.hasLicense.trim() === '') {
+          stepErrors.hasLicense = 'Informação sobre CNH é obrigatória';
+        }
+        if ((!formData.city || formData.city.trim() === '') && (!formData.cityCustom || formData.cityCustom.trim() === '')) {
+          stepErrors.city = 'Cidade é obrigatória';
+        }
         break;
-      case 3: // Formação e Experiência - sem campos obrigatórios
+      case 3: // Formação e Experiência
+        if (!formData.education || formData.education.trim() === '') {
+          stepErrors.education = 'Formação é obrigatória';
+        }
+        if (!formData.schoolingLevel || formData.schoolingLevel.trim() === '') {
+          stepErrors.schoolingLevel = 'Nível de escolaridade é obrigatório';
+        }
+        if (!formData.institution || formData.institution.trim() === '') {
+          stepErrors.institution = 'Instituição de ensino é obrigatória';
+        }
+        if (!formData.graduationDate || formData.graduationDate.trim() === '') {
+          stepErrors.graduationDate = 'Data de formatura é obrigatória';
+        }
+        if (!formData.isStudying || formData.isStudying.trim() === '') {
+          stepErrors.isStudying = 'Informação sobre estudos atuais é obrigatória';
+        }
+        if (!formData.experience || formData.experience.trim() === '') {
+          stepErrors.experience = 'Experiências anteriores são obrigatórias';
+        }
+        if (!formData.courses || formData.courses.trim() === '') {
+          stepErrors.courses = 'Cursos e certificações são obrigatórios';
+        }
+        if ((!formData.interestAreas || (Array.isArray(formData.interestAreas) && formData.interestAreas.length === 0)) && 
+            (!formData.interestAreasOther || formData.interestAreasOther.trim() === '')) {
+          stepErrors.interestAreas = 'Áreas de interesse são obrigatórias';
+        }
         break;
-      case 4: // Processo e Fit Cultural - sem campos obrigatórios
+      case 4: // Processo e Fit Cultural
+        if ((!formData.source || formData.source.trim() === '') && 
+            (!formData.sourceCustom || formData.sourceCustom.trim() === '')) {
+          stepErrors.source = 'Origem é obrigatória';
+        }
+        if (!formData.salaryExpectation || formData.salaryExpectation.trim() === '') {
+          stepErrors.salaryExpectation = 'Expectativa salarial é obrigatória';
+        }
+        if (!formData.canRelocate || formData.canRelocate.trim() === '') {
+          stepErrors.canRelocate = 'Disponibilidade para mudança é obrigatória';
+        }
+        if (!formData.references || formData.references.trim() === '') {
+          stepErrors.references = 'Referências profissionais são obrigatórias';
+        }
+        if (!formData.typeOfApp || formData.typeOfApp.trim() === '') {
+          stepErrors.typeOfApp = 'Tipo de candidatura é obrigatório';
+        }
+        if (!formData.freeField || formData.freeField.trim() === '') {
+          stepErrors.freeField = 'Campo livre é obrigatório';
+        }
         break;
-      case 5: // Anexos - sem campos obrigatórios
+      case 5: // Anexos
+        if (!formData.cvUrl || formData.cvUrl.trim() === '') {
+          stepErrors.cvUrl = 'Currículo é obrigatório';
+        } else {
+          const cvValidation = validateAllowedDomain(formData.cvUrl);
+          if (!cvValidation.valid) {
+            stepErrors.cvUrl = cvValidation.message;
+          }
+        }
+        if (formData.photoUrl && formData.photoUrl.trim() !== '') {
+          const photoValidation = validateAllowedDomain(formData.photoUrl);
+          if (!photoValidation.valid) {
+            stepErrors.photoUrl = photoValidation.message;
+          }
+        }
+        if (formData.portfolioUrl && formData.portfolioUrl.trim() !== '') {
+          const portfolioValidation = validateAllowedDomain(formData.portfolioUrl);
+          if (!portfolioValidation.valid) {
+            stepErrors.portfolioUrl = portfolioValidation.message;
+          }
+        }
         break;
     }
     
@@ -476,7 +625,16 @@ const PublicCandidateForm = () => {
         experience: formData.experience || null,
         courses: formData.courses || null,
         certifications: formData.certifications || null,
-        interest_areas: formData.interestAreas ? normalizeInterestAreasString(formData.interestAreas) : null,
+        interest_areas: (() => {
+          let areas = [];
+          if (Array.isArray(formData.interestAreas) && formData.interestAreas.length > 0) {
+            areas = [...formData.interestAreas];
+          }
+          if (formData.interestAreasOther && formData.interestAreasOther.trim()) {
+            areas.push(...formData.interestAreasOther.split(',').map(a => a.trim()).filter(a => a));
+          }
+          return areas.length > 0 ? normalizeInterestAreasString(areas.join(', ')) : null;
+        })(),
         cv_url: formData.cvUrl || null,
         portfolio_url: formData.portfolioUrl || null,
         source: showSourceCustom && formData.sourceCustom
@@ -506,12 +664,21 @@ const PublicCandidateForm = () => {
         }
       });
 
+      // Gerar ID único para este envio
+      const submissionId = `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      normalizedData.submission_id = submissionId;
+
       // Enviar para Supabase (view public.candidates redireciona para young_talents.candidates)
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from('candidates')
-        .insert([normalizedData]);
+        .insert([normalizedData])
+        .select('id')
+        .single();
       
       if (error) throw error;
+      
+      // O ID retornado pelo Supabase será usado para identificar este envio
+      console.log('Candidato criado com ID:', insertedData?.id, 'Submission ID:', submissionId);
 
       localStorage.setItem('lastFormSubmit', Date.now().toString());
       setSubmitSuccess(true);
@@ -582,132 +749,38 @@ const PublicCandidateForm = () => {
     </div>
   );
 
-  // Renderizar campo de anexo (foto, CV ou portfólio)
+  // Renderizar campo de anexo (foto, CV ou portfólio) - apenas URL
   const renderAttachmentField = (fieldName, label, type) => {
     const urlField = `${fieldName}Url`;
-    const fileField = `${fieldName}File`;
-    const driveField = `${fieldName}DriveUrl`;
-    const typeField = `${fieldName}Type`;
-    const currentType = formData[typeField] || 'url';
     
     return (
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          {label}
-        </label>
+        <input
+          type="url"
+          name={urlField}
+          value={formData[urlField] || ''}
+          onChange={(e) => handleChange(urlField, e.target.value)}
+          placeholder={`Cole aqui o link público de ${type === 'photo' ? 'foto' : type === 'cv' ? 'currículo' : 'portfólio'}`}
+          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
+            errors[urlField] || fieldErrors[urlField] ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+          } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
+        />
         
-        {/* Seleção de tipo */}
-        <div className="flex gap-2 mb-3">
-          <button
-            type="button"
-            onClick={() => handleChange(typeField, 'url')}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              currentType === 'url'
-                ? 'bg-young-orange text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-            }`}
-          >
-            <LinkIcon size={16} className="inline mr-1" />
-            URL
-          </button>
-          <button
-            type="button"
-            onClick={() => handleChange(typeField, 'file')}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              currentType === 'file'
-                ? 'bg-young-orange text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-            }`}
-          >
-            <Upload size={16} className="inline mr-1" />
-            Anexar
-          </button>
-          <button
-            type="button"
-            onClick={() => handleChange(typeField, 'drive')}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              currentType === 'drive'
-                ? 'bg-young-orange text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-            }`}
-          >
-            <FileText size={16} className="inline mr-1" />
-            Google Drive
-          </button>
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <p className="text-xs text-blue-800 dark:text-blue-200 font-medium mb-1">
+            📎 Use links públicos de:
+          </p>
+          <p className="text-xs text-blue-700 dark:text-blue-300">
+            Google Drive, Dropbox, iCloud, OneDrive, Box, WeTransfer ou MediaFire
+          </p>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            Certifique-se de que o link está configurado como público/aberto para visualização
+          </p>
         </div>
-
-        {/* Campo conforme tipo selecionado */}
-        {currentType === 'url' && (
-          <input
-            type="url"
-            name={urlField}
-            value={formData[urlField] || ''}
-            onChange={(e) => handleChange(urlField, e.target.value)}
-            placeholder={`https://exemplo.com/${type === 'photo' ? 'foto.jpg' : type === 'cv' ? 'curriculo.pdf' : 'portfolio.pdf'}`}
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
-              errors[urlField] ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-            } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
-          />
-        )}
         
-        {currentType === 'file' && (
-          <div>
-            <input
-              ref={fileInputRefs[type]}
-              type="file"
-              accept={type === 'photo' ? 'image/jpeg,image/jpg,image/png,image/webp' : 'application/pdf,.doc,.docx'}
-              onChange={(e) => handleFileChange(fileField, e.target.files[0])}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRefs[type].current?.click()}
-              className="w-full px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-young-orange transition-colors text-gray-600 dark:text-gray-400"
-            >
-              {formData[fileField] ? (
-                <span className="flex items-center justify-center gap-2">
-                  <FileText size={16} />
-                  {formData[fileField].name}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleChange(fileField, null);
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <X size={16} />
-                  </button>
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <Upload size={16} />
-                  Clique para selecionar arquivo
-                </span>
-              )}
-            </button>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {type === 'photo' ? 'Formatos: JPG, PNG, WEBP. Tamanho máximo: 5MB' : 'Formatos: PDF, DOC, DOCX. Tamanho máximo: 5MB'}
-            </p>
-          </div>
-        )}
-        
-        {currentType === 'drive' && (
-          <input
-            type="url"
-            name={driveField}
-            value={formData[driveField] || ''}
-            onChange={(e) => handleChange(driveField, e.target.value)}
-            placeholder="Cole o link do Google Drive aqui"
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
-              errors[driveField] ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-            } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
-          />
-        )}
-        
-        {(errors[urlField] || errors[fileField] || errors[driveField] || fieldErrors[fileField]) && (
+        {(errors[urlField] || fieldErrors[urlField]) && (
           <p className="text-red-500 text-xs mt-1">
-            {errors[urlField] || errors[fileField] || errors[driveField] || fieldErrors[fileField]}
+            {errors[urlField] || fieldErrors[urlField]}
           </p>
         )}
       </div>
@@ -733,7 +806,6 @@ const PublicCandidateForm = () => {
           </p>
           <p className="text-sm mt-3">
             <Link to="/apply/test" className="inline-flex items-center gap-1.5 text-young-orange hover:underline font-medium">
-              <FlaskConical size={16} />
               Teste de envio (validar Supabase)
             </Link>
           </p>
@@ -770,26 +842,6 @@ const PublicCandidateForm = () => {
               <p className="text-gray-600 dark:text-gray-300 mb-2 text-sm">
                 Vamos começar pelas suas informações pessoais.
               </p>
-              <div className="flex flex-wrap items-center gap-3 mb-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(getTestFormData());
-                    setCitySearchTerm('Porto Alegre');
-                    setShowCityCustom(false);
-                    setShowSourceCustom(false);
-                    setErrors({});
-                    setFieldErrors({});
-                  }}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border border-young-orange text-young-orange rounded-lg hover:bg-young-orange hover:text-white transition-colors"
-                >
-                  <FlaskConical size={16} />
-                  Preencher com dados de teste
-                </button>
-                <Link to="/apply/test" className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-young-orange">
-                  Ou enviar direto pelo teste de envio →
-                </Link>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -877,7 +929,7 @@ const PublicCandidateForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Data de Nascimento
+                    Data de Nascimento <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -909,7 +961,7 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Estado Civil
+                    Estado Civil <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="maritalStatus"
@@ -929,7 +981,7 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Quantidade de Filhos
+                    Quantidade de Filhos <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="childrenCount"
@@ -949,7 +1001,7 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Possui CNH Tipo B?
+                    Possui CNH Tipo B? <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="hasLicense"
@@ -965,30 +1017,29 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Cidade onde Reside
+                    Cidade onde Reside <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-2">
                     {!showCityCustom ? (
                       <>
-                        <input
-                          type="text"
+                        <select
                           name="city"
-                          value={citySearchTerm}
+                          value={formData.city}
                           onChange={(e) => {
-                            setCitySearchTerm(e.target.value);
                             handleChange('city', e.target.value);
+                            setCitySearchTerm(e.target.value);
                           }}
-                          placeholder="Digite para buscar..."
-                          list="cities-list"
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                             errors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                           } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
-                        />
-                        <datalist id="cities-list">
-                          {filteredCities.map((city, idx) => (
-                            <option key={idx} value={city} />
+                        >
+                          <option value="">Selecione uma cidade...</option>
+                          {citiesFromDB.map((city) => (
+                            <option key={city.id} value={city.state ? `${city.name}/${city.state}` : city.name}>
+                              {city.state ? `${city.name}/${city.state}` : city.name}
+                            </option>
                           ))}
-                        </datalist>
+                        </select>
                         <button
                           type="button"
                           onClick={() => {
@@ -998,7 +1049,7 @@ const PublicCandidateForm = () => {
                           }}
                           className="text-sm text-young-orange hover:underline"
                         >
-                          + Adicionar outra cidade
+                          + Adicionar outra cidade (formato: Cidade/UF, ex: São Paulo/SP)
                         </button>
                       </>
                     ) : (
@@ -1008,11 +1059,12 @@ const PublicCandidateForm = () => {
                           name="cityCustom"
                           value={formData.cityCustom}
                           onChange={(e) => handleChange('cityCustom', e.target.value)}
-                          placeholder="Digite o nome da cidade"
+                          placeholder="Ex: São Paulo/SP"
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                             errors.cityCustom ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                           } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                         />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Formato: Cidade/UF (ex: São Paulo/SP)</p>
                         <button
                           type="button"
                           onClick={() => {
@@ -1045,7 +1097,7 @@ const PublicCandidateForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Formação
+                    Formação <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1059,7 +1111,7 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nível de Escolaridade
+                    Nível de Escolaridade <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="schoolingLevel"
@@ -1083,7 +1135,7 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Instituição de Ensino
+                    Instituição de Ensino <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1097,7 +1149,7 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Data de Formatura
+                    Data de Formatura <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1112,7 +1164,7 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Está Cursando Atualmente?
+                    Está Cursando Atualmente? <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="isStudying"
@@ -1128,7 +1180,7 @@ const PublicCandidateForm = () => {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Experiências Anteriores
+                    Experiências Anteriores <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     name="experience"
@@ -1142,7 +1194,7 @@ const PublicCandidateForm = () => {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Cursos e Certificações Profissionais
+                    Cursos e Certificações Profissionais <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     name="courses"
@@ -1170,25 +1222,56 @@ const PublicCandidateForm = () => {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Áreas de Interesse Profissional
+                    Áreas de Interesse Profissional <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="interestAreas"
-                    value={formData.interestAreas}
-                    onChange={(e) => handleChange('interestAreas', e.target.value)}
-                    placeholder="Ex: Desenvolvimento Web, Cloud Computing, DevOps (separadas por vírgula)"
-                    list="interest-areas-list"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                  />
-                  <datalist id="interest-areas-list">
-                    {mainInterestAreas.map(area => (
-                      <option key={area.id} value={area.name} />
-                    ))}
-                  </datalist>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Separe múltiplas áreas por vírgula
-                  </p>
+                  <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 max-h-60 overflow-y-auto">
+                    <div className="space-y-2">
+                      {mainInterestAreas.map(area => (
+                        <label key={area.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded">
+                          <input
+                            type="checkbox"
+                            checked={Array.isArray(formData.interestAreas) && formData.interestAreas.includes(area.name)}
+                            onChange={(e) => {
+                              const currentAreas = Array.isArray(formData.interestAreas) ? formData.interestAreas : [];
+                              if (e.target.checked) {
+                                handleChange('interestAreas', [...currentAreas, area.name]);
+                              } else {
+                                handleChange('interestAreas', currentAreas.filter(a => a !== area.name));
+                              }
+                            }}
+                            className="w-4 h-4 text-young-orange border-gray-300 rounded focus:ring-young-orange"
+                          />
+                          <span className="text-sm text-gray-900 dark:text-white">{area.name}</span>
+                        </label>
+                      ))}
+                      <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={showInterestAreasOther}
+                          onChange={(e) => {
+                            setShowInterestAreasOther(e.target.checked);
+                            if (!e.target.checked) {
+                              handleChange('interestAreasOther', '');
+                            }
+                          }}
+                          className="w-4 h-4 text-young-orange border-gray-300 rounded focus:ring-young-orange"
+                        />
+                        <span className="text-sm text-gray-900 dark:text-white">Outro</span>
+                      </label>
+                      {showInterestAreasOther && (
+                        <div className="ml-6 mt-2">
+                          <input
+                            type="text"
+                            value={formData.interestAreasOther || ''}
+                            onChange={(e) => handleChange('interestAreasOther', e.target.value)}
+                            placeholder="Digite outras áreas separadas por vírgula"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {errors.interestAreas && <p className="text-red-500 text-xs mt-1">{errors.interestAreas}</p>}
                 </div>
               </div>
             </section>
@@ -1203,7 +1286,7 @@ const PublicCandidateForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Onde nos Encontrou?
+                    Onde nos Encontrou? <span className="text-red-500">*</span>
                   </label>
                   {!showSourceCustom ? (
                     <>
@@ -1267,21 +1350,35 @@ const PublicCandidateForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Expectativa Salarial
+                    Expectativa Salarial <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="salaryExpectation"
-                    value={formData.salaryExpectation}
-                    onChange={(e) => handleChange('salaryExpectation', e.target.value)}
-                    placeholder="Ex: R$ 8.000,00"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">R$</span>
+                    <input
+                      type="text"
+                      name="salaryExpectation"
+                      value={formData.salaryExpectation}
+                      onChange={(e) => {
+                        let value = e.target.value.replace(/\D/g, '');
+                        if (value) {
+                          value = (parseInt(value) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                          handleChange('salaryExpectation', `R$ ${value}`);
+                        } else {
+                          handleChange('salaryExpectation', '');
+                        }
+                      }}
+                      placeholder="0,00"
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
+                        errors.salaryExpectation ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
+                    />
+                  </div>
+                  {errors.salaryExpectation && <p className="text-red-500 text-xs mt-1">{errors.salaryExpectation}</p>}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Disponibilidade para Mudança de Cidade?
+                    Disponibilidade para Mudança de Cidade? <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="canRelocate"
@@ -1298,7 +1395,7 @@ const PublicCandidateForm = () => {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Referências Profissionais
+                    Referências Profissionais <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     name="references"
@@ -1312,7 +1409,7 @@ const PublicCandidateForm = () => {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tipo de Candidatura
+                    Tipo de Candidatura <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="typeOfApp"
@@ -1328,7 +1425,7 @@ const PublicCandidateForm = () => {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Campo Livre - SEJA VOCÊ!
+                    Campo Livre - SEJA VOCÊ! <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     name="freeField"
@@ -1350,8 +1447,16 @@ const PublicCandidateForm = () => {
                 5. Anexos
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {renderAttachmentField('cv', 'Currículo', 'cv')}
-                {renderAttachmentField('portfolio', 'Portfólio', 'portfolio')}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Currículo <span className="text-red-500">*</span>
+                  </label>
+                  {renderAttachmentField('cv', 'Currículo', 'cv')}
+                  {errors.cvUrl && <p className="text-red-500 text-xs mt-1">{errors.cvUrl}</p>}
+                </div>
+                <div>
+                  {renderAttachmentField('portfolio', 'Portfólio', 'portfolio')}
+                </div>
               </div>
             </section>
           )}
