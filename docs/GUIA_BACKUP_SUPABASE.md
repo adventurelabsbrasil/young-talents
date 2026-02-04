@@ -15,7 +15,7 @@ O projeto tem um workflow de GitHub Actions que faz backup **apenas do schema `y
 | `SUPABASE_DB_URL` | Sim | Connection string do banco **de origem** (projeto de onde o backup é feito). Dashboard do projeto → Settings → Database → Connection string → **URI** (ex.: `postgresql://postgres.[ref]:[SENHA]@...`). |
 | `RESEND_API_KEY` | Sim | API key do [Resend](https://resend.com). **Gere uma nova** se a chave já foi exposta em algum lugar. |
 | `BACKUP_NOTIFY_EMAIL` | Sim | Emails que recebem notificação, separados por vírgula. Ex.: `contato@adventurelabs.com.br,eduardo@youngempreendimentos.com.br` |
-| `RESEND_FROM_EMAIL` | Não | Remetente (deve estar verificado no Resend). Ex.: `contato@adventurelabs.com.br` ou `noreply@adventurelabs.com.br`. Se não definir, usa `contato@adventurelabs.com.br`. |
+| `RESEND_FROM_EMAIL` | Não | Remetente (deve ser um endereço em domínio **verificado** no Resend). Ex.: `noreply@updates.adventurelabs.com.br`. Se não definir, o workflow usa `noreply@updates.adventurelabs.com.br`. |
 | `DESTINATION_SUPABASE_URL` | Sim (para cópia) | URL do projeto **destino** onde a cópia do backup vai. Ex.: `https://cporcxqbxzekbrilzaec.supabase.co` |
 | `DESTINATION_SUPABASE_SERVICE_ROLE_KEY` | Sim (para cópia) | Chave **service_role** do projeto destino. Dashboard do projeto destino → Settings → API → service_role. Necessária para gravar no Storage. |
 
