@@ -2806,6 +2806,33 @@ export default function App() {
     }
   };
   
+  // Criar usuário com email/senha via Edge Function (apenas admin)
+  const createUserWithPassword = async (email, password, role, userName = '') => {
+    if (!hasPermission('all')) {
+      showToast('Apenas administradores podem criar usuários', 'error');
+      return false;
+    }
+    if (!supabase) {
+      showToast('Erro de conexão com o servidor', 'error');
+      return false;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: { email, password, role, name: userName || null }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      showToast(`Usuário ${email} criado com sucesso`, 'success');
+      const schema = () => supabase.schema('young_talents');
+      const { data: updatedRoles } = await schema().from('user_roles').select('*').order('created_at', { ascending: false });
+      if (updatedRoles) setUserRoles(updatedRoles);
+      return true;
+    } catch (err) {
+      showToast(err?.message || 'Erro ao criar usuário', 'error');
+      return false;
+    }
+  };
+
   // Remover usuário
   const removeUserRole = async (roleId) => {
     if (!hasPermission('all')) {
@@ -3262,7 +3289,7 @@ export default function App() {
            {activeTab === 'reports' && <ReportsPage candidates={candidates} jobs={jobs} applications={applications} statusMovements={statusMovements} />}
            {activeTab === 'help' && <HelpPage />}
            {activeTab === 'diagnostic' && <div className="p-6 overflow-y-auto h-full"><DiagnosticPage candidates={candidates} /></div>}
-           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { const params = new URLSearchParams(location.search); params.set('settingsTab', tab); navigate(`${location.pathname}?${params.toString()}`); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={effectiveUser?.email} currentUserName={effectiveUser?.displayName} currentUserPhoto={effectiveUser?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
+           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { const params = new URLSearchParams(location.search); params.set('settingsTab', tab); navigate(`${location.pathname}?${params.toString()}`); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} onCreateUserWithPassword={createUserWithPassword} currentUserEmail={effectiveUser?.email} currentUserName={effectiveUser?.displayName} currentUserPhoto={effectiveUser?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
         </div>
       </div>
 

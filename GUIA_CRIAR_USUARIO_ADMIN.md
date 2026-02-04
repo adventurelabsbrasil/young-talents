@@ -1,136 +1,156 @@
-# Guia: Criar Usuário Admin no Firebase
+# Guia: Criar Usuário Admin no Supabase
 
-Este guia explica como criar o usuário administrador no Firebase Authentication.
+Este guia explica como criar usuários administradores e desenvolvedores no Young Talents, que utiliza **Supabase** para autenticação.
 
-## Opção 1: Firebase Console (Recomendado)
-
-1. Acesse o [Firebase Console](https://console.firebase.google.com/)
-2. Selecione seu projeto
-3. Vá em **Authentication** > **Users**
-4. Clique em **Add user**
-5. Preencha:
-   - **Email**: `admin@adventurelabs.com.br`
-   - **Password**: `admin123`
-   - Marque **Email/Password** como provedor
-6. Clique em **Add user**
-
-### Configurar Role de Admin
-
-Após criar o usuário, você precisa adicionar a role no Firestore:
-
-1. No Firebase Console, vá em **Firestore Database**
-2. Crie uma coleção chamada `userRoles` (se não existir)
-3. Crie um documento com o **ID** igual ao **UID** do usuário criado
-4. Adicione os seguintes campos:
-   ```json
-   {
-     "email": "admin@adventurelabs.com.br",
-     "role": "admin",
-     "createdAt": "2025-01-XX...",
-     "createdBy": "system"
-   }
-   ```
-
-## Opção 2: Script Node.js
+## Opção 1: Script setup-supabase-users.js (Recomendado)
 
 ### Pré-requisitos
 
-1. Instale as dependências:
+1. Configure as variáveis de ambiente no `.env.local`:
+   ```
+   VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
+   ```
+
+2. Certifique-se de que as migrations foram executadas (schema `young_talents` e tabela `user_roles` existem).
+
+### Executar o script
+
+```bash
+node scripts/setup-supabase-users.js
+```
+
+O script cria os usuários iniciais, incluindo o usuário de desenvolvimento (`dev@adventurelabs.com.br`).
+
+### Usuários criados
+
+- Admin e equipe conforme configurado no script
+- **Desenvolvedor:** `dev@adventurelabs.com.br` (senha provisória: `temp123`)
+
+### Login de Desenvolvedor
+
+Os seguintes emails têm permissões de admin automaticamente (definidos na migration 018):
+
+- `dev@adventurelabs.com.br`
+- `developer@adventurelabs.com.br`
+
+Para fazer login como desenvolvedor:
+
+1. Execute o script para criar `dev@adventurelabs.com.br`, ou
+2. Crie o usuário manualmente no Supabase Dashboard (Opção 2)
+3. Acesse `/login` e entre com email e senha
+
+---
+
+## Opção 2: Supabase Dashboard
+
+### Criar usuário no Auth
+
+1. Acesse o [Supabase Dashboard](https://app.supabase.com)
+2. Selecione seu projeto
+3. Vá em **Authentication** > **Users**
+4. Clique em **Add user** > **Create new user**
+5. Preencha:
+   - **Email**: ex. `admin@adventurelabs.com.br`
+   - **Password**: defina uma senha segura
+   - Marque **Auto Confirm User**
+6. Clique em **Create user**
+
+### Configurar Role
+
+Após criar o usuário, adicione a role na tabela `young_talents.user_roles`:
+
+1. Vá em **SQL Editor**
+2. Execute (substituindo email, name e role):
+
+```sql
+INSERT INTO young_talents.user_roles (user_id, email, name, role)
+SELECT id, 'seu@email.com', 'Nome do Usuário', 'admin'
+FROM auth.users
+WHERE email = 'seu@email.com';
+```
+
+Ou, se o usuário ainda não fez login (user_id = null):
+
+```sql
+INSERT INTO young_talents.user_roles (user_id, email, name, role)
+VALUES (NULL, 'seu@email.com', 'Nome do Usuário', 'admin');
+```
+
+O trigger `sync_user_role_on_login` preencherá o `user_id` automaticamente no primeiro login.
+
+---
+
+## Opção 3: Adicionar usuário pelo Frontend
+
+### Com Google OAuth
+
+Para usuários que farão login com **Google**:
+
+1. Faça login como admin
+2. Vá em **Configurações** > **Usuários do sistema**
+3. Clique em **Adicionar Usuário**
+4. Informe o email do Google, nome e role
+5. O usuário deve ir em `/login` e clicar em **Entrar com Google** com o mesmo email
+
+O sistema vincula automaticamente no primeiro login.
+
+### Com Email e Senha
+
+Para criar usuários com email e senha diretamente pelo frontend, é necessário fazer o deploy da Edge Function `create-user`:
+
+1. Instale o [Supabase CLI](https://supabase.com/docs/guides/cli) e faça login:
    ```bash
-   npm install firebase dotenv
+   supabase login
    ```
 
-2. Certifique-se de que as variáveis de ambiente estão configuradas no arquivo `.env`:
-   ```
-   VITE_FIREBASE_API_KEY=...
-   VITE_FIREBASE_AUTH_DOMAIN=...
-   VITE_FIREBASE_PROJECT_ID=...
-   VITE_FIREBASE_STORAGE_BUCKET=...
-   VITE_FIREBASE_MESSAGING_SENDER_ID=...
-   VITE_FIREBASE_APP_ID=...
-   ```
-
-3. Execute o script:
+2. Link o projeto (se ainda não estiver):
    ```bash
-   node scripts/create-admin-user.js
+   supabase link --project-ref SEU_PROJECT_REF
    ```
 
-## Opção 3: Firebase Admin SDK (Mais Seguro)
-
-Para produção, recomenda-se usar o Firebase Admin SDK:
-
-1. Instale o Admin SDK:
+3. Faça o deploy da função:
    ```bash
-   npm install firebase-admin
+   supabase functions deploy create-user
    ```
 
-2. Crie um arquivo `scripts/create-admin-admin-sdk.js`:
-   ```javascript
-   const admin = require('firebase-admin');
-   const serviceAccount = require('./path/to/serviceAccountKey.json');
-
-   admin.initializeApp({
-     credential: admin.credential.cert(serviceAccount)
-   });
-
-   admin.auth().createUser({
-     email: 'admin@adventurelabs.com.br',
-     password: 'admin123',
-     emailVerified: true
-   })
-   .then((userRecord) => {
-     console.log('Usuário criado:', userRecord.uid);
-     
-     // Criar role no Firestore
-     return admin.firestore().collection('userRoles').doc(userRecord.uid).set({
-       email: 'admin@adventurelabs.com.br',
-       role: 'admin',
-       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-       createdBy: 'system'
-     });
-   })
-   .then(() => {
-     console.log('Role de admin configurada!');
-     process.exit(0);
-   })
-   .catch((error) => {
-     console.error('Erro:', error);
-     process.exit(1);
-   });
+4. Configure o secret `SUPABASE_SERVICE_ROLE_KEY` no projeto (geralmente já existe):
+   ```bash
+   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
    ```
 
-## Verificação
+Depois do deploy, em **Configurações > Usuários > Adicionar Usuário**, selecione **Email e senha**, preencha email, senha, nome e perfil, e clique em **Adicionar**.
 
-Após criar o usuário:
+---
 
-1. Acesse a aplicação
-2. Faça login com:
-   - **Email**: `admin@adventurelabs.com.br`
-   - **Senha**: `admin123`
-3. Verifique se você tem acesso completo (role admin)
+## Roles disponíveis
+
+| Role   | Descrição                                                    |
+|--------|--------------------------------------------------------------|
+| admin  | Acesso total, incluindo gestão de usuários                   |
+| editor | Recrutador: editar candidatos, mover no funil, agendar       |
+| viewer | Apenas visualização                                          |
+
+---
 
 ## Segurança
 
-⚠️ **IMPORTANTE**: Após o primeiro login, altere a senha padrão!
+- **Após o primeiro login, altere a senha provisória** em Configurações > Alterar senha
+- A `SUPABASE_SERVICE_ROLE_KEY` nunca deve ser exposta no frontend
+- Use o script apenas em ambiente local ou em pipelines seguros
 
-1. Faça login com as credenciais padrão
-2. Vá em **Configurações** > **Perfil** (ou similar)
-3. Altere a senha para uma senha forte
+---
 
 ## Troubleshooting
 
-### Erro: "Email já está em uso"
-- O usuário já existe. Use o Firebase Console para verificar ou resetar a senha.
+### Erro: "User already registered"
+O usuário já existe. Use o Supabase Dashboard para resetar a senha ou execute o script novamente (ele atualiza a role se o usuário existir).
 
-### Erro: "Permissão negada"
-- Verifique se as regras do Firestore permitem escrita na coleção `userRoles`
-- Adicione temporariamente esta regra:
-  ```javascript
-  match /userRoles/{userId} {
-    allow write: if request.auth != null;
-  }
-  ```
+### Erro: "relation young_talents.user_roles does not exist"
+Execute as migrations do Supabase na ordem correta.
 
 ### Usuário criado mas sem permissões
-- Verifique se o documento foi criado corretamente na coleção `userRoles`
-- Verifique se o campo `role` está definido como `"admin"`
+Verifique se existe registro em `young_talents.user_roles` com o email correto e role adequada.
+
+### Login de desenvolvedor não funciona
+Confirme que o email é um dos reconhecidos: `dev@adventurelabs.com.br` ou `developer@adventurelabs.com.br`, e que o usuário existe no Supabase Auth.

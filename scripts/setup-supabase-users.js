@@ -88,6 +88,12 @@ const users = [
     password: 'temp123', // Senha provisória
     role: 'admin',
     name: 'Eduardo'
+  },
+  {
+    email: 'dev@adventurelabs.com.br',
+    password: 'temp123', // Senha provisória
+    role: 'admin',
+    name: 'Desenvolvedor'
   }
 ];
 
