@@ -2,20 +2,12 @@
 
 ## 🔍 O que falta antes de commitar, fazer push e deployar
 
-### 1. ⚠️ CRÍTICO: Expor Schema no Supabase
+### 1. ✅ Schema exposto no Supabase
 
-O schema `young_talents` precisa ser exposto no PostgREST para que as queries funcionem.
+O schema `young_talents` deve estar exposto no PostgREST. Isso é feito pela migration **012_expose_young_talents_for_api.sql**. Se você aplicou todas as migrations em ordem, já está configurado. Caso contrário:
 
-**Execute este SQL no SQL Editor do Supabase:**
-
-```sql
--- Expor schema young_talents no PostgREST
-ALTER DATABASE postgres SET search_path TO public, young_talents;
-```
-
-**OU** configure no dashboard:
-1. Settings → API → PostgREST
-2. Adicione `young_talents` no campo "Extra Search Path"
+- **SQL:** `ALTER DATABASE postgres SET search_path TO public, young_talents;`
+- **Ou:** Settings → API → PostgREST → Extra Search Path → adicionar `young_talents`
 
 ### 2. ✅ Instalar Dependências
 
@@ -25,9 +17,9 @@ npm install
 
 Isso instalará `@supabase/supabase-js` que foi adicionado ao `package.json`.
 
-### 3. ✅ Executar Script SQL de Roles
+### 3. ✅ Roles e usuários
 
-Execute `supabase/migrations/004_add_initial_user_roles.sql` no SQL Editor do Supabase para criar as roles dos usuários.
+Execute as migrations na ordem (incluindo `004_add_initial_user_roles.sql`). Depois, para criar usuários iniciais: `node scripts/setup-supabase-users.js` (requer `SUPABASE_SERVICE_ROLE_KEY` no `.env.local`).
 
 ### 4. ⚠️ Configurar Variáveis no Vercel
 

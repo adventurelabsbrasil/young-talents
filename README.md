@@ -1,8 +1,6 @@
-# React + Vite
-
 # 🏆 Young Talents ATS
 
-Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desenvolvido com React + Vite + Supabase.
+Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desenvolvido com **React**, **Vite** e **Supabase**.
 
 ## 📋 Funcionalidades Principais
 
@@ -71,8 +69,8 @@ Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desen
   - Gerenciar motivos de perda
 - **Empresas/Unidades**: Gerenciamento completo de empresas
 - **Histórico de Ações**: Registro de todas as ações em massa (importações, exportações, exclusões)
-- **Usuários**: Gerenciamento de usuários do sistema (em desenvolvimento)
-- **Modelos de Email**: Templates de email automáticos (em desenvolvimento)
+- **Usuários**: Gerenciamento de usuários do sistema (criação via Configurações ou script/Edge Function)
+- **Modelos de Email**: Templates de email automáticos (planejado)
 
 ### 🎨 Interface e UX
 - **Tema Dark/Light**: Toggle com persistência e suporte completo
@@ -91,22 +89,21 @@ Sistema de Gerenciamento de Recrutamento (ATS - Applicant Tracking System) desen
 
 ### Instalação
 
-\`\`\`bash
+```bash
 # Clone o repositório
-git clone https://github.com/rodrigoribasyoung/young-hunt-ats.git
-cd young-hunt-ats
+git clone <url-do-repositorio>
+cd young-talents
 
 # Instale dependências
 npm install
 
-# Configure variáveis de ambiente
-# Crie um arquivo .env.local com as credenciais do Supabase:
+# Configure variáveis de ambiente (crie .env.local)
 # VITE_SUPABASE_URL=https://seu-projeto.supabase.co
 # VITE_SUPABASE_ANON_KEY=sua-anon-key-aqui
 
 # Inicie o servidor de desenvolvimento
 npm run dev
-\`\`\`
+```
 
 Acesse \`http://localhost:5173\`
 
@@ -151,98 +148,97 @@ node scripts/setup-supabase-users.js
 ## 📚 Documentação
 
 ### 📖 Para Usuários Finais
-- [README_USUARIO.md](./README_USUARIO.md) - **Guia completo do usuário** - Como usar todas as funcionalidades do sistema
+- [README_USUARIO.md](./README_USUARIO.md) - Guia completo do usuário
 
 ### 🔧 Para Desenvolvedores / Administradores
 
-#### Navegação e Rotas
-- [docs/ROTAS_E_NAVEGACAO.md](./docs/ROTAS_E_NAVEGACAO.md) - **Guia completo de rotas e navegação** - Todas as URLs e slugs do sistema
+#### Setup e Deploy
+- [GUIA_SETUP_SUPABASE.md](./GUIA_SETUP_SUPABASE.md) - Configuração do Supabase (projeto, migrations, credenciais)
+- [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md) - Criar usuário administrador (script, Dashboard ou Edge Function)
+- [CHECKLIST_PRE_DEPLOY.md](./CHECKLIST_PRE_DEPLOY.md) - Checklist antes do deploy
+- [CONFIGURACAO_VERCEL.md](./CONFIGURACAO_VERCEL.md) - Variáveis de ambiente no Vercel
+- [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Problemas de login (Supabase Auth / Google OAuth)
 
-#### Configuração e Integração
-- [GUIA_APPS_SCRIPT.md](./GUIA_APPS_SCRIPT.md) - **Configuração do Google Apps Script** (Forms → Firebase)
-  - Script oficial: `assets/.APPSCRIPT.txt`
-  - ⚠️ **Nota:** O arquivo `Code.gs` em `assets/legacy/` é **LEGADO** - não usar
-- [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md) - Como criar usuário administrador no Firebase
-- [docs/FIREBASE_SECURITY_FORM.md](./docs/FIREBASE_SECURITY_FORM.md) - **Configuração de segurança para formulário público**
+#### Rotas e Dados
+- [docs/ROTAS_E_NAVEGACAO.md](./docs/ROTAS_E_NAVEGACAO.md) - Rotas e navegação do sistema
+- [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Importação de candidatos via CSV/XLSX
+- [GUIA_NORMALIZACAO_CIDADES.md](./GUIA_NORMALIZACAO_CIDADES.md) - Normalização de cidades
+- [docs/IMPORTAR_CSV_CANDIDATOS.md](./docs/IMPORTAR_CSV_CANDIDATOS.md) - Popular banco a partir de CSV (script CLI)
+- [docs/GUIA_BACKUP_SUPABASE.md](./docs/GUIA_BACKUP_SUPABASE.md) - Backup do banco Supabase
+- [docs/SEED_CANDIDATOS_CLI.md](./docs/SEED_CANDIDATOS_CLI.md) - Seed de candidatos via CLI
 
-#### Importação e Normalização de Dados
-- [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Guia de importação de dados via CSV/XLSX
-- [GUIA_NORMALIZACAO_CIDADES.md](./GUIA_NORMALIZACAO_CIDADES.md) - Regras de normalização de cidades
-- [docs/DELETAR_COLEÇÃO_CANDIDATES.md](./docs/DELETAR_COLEÇÃO_CANDIDATES.md) - **Zerar a coleção candidates** no Firestore (antes de reimportar CSV)
+#### Troubleshooting
+- [docs/TROUBLESHOOTING_DEPLOY.md](./docs/TROUBLESHOOTING_DEPLOY.md) - Problemas de deploy
+- [docs/TROUBLESHOOTING_SCHEMA.md](./docs/TROUBLESHOOTING_SCHEMA.md) - Problemas de schema Supabase
 
-#### Deploy e Troubleshooting
-- [CONFIGURACAO_VERCEL.md](./CONFIGURACAO_VERCEL.md) - Configuração de variáveis de ambiente no Vercel
-- [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Solução de problemas de autenticação Google
-
-#### Documentação Arquivada
-- [docs/arquivado/](./docs/arquivado/) - Documentos históricos e de teste arquivados
+#### Arquivado
+- [docs/arquivado/](./docs/arquivado/) - Documentação obsoleta (Firebase/Forms) e planejamentos não implementados
 
 ## 🛠️ Scripts Disponíveis
 
-\`\`\`bash
-npm run dev             # Servidor de desenvolvimento
-npm run build           # Build para produção
-npm run preview         # Preview do build
-npm run lint            # Verificar linting
-npm run delete-candidates   # Excluir todos os docs da coleção candidates (Firestore) — ver docs/DELETAR_COLEÇÃO_CANDIDATES.md
-\`\`\`
+```bash
+npm run dev                  # Servidor de desenvolvimento
+npm run build                # Build para produção
+npm run preview              # Preview do build
+npm run lint                 # Verificar linting
+node scripts/setup-supabase-users.js   # Criar usuários iniciais (admin/editor)
+npm run import-candidates    # Importar candidatos de assets/candidates/candidates.csv
+npm run generate-candidates-sql  # Gerar SQL de seed a partir do CSV
+npm run seed-candidates-db   # Executar seed de candidatos no Supabase
+```
 
 ## 📱 Estrutura do Projeto
 
-\`\`\`
+```
 src/
-├── App.jsx                      # Aplicação principal com rotas
-├── main.jsx                     # Entry point com BrowserRouter
-├── firebase.js                  # Configuração centralizada do Firebase
-├── constants.js                 # Constantes (Pipeline stages, cores, etc)
-├── ThemeContext.jsx             # Context para tema dark/light
+├── App.jsx                      # Aplicação principal e rotas
+├── main.jsx                     # Entry point
+├── supabase.js                  # Cliente Supabase (único ponto de configuração)
+├── constants.js                 # Constantes (Pipeline, campos, cores)
+├── ThemeContext.jsx             # Tema dark/light
 ├── components/
-│   ├── CandidateProfilePage.jsx # Página de perfil do candidato (/candidate/:id)
-│   ├── PublicCandidateForm.jsx  # Formulário público de candidatos (/apply)
-│   ├── ThankYouPage.jsx          # Página de agradecimento após envio
-│   ├── SettingsPage.jsx         # Página de configurações
-│   ├── DataManager.jsx          # Gerenciamento de dados base
-│   ├── ApplicationsPage.jsx     # Página de candidaturas
-│   ├── ReportsPage.jsx          # Página de relatórios
-│   ├── HelpPage.jsx             # Página de ajuda
+│   ├── CandidateProfilePage.jsx # Perfil do candidato (/candidate/:id)
+│   ├── PublicCandidateForm.jsx   # Formulário público (/apply) → Supabase
+│   ├── ThankYouPage.jsx          # Agradecimento pós-envio
+│   ├── SettingsPage.jsx          # Configurações (campos, pipeline, usuários)
+│   ├── DataManager.jsx           # Dados mestres (empresas, cidades, etc.)
+│   ├── ApplicationsPage.jsx     # Candidaturas
+│   ├── ReportsPage.jsx           # Relatórios
+│   ├── HelpPage.jsx              # Ajuda
+│   ├── LoginPage.jsx             # Login (email/senha e Google OAuth)
 │   └── modals/
-│       ├── TransitionModal.jsx          # Modal de transição entre etapas
-│       ├── JobsCandidateModal.jsx       # Modal de candidatos de vagas
-│       ├── CsvImportModal.jsx           # Modal de importação CSV
-│       ├── DashboardCandidatesModal.jsx  # Modal de candidatos do dashboard
-│       └── InterviewModal.jsx           # Modal de agendamento de entrevistas
-├── utils/                       # Utilitários
-│   ├── cityNormalizer.js        # Normalização de cidades
-│   ├── interestAreaNormalizer.js # Normalização de áreas de interesse
-│   ├── sourceNormalizer.js      # Normalização de fontes
-│   ├── validation.js            # Validações de formulários
-│   └── matching.js              # Sistema de match candidato-vaga
-├── assets/                      # Imagens e assets
-└── index.css                    # Estilos globais
+│       ├── TransitionModal.jsx   # Transição de etapas
+│       ├── JobsCandidateModal.jsx
+│       ├── CsvImportModal.jsx
+│       ├── DashboardCandidatesModal.jsx
+│       └── InterviewModal.jsx
+├── utils/                       # Normalizadores, validação, matching
+└── index.css
 
-assets/
-├── .APPSCRIPT.txt               # Script oficial do Google Apps Script
-└── legacy/
-    └── Code.gs                  # Script legado (não usar)
+supabase/
+├── migrations/                  # SQL do schema (young_talents)
+└── functions/
+    └── create-user/             # Edge Function para criar usuário (email/senha)
 
 docs/
-├── ROTAS_E_NAVEGACAO.md         # Documentação de rotas e navegação
-└── arquivado/                   # Documentação histórica arquivada
-\`\`\`
+├── ROTAS_E_NAVEGACAO.md
+├── GUIA_BACKUP_SUPABASE.md
+├── IMPORTAR_CSV_CANDIDATOS.md
+└── arquivado/                   # Docs obsoletos (Firebase/Forms)
+```
 
-## 🎯 Tecnologias
+## 🎯 Stack
 
-- **React 18.3** - UI Framework
-- **Vite 5.4** - Build tool
-- **Firebase 11.0** - Backend e autenticação
-- **Recharts 2.13** - Gráficos
-- **Tailwind CSS 3.4** - Styling
-- **Lucide React 0.460** - Icons
+- **React 18** + **Vite 5** - Frontend
+- **Supabase** - Backend (PostgreSQL), Auth (email/senha e Google OAuth), RLS
+- **Recharts** - Gráficos
+- **Tailwind CSS** - Estilos
+- **Lucide React** - Ícones
 
 ## 🐛 Troubleshooting
 
-### Login Google não funciona
-Ver [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md)
+### Login não funciona
+Ver [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) (Supabase Auth / Google OAuth)
 
 ### Porta 5173 em uso
 \`\`\`bash
@@ -261,13 +257,9 @@ Proprietário - Young Talents
 ## 🔧 Melhorias e Correções Recentes
 
 ### ✨ Funcionalidades Adicionadas (v2.2.0)
-- ✅ **Formulário Público de Candidatos**: Formulário público (`/apply`) que substitui Google Forms + AppScript
-  - Envio direto para Firebase sem dependência de scripts externos
-  - Validação e normalização integradas
-  - **Recadastro permitido**: aviso se já está no Banco de Talentos, mas permite continuar para atualizar informações
-  - **Identidade Young**: logo, cor laranja (#fe5009), fonte Be Vietnam Pro
-  - Design responsivo e acessível
-  - Página de agradecimento após envio
+- ✅ **Formulário Público de Candidatos**: Formulário público (`/apply`) com envio direto para Supabase
+  - Validação e normalização integradas; recadastro permitido (aviso se já cadastrado)
+  - Identidade Young (logo, cores); design responsivo; página de agradecimento
 
 ### ✨ Funcionalidades Adicionadas (v2.1.0)
 - ✅ **Página de Perfil do Candidato**: Página dedicada (`/candidate/:id`) com dashboard, abas e histórico completo
@@ -295,8 +287,7 @@ Proprietário - Young Talents
 
 ### 🐛 Correções Recentes
 - ✅ **Modal do Dashboard**: Corrigido tela escura ao clicar em scorecards
-- ✅ **Timestamps do AppScript**: Melhorada conversão para formato Firestore correto
-- ✅ **Leitura de Timestamps**: Suporte para múltiplos formatos do Firebase SDK
+- ✅ **Timestamps**: Suporte a múltiplos formatos; dados vindos do formulário público ou importação CSV
 - ✅ **Página de Vagas**: Simplificada com botão centralizado e dropdown em vez de abas
 - ✅ **Validação de Status**: Avisos ao tentar avançar etapa sem candidatura vinculada
 - ✅ **Filtros de Período**: Corrigido funcionamento com campo createdAt
@@ -304,12 +295,10 @@ Proprietário - Young Talents
 - ✅ **Contraste Visual**: Tags, etapas e cabeçalhos com melhor visibilidade
 - ✅ **Tabela Completa**: Todas as colunas importantes incluídas
 - ✅ **Filtro Padrão de Candidatos**: Corrigido para mostrar todos os candidatos por padrão (não apenas últimos 7 dias)
-- ✅ **Módulo Firebase Centralizado**: Criado `src/firebase.js` para evitar inicializações duplicadas
-- ✅ **Código de Debug Removido**: Removido código de telemetria que causava erros em produção
+- ✅ **Supabase centralizado**: `src/supabase.js` como único ponto de configuração
 
 ---
 
-**Status:** ✅ Pronto para Produção
+**Status:** ✅ Pronto para Produção (stack Supabase)
 
-**Versão:** 2.1.0  
-**Última atualização:** Janeiro 2025
+**Última atualização:** Fevereiro 2025

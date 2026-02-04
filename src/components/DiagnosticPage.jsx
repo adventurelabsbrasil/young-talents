@@ -1,10 +1,10 @@
 // src/components/DiagnosticPage.jsx
-// Página de diagnóstico da integração Forms → AppScript → Firebase → Frontend
+// Página de diagnóstico dos dados de candidatos (Supabase).
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CANDIDATE_FIELDS } from '../constants';
 import { getTimestampSeconds, getCandidateTimestamp } from '../utils/timestampUtils';
-import { AlertCircle, Check, X, Database, Clock, FileText, Users, RefreshCw } from 'lucide-react';
+import { AlertCircle, Check, Database, Clock, FileText, Users, RefreshCw } from 'lucide-react';
 
 function formatTs(ts) {
   if (ts == null) return '—';
@@ -13,15 +13,8 @@ function formatTs(ts) {
 }
 
 export default function DiagnosticPage({ candidates = [] }) {
-  const [firebaseOk, setFirebaseOk] = useState(null);
-  const [lastError, setLastError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Firebase removido - migrado para Supabase
-  useEffect(() => {
-    setFirebaseOk(false);
-    setLastError('Firebase foi removido. A aplicação agora usa Supabase.');
-  }, []);
+  const hasCandidates = (candidates || []).length > 0;
 
   const stats = useMemo(() => {
     const list = (candidates || []).filter(c => !c.deletedAt);
@@ -80,8 +73,6 @@ export default function DiagnosticPage({ candidates = [] }) {
 
   const doRefresh = () => {
     setRefreshing(true);
-    setFirebaseOk(null);
-    setLastError(null);
     setTimeout(() => setRefreshing(false), 500);
   };
 
@@ -103,14 +94,18 @@ export default function DiagnosticPage({ candidates = [] }) {
         </button>
       </div>
 
-      {/* 1. Status Firebase - Removido */}
+      {/* 1. Status da conexão com o banco */}
       <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-3">
-          <Database size={18} /> Conexão Firebase
+          <Database size={18} /> Conexão com o banco (Supabase)
         </h2>
         <div className="flex items-center gap-2">
-          <X size={20} className="text-red-500" />
-          <span className="text-red-600 dark:text-red-400">Firebase foi removido. A aplicação agora usa Supabase.</span>
+          <Check size={20} className="text-green-500" />
+          <span className="text-gray-700 dark:text-gray-300">
+            {hasCandidates
+              ? `Dados carregados do Supabase (${candidates.length} candidato(s) nesta sessão).`
+              : 'Nenhum candidato carregado. Os dados vêm do Supabase (schema young_talents).'}
+          </span>
         </div>
       </section>
 
@@ -138,7 +133,7 @@ export default function DiagnosticPage({ candidates = [] }) {
           </div>
         </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          original_timestamp = Carimbo de data/hora do Forms. createdAt = quando o registro foi criado/importado no Firebase.
+          original_timestamp = data/hora do formulário de inscrição. createdAt = quando o registro foi criado/importado no banco.
           Para &quot;Data de cadastro&quot; o frontend prioriza original_timestamp.
         </p>
         {(stats.invalidOriginal > 0 || stats.futureOriginal > 0) && (
@@ -152,14 +147,14 @@ export default function DiagnosticPage({ candidates = [] }) {
       {/* 3. Mapeamento de campos */}
       <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-3">
-          <FileText size={18} /> Mapeamento de campos (Forms → Firebase)
+          <FileText size={18} /> Mapeamento de campos
         </h2>
         <div className="text-sm space-y-1">
-          <div>Campos obrigatórios em CANDIDATE_FIELDS ausentes nos dados: {mappingOk.missing.length === 0 ? 'nenhum' : mappingOk.missing.join(', ')}</div>
-          <div>Campos esperados do Forms ausentes: {mappingOk.fromFormsMissing.length === 0 ? 'nenhum' : mappingOk.fromFormsMissing.join(', ')}</div>
+          <div>Campos obrigatórios (CANDIDATE_FIELDS) ausentes nos dados: {mappingOk.missing.length === 0 ? 'nenhum' : mappingOk.missing.join(', ')}</div>
+          <div>Campos esperados (formulário/importação) ausentes: {mappingOk.fromFormsMissing.length === 0 ? 'nenhum' : mappingOk.fromFormsMissing.join(', ')}</div>
         </div>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Consulte docs/MAPEAMENTO_CAMPOS.md para a tabela completa Forms → Firebase.
+          Lista de campos em src/constants.js (CANDIDATE_FIELDS).
         </p>
       </section>
 

@@ -23,12 +23,16 @@ Este guia explica como configurar o Supabase para o projeto Young Talents.
 ### 2. Executar Migrations SQL
 
 1. No dashboard do Supabase, vá em **SQL Editor**
-2. Execute os scripts na ordem:
-   - `supabase/migrations/001_create_schema.sql`
-   - `supabase/migrations/002_create_candidates_table.sql`
-   - `supabase/migrations/003_create_user_roles_table.sql`
+2. Execute os arquivos em `supabase/migrations/` **na ordem numérica**:
+   - `000_verify_setup.sql`
+   - `001_create_schema.sql` → `002_create_candidates_table.sql` → `003_create_user_roles_table.sql`
+   - `004_add_initial_user_roles.sql` → `005_grant_anon_young_talents.sql` → `006_public_candidates_view.sql`
+   - `007_tables_master_and_jobs.sql` → `008_applications.sql` → `009_seed_initial_data.sql`
+   - `010_public_user_roles_view.sql` → `011_allow_duplicate_candidate_emails.sql` → `012_expose_young_talents_for_api.sql`
+   - `013_job_levels_and_activity_areas.sql` → `014_activity_log.sql` → `015_add_deleted_at_to_candidates.sql` e `015_populate_cities_rs.sql`
+   - `016_allow_null_user_id.sql` → `017_sync_user_role_on_login.sql` → `018_update_rls_for_devs.sql`
 
-Ou execute todos de uma vez copiando o conteúdo de cada arquivo.
+**Importante:** A migration `012_expose_young_talents_for_api.sql` expõe o schema `young_talents` no PostgREST (necessário para o frontend). Se usar apenas o SQL Editor, execute também o conteúdo dessa migration.
 
 ### 3. Obter Credenciais
 
@@ -119,10 +123,14 @@ As políticas RLS estão configuradas para:
 
 ## 📝 Estrutura do Schema
 
-O projeto usa um schema separado `young_talents` para isolamento:
+O projeto usa o schema `young_talents`:
 
-- `young_talents.candidates` - Dados dos candidatos
-- `young_talents.user_roles` - Roles e permissões dos usuários
+- `young_talents.candidates` - Candidatos
+- `young_talents.user_roles` - Roles (admin, editor, viewer)
+- `young_talents.jobs`, `companies`, `cities`, `positions`, `sectors` - Dados mestres e vagas
+- `young_talents.applications` - Candidaturas (candidato × vaga)
+- `young_talents.activity_log` - Histórico de ações
+- Views públicas e políticas RLS conforme as migrations.
 
 ## 🐛 Troubleshooting
 

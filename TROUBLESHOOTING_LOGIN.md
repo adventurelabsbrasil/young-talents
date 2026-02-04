@@ -1,71 +1,79 @@
-# Guia de Troubleshooting - Login Google
+# Guia de Troubleshooting - Login (Supabase Auth)
+
+O Young Talents usa **Supabase Auth** com suporte a **email/senha** e **Google OAuth**. Use este guia para problemas de login.
 
 ## Problemas Comuns e Soluções
 
-### 1. **Erro: "popup blocked" ou popup não abre**
-- **Causa**: Navegador está bloqueando popups
-- **Solução**: 
-  - Verifique as configurações de privacidade do navegador
-  - Adicione `localhost:5173` e `*.vercel.app` à lista de permissões
+### 1. **Erro: "popup blocked" ou popup não abre (Google)**
 
-### 2. **Erro: "invalid_client" ou "redirect_uri_mismatch"**
-- **Causa**: URI de redirecionamento não configurada no Google Cloud Console
-- **Solução**:
-  1. Acesse [Google Cloud Console](https://console.cloud.google.com/)
-  2. Vá para "APIs & Services" → "Credentials"
-  3. Edite a credencial OAuth 2.0
-  4. Adicione URIs autorizados:
-     - Local: `http://localhost:5173`
-     - Produção: `https://seu-dominio.vercel.app`
+- **Causa:** Navegador bloqueando popups.
+- **Solução:**
+  - Permita popups para o site (localhost ou domínio Vercel).
+  - Ou use o fluxo "Entrar com Google" em nova aba se disponível.
 
-### 3. **Erro: "FIREBASE: Error (auth/operation-not-supported-in-this-environment)"**
-- **Causa**: Firebase não consegue inicializar em ambiente específico
-- **Solução**:
-  - Verifique se as variáveis de ambiente estão definidas
-  - Confirme se o arquivo `.env.local` existe com valores corretos
-  - Reinicie o servidor: `npm run dev`
+### 2. **Erro: "invalid_client" ou "redirect_uri_mismatch" (Google OAuth)**
 
-### 4. **Erro: "Cannot find module" ou "undefined is not an object"**
-- **Causa**: Dependências não instaladas
-- **Solução**:
+- **Causa:** URI de redirecionamento não configurada no Google Cloud Console.
+- **Solução:**
+  1. Acesse [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials.
+  2. Edite a credencial OAuth 2.0 usada pelo Supabase.
+  3. Em "Authorized redirect URIs" adicione:
+     - `https://SEU_PROJECT_REF.supabase.co/auth/v1/callback`
+     - Para testes: `http://localhost:5173`
+  4. No Supabase: Authentication → Providers → Google → confira Client ID e Client Secret.
+
+### 3. **Erro: variáveis de ambiente não configuradas**
+
+- **Causa:** `VITE_SUPABASE_URL` ou `VITE_SUPABASE_ANON_KEY` ausentes no ambiente onde o app roda.
+- **Solução:**
+  - **Local:** crie `.env.local` com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+  - **Vercel:** Settings → Environment Variables → adicione as duas variáveis para Production/Preview/Development.
+  - Reinicie o servidor (`npm run dev`) ou faça redeploy no Vercel.
+
+### 4. **Erro: "Cannot read properties of undefined (reading 'auth')"**
+
+- **Causa:** Cliente Supabase não inicializado (variáveis de ambiente faltando ou inválidas).
+- **Solução:** Verifique item 3 e confira no console do navegador se não há `[Supabase] Erro: Variáveis de ambiente não configuradas`.
+
+### 5. **Login aceito mas usuário sem permissões / tela em branco**
+
+- **Causa:** Usuário existe no Supabase Auth mas não tem registro em `young_talents.user_roles`, ou a role não está sendo lida.
+- **Solução:**
+  - Adicione o usuário em `young_talents.user_roles` (email, name, role). Ver [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md).
+  - Se usar Google, o trigger `sync_user_role_on_login` preenche `user_id` no primeiro login; garanta que a migration `017_sync_user_role_on_login.sql` foi aplicada.
+
+### 6. **Dependências / "Cannot find module"**
+
+- **Solução:**
   ```bash
   npm install
   npm run dev
   ```
 
-### 5. **Verificar Configuração Firebase**
-```javascript
-// No console do navegador, execute:
-console.log(import.meta.env.VITE_FIREBASE_API_KEY)
-console.log(import.meta.env.VITE_FIREBASE_PROJECT_ID)
-```
-
 ## Configuração Local
 
-1. Copie `.env.example` para `.env.local`
-2. Preencha com suas credenciais Firebase
-3. Reinicie o servidor
+1. Copie `.env.example` para `.env.local` (se existir).
+2. Preencha:
+   - `VITE_SUPABASE_URL` = URL do projeto Supabase
+   - `VITE_SUPABASE_ANON_KEY` = Chave anon (public)
+   - (Opcional) `SUPABASE_SERVICE_ROLE_KEY` para scripts como `setup-supabase-users.js`
+3. Reinicie o servidor.
 
 ## Configuração Vercel
 
-1. Acesse Vercel Dashboard
-2. Selecione o projeto
-3. Vá para Settings → Environment Variables
-4. Adicione as 6 variáveis VITE_FIREBASE_*
-5. Redeploy o projeto
+1. Vercel Dashboard → projeto → Settings → Environment Variables.
+2. Adicione `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+3. Marque Production (e Preview/Development se quiser).
+4. Salve e faça **Redeploy** para aplicar.
 
-## Logs de Debug
+## Domínios autorizados (Supabase)
 
-Para ver logs detalhados de autenticação:
-1. Abra DevTools (F12)
-2. Vá para Console
-3. Execute: `firebase.auth().onAuthStateChanged(user => console.log('User:', user))`
+No Supabase: Authentication → URL Configuration:
 
-## Verificação de CORS
+- **Site URL:** sua URL de produção (ex.: `https://seu-app.vercel.app`)
+- **Redirect URLs:** inclua `https://seu-app.vercel.app/**` e `http://localhost:5173/**` para desenvolvimento
 
-Se receber erro de CORS:
-1. No Firebase Console, vá para Authentication
-2. Clique em "Settings"
-3. Na seção "Authorized domains", adicione:
-   - `localhost`
-   - `seu-dominio.vercel.app`
+## Verificação rápida
+
+- Console do navegador (F12): não deve aparecer `[Supabase] Erro`.
+- Após login, a aplicação deve carregar o dashboard ou a área autenticada; se redirecionar de volta para login, confira `user_roles` e RLS.

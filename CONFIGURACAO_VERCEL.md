@@ -40,18 +40,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 - Configure para **Production**, **Preview** e **Development** (ou pelo menos Production)
 - Os valores são sensíveis - mantenha-os seguros
 
-### 5. Variáveis do Firebase (OPCIONAIS - apenas se ainda usar Firebase):
+### 5. Firebase
 
-Se ainda houver funcionalidades usando Firebase, configure também:
-
-| Variável | Valor |
-|----------|-------|
-| `VITE_FIREBASE_API_KEY` | Sua chave API do Firebase |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Seu domínio de autenticação |
-| `VITE_FIREBASE_PROJECT_ID` | ID do seu projeto Firebase |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Bucket de storage |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Sender ID |
-| `VITE_FIREBASE_APP_ID` | App ID |
+O ATS **não usa Firebase**. Não é necessário configurar variáveis `VITE_FIREBASE_*`.
 
 ### 6. Após salvar, faça um novo deploy:
 - Vá em **Deployments**

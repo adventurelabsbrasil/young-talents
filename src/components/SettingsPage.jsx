@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
 import DataManager from './DataManager';
-// Firebase removido - migrado para Supabase
 import * as XLSX from 'xlsx';
 
 // Helper para mostrar toast (será passado do App ou criado localmente)
