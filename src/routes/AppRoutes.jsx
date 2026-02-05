@@ -181,6 +181,7 @@ const AppRoutes = ({
                             setIsFilterSidebarOpen={setIsFilterSidebarOpen}
                             toggleTheme={toggleTheme}
                             isDark={isDark}
+                            onGoHome={() => navigate('/dashboard')}
                         />
                     }
                 >

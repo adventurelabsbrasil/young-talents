@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, User, Briefcase, Calendar, FileText, Mail, Phone, MapPin,
   Building2, GraduationCap, Award, ExternalLink, Edit3, Save, X,
@@ -39,6 +39,7 @@ export default function CandidateProfilePage({
 }) {
   const { id, tab } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
   const activeTab = tab || 'overview';
@@ -297,7 +298,7 @@ export default function CandidateProfilePage({
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => navigate(location.state?.from || '/dashboard')}
                 className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <ArrowLeft size={20} />
@@ -412,7 +413,7 @@ export default function CandidateProfilePage({
               return (
                 <button
                   key={item.id}
-                  onClick={() => navigate(`/candidate/${id}/${item.id}`)}
+                  onClick={() => navigate(`/candidate/${id}/${item.id}`, { state: location.state })}
                   className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${isActive
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'

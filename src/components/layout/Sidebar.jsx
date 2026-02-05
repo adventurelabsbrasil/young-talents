@@ -19,7 +19,12 @@ const Sidebar = ({
     return (
         <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${!isSidebarCollapsed ? 'lg:translate-x-0' : 'lg:-translate-x-full'}`}>
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => { navigate('/dashboard'); setActiveTab('dashboard'); setIsSidebarOpen(false); }}
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    title="Ir para o início"
+                >
                     <img
                         src="/logo-young-empreendimentos-caixa.png"
                         alt="Young"
@@ -29,7 +34,7 @@ const Sidebar = ({
                         <div className="font-bold text-gray-900 dark:text-white text-sm">Young Talents</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">ATS</div>
                     </div>
-                </div>
+                </button>
                 <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"><X /></button>
             </div>
             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">

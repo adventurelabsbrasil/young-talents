@@ -606,7 +606,7 @@ const PublicCandidateForm = () => {
     checkDuplicateEmail(formData.email, existingCandidates).isDuplicate;
 
   const submitForm = async () => {
-    // Rate limiting (Segurança Adicional - FIREBASE_SECURITY_FORM.md)
+    // Rate limiting
     const lastSubmit = localStorage.getItem('lastFormSubmit');
     if (lastSubmit) {
       const timeSinceLastSubmit = Date.now() - parseInt(lastSubmit, 10);

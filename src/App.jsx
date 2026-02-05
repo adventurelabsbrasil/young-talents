@@ -30,6 +30,23 @@ import {
   jobToSupabase
 } from './utils/fromSupabase';
 
+// Cache de dados mestres em sessionStorage (TTL 5 min)
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const getCached = (key) => {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL_MS) return null;
+    return data;
+  } catch { return null; }
+};
+const setCached = (key, data) => {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ data, ts: Date.now() }));
+  } catch (_e) { /* ignore */ }
+};
+
 const DEV_USER = {
   id: 'dev-local',
   email: 'dev@local',
@@ -217,10 +234,9 @@ export default function App() {
   const [editingCandidate, setEditingCandidate] = useState(null);
 
   const openCandidateProfile = (candidate) => {
-    if (candidate?.id) {
-      navigate(`/candidate/${candidate.id}`);
-    } else if (typeof candidate === 'string') {
-      navigate(`/candidate/${candidate}`);
+    const id = candidate?.id ?? (typeof candidate === 'string' ? candidate : null);
+    if (id) {
+      navigate(`/candidate/${id}`, { state: { from: location.pathname } });
     }
   };
 
@@ -350,38 +366,74 @@ export default function App() {
 
   const loadCompanies = React.useCallback(async () => {
     if (!supabase) return;
+    const cached = getCached('yt_cache_companies');
+    if (cached) setCompanies(cached);
     const { data, error } = await schema().from('companies').select('*').order('name');
-    if (!error) setCompanies(mapCompaniesFromSupabase(data ?? []));
+    if (!error) {
+      const mapped = mapCompaniesFromSupabase(data ?? []);
+      setCompanies(mapped);
+      setCached('yt_cache_companies', mapped);
+    }
   }, []);
 
   const loadCities = React.useCallback(async () => {
     if (!supabase) return;
+    const cached = getCached('yt_cache_cities');
+    if (cached) setCities(cached);
     const { data, error } = await schema().from('cities').select('*').order('name');
-    if (!error) setCities(mapCitiesFromSupabase(data ?? []));
+    if (!error) {
+      const mapped = mapCitiesFromSupabase(data ?? []);
+      setCities(mapped);
+      setCached('yt_cache_cities', mapped);
+    }
   }, []);
 
   const loadSectors = React.useCallback(async () => {
     if (!supabase) return;
+    const cached = getCached('yt_cache_sectors');
+    if (cached) setSectors(cached);
     const { data, error } = await schema().from('sectors').select('*').order('name');
-    if (!error) setSectors(mapSectorsFromSupabase(data ?? []));
+    if (!error) {
+      const mapped = mapSectorsFromSupabase(data ?? []);
+      setSectors(mapped);
+      setCached('yt_cache_sectors', mapped);
+    }
   }, []);
 
   const loadRoles = React.useCallback(async () => {
     if (!supabase) return;
+    const cached = getCached('yt_cache_positions');
+    if (cached) setRoles(cached);
     const { data, error } = await schema().from('positions').select('*').order('name');
-    if (!error) setRoles(mapPositionsFromSupabase(data ?? []));
+    if (!error) {
+      const mapped = mapPositionsFromSupabase(data ?? []);
+      setRoles(mapped);
+      setCached('yt_cache_positions', mapped);
+    }
   }, []);
 
   const loadJobLevels = React.useCallback(async () => {
     if (!supabase) return;
+    const cached = getCached('yt_cache_job_levels');
+    if (cached) setJobLevels(cached);
     const { data, error } = await schema().from('job_levels').select('*').order('name');
-    if (!error) setJobLevels(mapJobLevelsFromSupabase(data ?? []));
+    if (!error) {
+      const mapped = mapJobLevelsFromSupabase(data ?? []);
+      setJobLevels(mapped);
+      setCached('yt_cache_job_levels', mapped);
+    }
   }, []);
 
   const loadActivityAreas = React.useCallback(async () => {
     if (!supabase) return;
+    const cached = getCached('yt_cache_activity_areas');
+    if (cached) setActivityAreas(cached);
     const { data, error } = await schema().from('activity_areas').select('*').order('name');
-    if (!error) setActivityAreas(mapActivityAreasFromSupabase(data ?? []));
+    if (!error) {
+      const mapped = mapActivityAreasFromSupabase(data ?? []);
+      setActivityAreas(mapped);
+      setCached('yt_cache_activity_areas', mapped);
+    }
   }, []);
 
   const loadApplications = React.useCallback(async () => {

@@ -9,11 +9,27 @@ const MainHeader = ({
     setIsSidebarCollapsed,
     setIsFilterSidebarOpen,
     toggleTheme,
-    isDark
+    isDark,
+    onGoHome
 }) => {
     return (
         <header className="h-16 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between px-4 z-20">
             <div className="flex items-center gap-2">
+                {/* Home - logo/ícone quando sidebar recolhido ou para acesso rápido */}
+                {onGoHome && (
+                    <button
+                        type="button"
+                        onClick={onGoHome}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                        title="Ir para o início"
+                    >
+                        <img
+                            src="/logo-young-empreendimentos-caixa.png"
+                            alt="Young"
+                            className="h-8 w-8 rounded-lg"
+                        />
+                    </button>
+                )}
                 {/* Botão mobile */}
                 <button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}

@@ -191,7 +191,7 @@ export default function DiagnosticPage({ candidates = [] }) {
       </section>
 
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        No AppScript, execute diagnosticarSistema() para verificar gatilhos, credenciais e conexão Firestore. Execute testeEnvio() para simular um envio.
+        Os dados acima vêm do Supabase. Use o painel do Supabase (Table Editor) para verificar a conexão e o schema.
       </p>
     </div>
   );
