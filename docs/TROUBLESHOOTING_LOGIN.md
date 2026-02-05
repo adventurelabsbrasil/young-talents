@@ -42,7 +42,12 @@ O Young Talents usa **Supabase Auth** com suporte a **email/senha** e **Google O
   - Adicione o usuário em `young_talents.user_roles` (email, name, role). Ver [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md).
   - Se usar Google, o trigger `sync_user_role_on_login` preenche `user_id` no primeiro login; garanta que a migration `017_sync_user_role_on_login.sql` foi aplicada.
 
-### 6. **Dependências / "Cannot find module"**
+### 6. **Erro ao criar usuário via Configurações (email e senha)**
+
+- **Causa:** Edge Function `create-user` não deployada ou secrets não configurados.
+- **Solução:** Siga [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md) seção "Opção 3: Com Email e Senha". Deploy: `supabase functions deploy create-user` e configure `SUPABASE_SERVICE_ROLE_KEY` nos secrets.
+
+### 7. **Dependências / "Cannot find module"**
 
 - **Solução:**
   ```bash

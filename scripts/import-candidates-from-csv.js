@@ -103,7 +103,7 @@ function toDbRow(record, normalizers) {
         break;
       }
       case 'photo_url':
-        row[dbCol] = driveLinkToDirect(value);
+        row[dbCol] = value; // manter URL original (open?id=) como no CSV
         break;
       case 'original_timestamp':
         row[dbCol] = parseTimestamp(value);
@@ -125,13 +125,6 @@ function toDbRow(record, normalizers) {
   // Tabela exige phone NOT NULL: usar string vazia quando faltar
   if (row.phone == null || row.phone === '') row.phone = '';
   return row;
-}
-
-function driveLinkToDirect(url) {
-  if (!url || typeof url !== 'string') return url;
-  const m = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/i) || url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
-  if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
-  return url;
 }
 
 function parseTimestamp(str) {

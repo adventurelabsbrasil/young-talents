@@ -9,10 +9,16 @@
  */
 export function getTimestampSeconds(tsField) {
   if (tsField == null) return null;
+  if (typeof tsField === 'number') {
+    if (tsField > 1e12) return tsField / 1000; // ms
+    if (tsField > 0 && tsField < 1e11) return tsField; // seconds
+    return null;
+  }
   if (typeof tsField === 'string') {
     const d = new Date(tsField);
     return isNaN(d.getTime()) ? null : d.getTime() / 1000;
   }
+  if (typeof tsField === 'object') {
   if (typeof tsField.seconds === 'number') return tsField.seconds;
   if (typeof tsField._seconds === 'number') return tsField._seconds;
   if (typeof tsField.toDate === 'function') {
@@ -32,6 +38,7 @@ export function getTimestampSeconds(tsField) {
       try { return tv.toDate().getTime() / 1000; } catch { return null; }
     }
   }
+  }
   return null;
 }
 
@@ -41,7 +48,7 @@ export function getTimestampSeconds(tsField) {
  */
 export function getCandidateTimestamp(c) {
   if (!c) return null;
-  const o = getTimestampSeconds(c.original_timestamp);
+  const o = getTimestampSeconds(c.original_timestamp ?? c.originalTimestamp);
   if (o != null) return o;
   return getTimestampSeconds(c.createdAt);
 }

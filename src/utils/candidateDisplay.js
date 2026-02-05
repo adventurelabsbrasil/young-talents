@@ -73,6 +73,46 @@ export function formatCandidateChildren(value) {
 }
 
 /**
+ * Calcula idade a partir da data de nascimento.
+ * Usado como fallback quando age está vazio.
+ * Aceita os mesmos formatos que formatCandidateDate.
+ */
+export function computeAgeFromBirthDate(birthDate) {
+  if (!birthDate || birthDate === '') return null;
+  let date;
+  if (typeof birthDate === 'object' && (birthDate.seconds || birthDate._seconds)) {
+    date = new Date((birthDate.seconds || birthDate._seconds) * 1000);
+  } else if (typeof birthDate === 'object' && typeof birthDate.toDate === 'function') {
+    date = birthDate.toDate();
+  } else if (typeof birthDate === 'string') {
+    const isoMatch = birthDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      date = new Date(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10) - 1, parseInt(isoMatch[3], 10));
+    } else {
+      const dmMatch = birthDate.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+      if (dmMatch) {
+        const day = parseInt(dmMatch[1], 10);
+        const month = parseInt(dmMatch[2], 10) - 1;
+        let year = parseInt(dmMatch[3], 10);
+        if (year < 100) year += 2000;
+        date = new Date(year, month, day);
+      } else {
+        date = new Date(birthDate);
+      }
+    }
+  } else {
+    date = new Date(birthDate);
+  }
+  if (!date || isNaN(date.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) age--;
+  if (age < 0 || age > 120) return null;
+  return age;
+}
+
+/**
  * Prepara candidato para exibição no frontend.
  * Adiciona campos _display que podem ser usados nos componentes.
  * Não altera os dados originais; retorna cópia enriquecida.
@@ -82,15 +122,20 @@ export function formatCandidateChildren(value) {
  */
 export function prepareCandidateForDisplay(candidate) {
   if (!candidate) return null;
+  const hasAge = candidate.age != null && candidate.age !== '';
+  const computedAge = !hasAge ? computeAgeFromBirthDate(candidate.birthDate) : null;
+  const ageToUse = hasAge ? candidate.age : (computedAge ?? candidate.age);
   return {
     ...candidate,
+    ...(computedAge != null && !hasAge && { age: computedAge }),
     _display: {
       birthDate: formatCandidateDate(candidate.birthDate),
       graduationDate: formatCandidateDate(candidate.graduationDate),
       childrenCount: formatCandidateChildren(candidate.childrenCount),
       originalTimestamp: formatCandidateTimestamp(candidate.original_timestamp || candidate.originalTimestamp),
       createdAt: formatCandidateTimestamp(candidate.createdAt),
-      updatedAt: formatCandidateTimestamp(candidate.updatedAt)
+      updatedAt: formatCandidateTimestamp(candidate.updatedAt),
+      age: ageToUse
     }
   };
 }

@@ -143,6 +143,24 @@ Depois do deploy, em **Configurações > Usuários > Adicionar Usuário**, selec
 
 ## Troubleshooting
 
+### Erro: "Edge Function create-user não encontrada"
+A função não foi deployada. Execute:
+```bash
+supabase link --project-ref SEU_PROJECT_REF
+supabase functions deploy create-user
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
+```
+No Supabase Dashboard: Project Settings > Edge Functions > confira se `create-user` aparece e se as variáveis `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` estão configuradas.
+
+### Erro: "Este email já está cadastrado"
+O usuário já existe no Auth. Use o Supabase Dashboard (Authentication > Users) para resetar a senha ou adicione a role manualmente em `young_talents.user_roles`.
+
+### Erro: "Sessão inválida. Faça login novamente."
+O JWT expirou. Faça logout e login novamente antes de criar usuários.
+
+### Erro: "Apenas administradores podem criar usuários"
+O usuário logado não tem role `admin`. Verifique em `young_talents.user_roles` e crie o primeiro admin via script ou Dashboard.
+
 ### Erro: "User already registered"
 O usuário já existe. Use o Supabase Dashboard para resetar a senha ou execute o script novamente (ele atualiza a role se o usuário existir).
 

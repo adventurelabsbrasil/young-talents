@@ -655,12 +655,46 @@ export default function App() {
   const createUserWithPassword = async (email, password, role, name) => {
     try {
       const { data, error } = await supabase.functions.invoke('create-user', { body: { email, password, role, name: name || null } });
-      if (error || data?.error) throw error || new Error(data.error);
+      if (error) {
+        let msg = error.message || String(error);
+        if (error.context?.json) {
+          try {
+            const body = await error.context.json();
+            if (body?.error) msg = body.error;
+          } catch { /* ignore */ }
+        }
+        if (msg.includes('404') || msg.includes('Function not found') || error.message?.includes('fetch')) {
+          throw new Error('Edge Function create-user não encontrada. Faça o deploy: supabase functions deploy create-user');
+        }
+        if (msg.includes('401') || msg.includes('JWT') || msg.includes('Unauthorized') || msg.includes('Authorization')) {
+          throw new Error('Sessão inválida. Faça login novamente.');
+        }
+        if (msg.toLowerCase().includes('already') || msg.includes('409')) {
+          throw new Error('Este email já está cadastrado.');
+        }
+        if (msg.includes('403') || msg.includes('administrador')) {
+          throw new Error('Apenas administradores podem criar usuários.');
+        }
+        throw new Error(msg);
+      }
+      if (data?.error) {
+        const msg = String(data.error);
+        if (msg.toLowerCase().includes('already') || msg.includes('409')) {
+          throw new Error('Este email já está cadastrado.');
+        }
+        if (msg.includes('administrador')) {
+          throw new Error('Apenas administradores podem criar usuários.');
+        }
+        throw new Error(msg);
+      }
       showToast('Usuário criado.', 'success');
       const { data: updated } = await schema().from('user_roles').select('*').order('created_at', { ascending: false });
       if (updated) setUserRoles(updated);
       return true;
-    } catch (err) { showToast(err.message, 'error'); return false; }
+    } catch (err) {
+      showToast(err?.message || 'Erro ao criar usuário.', 'error');
+      return false;
+    }
   };
 
   const computeMissingFields = (c, stage) => (STAGE_REQUIRED_FIELDS[stage] || []).filter(f => !c[f]);

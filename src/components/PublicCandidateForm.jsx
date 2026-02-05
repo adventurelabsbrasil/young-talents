@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail } from '../utils/validation';
@@ -115,9 +115,12 @@ const PublicCandidateForm = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [citySearchTerm, setCitySearchTerm] = useState('');
   const [showCityCustom, setShowCityCustom] = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showSourceCustom, setShowSourceCustom] = useState(false);
   const [filteredCities, setFilteredCities] = useState(getAllRSCities().slice(0, 50));
   const [citiesFromDB, setCitiesFromDB] = useState([]);
+  const cityInputRef = useRef(null);
+  const cityDropdownRef = useRef(null);
   const [showInterestAreasOther, setShowInterestAreasOther] = useState(false);
   
   // Domínios permitidos para uploads
@@ -260,6 +263,29 @@ const PublicCandidateForm = () => {
       setFilteredCities(searchRSCities(citySearchTerm));
     }
   }, [citySearchTerm]);
+
+  // Cidades filtradas para o combobox (citiesFromDB + termo digitado)
+  const cityOptionsFiltered = useMemo(() => {
+    if (!citiesFromDB.length) return [];
+    const term = citySearchTerm.trim().toLowerCase();
+    if (!term) return citiesFromDB.slice(0, 80);
+    return citiesFromDB.filter((city) => {
+      const name = (city.name || '').toLowerCase();
+      return name.includes(term);
+    }).slice(0, 80);
+  }, [citiesFromDB, citySearchTerm]);
+
+  // Fechar dropdown de cidade ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target) &&
+          cityInputRef.current && !cityInputRef.current.contains(e.target)) {
+        setShowCityDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Calcular idade automaticamente quando data de nascimento muda
   useEffect(() => {
@@ -1052,43 +1078,63 @@ const PublicCandidateForm = () => {
                   </label>
                   <div className="space-y-2">
                     {!showCityCustom ? (
-                      <>
-                        <select
+                      <div className="relative" ref={cityDropdownRef}>
+                        <input
+                          ref={cityInputRef}
+                          type="text"
                           name="city"
-                          value={formData.city}
+                          value={showCityDropdown ? citySearchTerm : (formData.city || '')}
                           onChange={(e) => {
-                            handleChange('city', e.target.value);
-                            setCitySearchTerm(e.target.value);
+                            const v = e.target.value;
+                            setCitySearchTerm(v);
+                            setShowCityDropdown(true);
+                            if (!v) handleChange('city', '');
                           }}
+                          onFocus={() => {
+                            setCitySearchTerm(formData.city || '');
+                            setShowCityDropdown(true);
+                          }}
+                          placeholder="Digite para buscar cidade..."
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                             errors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                           } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
-                        >
-                          <option value="">Selecione uma cidade...</option>
-                          {citiesFromDB.map((city) => {
-                            // Se a cidade já está no formato "Nome/UF", usa direto
-                            // Se não, assume que é apenas o nome e precisa adicionar /RS
-                            const cityValue = city.name?.includes('/') ? city.name : `${city.name}/RS`;
-                            const cityDisplay = city.name?.includes('/') ? city.name : `${city.name}/RS`;
-                            return (
-                              <option key={city.id} value={cityValue}>
-                                {cityDisplay}
-                              </option>
-                            );
-                          })}
-                        </select>
+                          autoComplete="off"
+                        />
+                        {showCityDropdown && cityOptionsFiltered.length > 0 && (
+                          <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg py-1">
+                            {cityOptionsFiltered.map((city) => {
+                              const cityValue = city.name?.includes('/') ? city.name : `${city.name}/RS`;
+                              const cityDisplay = city.name?.includes('/') ? city.name : `${city.name}/RS`;
+                              return (
+                                <li
+                                  key={city.id}
+                                  role="option"
+                                  className="px-4 py-2 cursor-pointer hover:bg-young-orange/20 dark:hover:bg-young-orange/30 text-gray-900 dark:text-white"
+                                  onClick={() => {
+                                    handleChange('city', cityValue);
+                                    setCitySearchTerm('');
+                                    setShowCityDropdown(false);
+                                  }}
+                                >
+                                  {cityDisplay}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
                             setShowCityCustom(true);
                             setCitySearchTerm('');
                             handleChange('city', '');
+                            setShowCityDropdown(false);
                           }}
-                          className="text-sm text-young-orange hover:underline"
+                          className="text-sm text-young-orange hover:underline mt-2 block"
                         >
                           + Adicionar outra cidade (formato: Cidade/UF, ex: São Paulo/SP)
                         </button>
-                      </>
+                      </div>
                     ) : (
                       <>
                         <input
