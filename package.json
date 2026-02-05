@@ -8,6 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "delete-candidates": "node scripts/delete-candidates-collection.js",
     "import-candidates": "node scripts/import-candidates-from-csv.js",
     "generate-candidates-sql": "node scripts/generate-candidates-sql.js",
@@ -27,6 +29,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
@@ -36,9 +40,11 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
+    "jsdom": "^28.0.0",
     "pg": "^8.18.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^4.0.18"
   }
 }
