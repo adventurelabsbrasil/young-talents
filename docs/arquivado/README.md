@@ -23,7 +23,7 @@ Esta pasta contém documentos **obsoletos** ou **não implementados**, mantidos 
 
 | Documento | Motivo do arquivo |
 |-----------|-------------------|
-| **RESUMO_FINAL.md** | Checklist pré-deploy da migração; uso atual: ver `CHECKLIST_PRE_DEPLOY.md`. |
+| **RESUMO_FINAL.md** | Checklist pré-deploy da migração; uso atual: ver [../CHECKLIST_PRE_DEPLOY.md](../CHECKLIST_PRE_DEPLOY.md). |
 | **TESTE_COMPLETO.md** | Plano de testes (histórico). |
 | **TECHNICAL_CHANGES.md** | Registro de mudanças técnicas (histórico). |
 | **how 8b8c03d --stat --oneline**, **sado via menu Pipeline**, **tatus --short** | Arquivos acidentais do Git. |

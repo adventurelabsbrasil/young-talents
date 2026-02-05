@@ -107,7 +107,7 @@ A URL em produção depende do deploy (ex.: Vercel). O administrador deve fornec
    ```
    Requer `SUPABASE_SERVICE_ROLE_KEY` no `.env.local`.
 
-2. **Documentação detalhada**: [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md)
+2. **Documentação detalhada**: [docs/GUIA_CRIAR_USUARIO_ADMIN.md](./docs/GUIA_CRIAR_USUARIO_ADMIN.md)
 
 ---
 
@@ -127,7 +127,7 @@ A URL em produção depende do deploy (ex.: Vercel). O administrador deve fornec
 
 ### Migrations Supabase
 
-Execute os arquivos em `supabase/migrations/` na ordem numérica via SQL Editor do Supabase. Guia completo: [GUIA_SETUP_SUPABASE.md](./GUIA_SETUP_SUPABASE.md).
+Execute os arquivos em `supabase/migrations/` na ordem numérica via SQL Editor do Supabase. Guia completo: [docs/GUIA_SETUP_SUPABASE.md](./docs/GUIA_SETUP_SUPABASE.md).
 
 ### Backup
 
@@ -144,12 +144,12 @@ Execute os arquivos em `supabase/migrations/` na ordem numérica via SQL Editor 
 
 ### Documentação existente
 
-- [GUIA_SETUP_SUPABASE.md](./GUIA_SETUP_SUPABASE.md) - Configuração do Supabase
-- [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md) - Criar usuário admin
-- [CHECKLIST_PRE_DEPLOY.md](./CHECKLIST_PRE_DEPLOY.md) - Checklist antes do deploy
+- [docs/GUIA_SETUP_SUPABASE.md](./docs/GUIA_SETUP_SUPABASE.md) - Configuração do Supabase
+- [docs/GUIA_CRIAR_USUARIO_ADMIN.md](./docs/GUIA_CRIAR_USUARIO_ADMIN.md) - Criar usuário admin
+- [docs/CHECKLIST_PRE_DEPLOY.md](./docs/CHECKLIST_PRE_DEPLOY.md) - Checklist antes do deploy
 - [docs/ROTAS_E_NAVEGACAO.md](./docs/ROTAS_E_NAVEGACAO.md) - Rotas do sistema
 - [docs/IMPORTAR_CSV_CANDIDATOS.md](./docs/IMPORTAR_CSV_CANDIDATOS.md) - Importação via CLI
-- [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Problemas de login
+- [docs/TROUBLESHOOTING_LOGIN.md](./docs/TROUBLESHOOTING_LOGIN.md) - Problemas de login
 
 ---
 

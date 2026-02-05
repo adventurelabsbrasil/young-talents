@@ -1,7 +1,7 @@
 // src/utils/timestampUtils.js
 // Funções unificadas para leitura de timestamps (original_timestamp, createdAt).
 // Prioridade: original_timestamp = Carimbo do Forms (data em que a pessoa se inscreveu).
-// Fallback: createdAt = quando o registro foi criado/importado no Firebase.
+// Fallback: createdAt = quando o registro foi criado/importado no Supabase.
 
 /**
  * Converte um campo de timestamp para segundos desde epoch.

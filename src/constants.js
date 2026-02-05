@@ -65,7 +65,7 @@ export const STATUS_COLORS = {
 };
 
 // Mapeamento de campos do candidato
-// - key: nome do campo no sistema (Firebase)
+// - key: nome do campo no sistema (Supabase)
 // - csvLabel: nome exato da coluna no CSV/Sheets/Forms (para importação)
 // - displayName: nome visual para exibição nas tabelas e formulários
 // - type: tipo do campo para renderização

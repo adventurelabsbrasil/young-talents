@@ -143,36 +143,32 @@ SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key-aqui
 node scripts/setup-supabase-users.js
 \`\`\`
 
-📖 **Guia completo**: Veja [GUIA_SETUP_SUPABASE.md](./GUIA_SETUP_SUPABASE.md) para instruções detalhadas.
+📖 **Guia completo**: Veja [docs/GUIA_SETUP_SUPABASE.md](./docs/GUIA_SETUP_SUPABASE.md) para instruções detalhadas.
 
 ## 📚 Documentação
 
-### 📖 Para Usuários Finais
-- [README_USUARIO.md](./README_USUARIO.md) - Guia completo do usuário
+### 📖 Documentos Oficiais (raiz)
+- [GUIA_USO_APP.md](./GUIA_USO_APP.md) - Guia canônico para usuários do app
+- [DOCUMENTACAO_ADMIN.md](./DOCUMENTACAO_ADMIN.md) - Documentação técnica para administradores
 
-### 🔧 Para Desenvolvedores / Administradores
-
-#### Setup e Deploy
-- [GUIA_SETUP_SUPABASE.md](./GUIA_SETUP_SUPABASE.md) - Configuração do Supabase (projeto, migrations, credenciais)
-- [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md) - Criar usuário administrador (script, Dashboard ou Edge Function)
-- [CHECKLIST_PRE_DEPLOY.md](./CHECKLIST_PRE_DEPLOY.md) - Checklist antes do deploy
-- [CONFIGURACAO_VERCEL.md](./CONFIGURACAO_VERCEL.md) - Variáveis de ambiente no Vercel
-- [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Problemas de login (Supabase Auth / Google OAuth)
-
-#### Rotas e Dados
-- [docs/ROTAS_E_NAVEGACAO.md](./docs/ROTAS_E_NAVEGACAO.md) - Rotas e navegação do sistema
-- [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Importação de candidatos via CSV/XLSX
-- [GUIA_NORMALIZACAO_CIDADES.md](./GUIA_NORMALIZACAO_CIDADES.md) - Normalização de cidades
-- [docs/IMPORTAR_CSV_CANDIDATOS.md](./docs/IMPORTAR_CSV_CANDIDATOS.md) - Popular banco a partir de CSV (script CLI)
-- [docs/GUIA_BACKUP_SUPABASE.md](./docs/GUIA_BACKUP_SUPABASE.md) - Backup do banco Supabase
-- [docs/SEED_CANDIDATOS_CLI.md](./docs/SEED_CANDIDATOS_CLI.md) - Seed de candidatos via CLI
-
-#### Troubleshooting
+### 📂 Guias em `docs/`
+- [docs/GUIA_SETUP_SUPABASE.md](./docs/GUIA_SETUP_SUPABASE.md) - Configuração do Supabase (projeto, migrations, credenciais)
+- [docs/GUIA_CRIAR_USUARIO_ADMIN.md](./docs/GUIA_CRIAR_USUARIO_ADMIN.md) - Criar usuário administrador
+- [docs/CHECKLIST_PRE_DEPLOY.md](./docs/CHECKLIST_PRE_DEPLOY.md) - Checklist antes do deploy
+- [docs/CONFIGURACAO_VERCEL.md](./docs/CONFIGURACAO_VERCEL.md) - Variáveis de ambiente no Vercel
+- [docs/TROUBLESHOOTING_LOGIN.md](./docs/TROUBLESHOOTING_LOGIN.md) - Problemas de login (Supabase Auth / Google OAuth)
+- [docs/GUIA_IMPORTACAO_CSV.md](./docs/GUIA_IMPORTACAO_CSV.md) - Importação via CSV/XLSX
+- [docs/GUIA_NORMALIZACAO_CIDADES.md](./docs/GUIA_NORMALIZACAO_CIDADES.md) - Normalização de cidades
+- [docs/README_USUARIO.md](./docs/README_USUARIO.md) - Guia detalhado do usuário (referência)
+- [docs/ROTAS_E_NAVEGACAO.md](./docs/ROTAS_E_NAVEGACAO.md) - Rotas e navegação
+- [docs/IMPORTAR_CSV_CANDIDATOS.md](./docs/IMPORTAR_CSV_CANDIDATOS.md) - Importar via script CLI
+- [docs/GUIA_BACKUP_SUPABASE.md](./docs/GUIA_BACKUP_SUPABASE.md) - Backup do banco
+- [docs/SEED_CANDIDATOS_CLI.md](./docs/SEED_CANDIDATOS_CLI.md) - Seed via CLI
 - [docs/TROUBLESHOOTING_DEPLOY.md](./docs/TROUBLESHOOTING_DEPLOY.md) - Problemas de deploy
-- [docs/TROUBLESHOOTING_SCHEMA.md](./docs/TROUBLESHOOTING_SCHEMA.md) - Problemas de schema Supabase
+- [docs/TROUBLESHOOTING_SCHEMA.md](./docs/TROUBLESHOOTING_SCHEMA.md) - Problemas de schema
 
-#### Arquivado
-- [docs/arquivado/](./docs/arquivado/) - Documentação obsoleta (Firebase/Forms) e planejamentos não implementados
+### Arquivado
+- [docs/arquivado/](./docs/arquivado/) - Documentação obsoleta (Firebase/Forms)
 
 ## 🛠️ Scripts Disponíveis
 
@@ -238,7 +234,7 @@ docs/
 ## 🐛 Troubleshooting
 
 ### Login não funciona
-Ver [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) (Supabase Auth / Google OAuth)
+Ver [docs/TROUBLESHOOTING_LOGIN.md](./docs/TROUBLESHOOTING_LOGIN.md) (Supabase Auth / Google OAuth)
 
 ### Porta 5173 em uso
 \`\`\`bash
