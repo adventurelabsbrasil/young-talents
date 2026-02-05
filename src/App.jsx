@@ -17,6 +17,7 @@ import {
 } from './constants';
 import { getCandidateTimestamp } from './utils/timestampUtils';
 import { mapCandidatesFromSupabase, candidateToSupabase } from './utils/candidateFromSupabase';
+import { prepareCandidateForDisplay } from './utils/candidateDisplay';
 import {
   mapJobsFromSupabase,
   mapCompaniesFromSupabase,
@@ -331,7 +332,7 @@ export default function App() {
         hasMore = chunk.length >= PAGE_SIZE;
         offset += PAGE_SIZE;
       }
-      setCandidates(mapCandidatesFromSupabase(allRows));
+      setCandidates(mapCandidatesFromSupabase(allRows).map(prepareCandidateForDisplay));
     } catch (e) {
       console.error('Erro ao carregar candidatos:', e);
       setCandidates([]);

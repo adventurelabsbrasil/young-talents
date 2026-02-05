@@ -3,6 +3,48 @@ import { Mail, Phone, MapPin, Briefcase, TrendingUp, Clock as ClockIcon } from '
 import { STATUS_COLORS, PIPELINE_STAGES } from '../../../constants';
 import { photoDisplayUrl, parseCandidateUrls, copyToClipboard } from '../../../utils/urlUtils';
 import { Copy, Check } from 'lucide-react';
+import { useLinkStatus } from '../../../utils/useLinkStatus';
+import { LinkStatusBadge } from '../../ui/LinkStatusBadge';
+
+function CvLinkRow({ url, idx, total, copiedUrl, onCopy }) {
+    const status = useLinkStatus(url);
+    return (
+        <div className="flex items-center gap-1">
+            <a href={url} target="_blank" rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-l-lg text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 border-r-0">
+                {total > 1 ? `CV ${idx + 1}` : 'Ver CV'}
+            </a>
+            <LinkStatusBadge status={status} label="CV" />
+            <button
+                onClick={() => onCopy(url)}
+                className="px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-r-lg border border-blue-200 dark:border-blue-800 transition-colors"
+                title="Copiar URL"
+            >
+                {copiedUrl === url ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+            </button>
+        </div>
+    );
+}
+
+function PortfolioLinkRow({ url, idx, total, copiedUrl, onCopy }) {
+    const status = useLinkStatus(url);
+    return (
+        <div className="flex items-center gap-1">
+            <a href={url} target="_blank" rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-l-lg text-xs font-medium hover:bg-purple-100 transition-colors border border-purple-200 dark:border-purple-800 border-r-0">
+                {total > 1 ? `Portfólio ${idx + 1}` : 'Ver Portfólio'}
+            </a>
+            <LinkStatusBadge status={status} label="Portfólio" />
+            <button
+                onClick={() => onCopy(url)}
+                className="px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 rounded-r-lg border border-purple-200 dark:border-purple-800 transition-colors"
+                title="Copiar URL"
+            >
+                {copiedUrl === url ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+            </button>
+        </div>
+    );
+}
 
 export default function OverviewTab({
     candidate,
@@ -130,19 +172,14 @@ export default function OverviewTab({
                                     <div className="flex flex-wrap gap-2">
                                         {cvUrls.length > 0 ? (
                                             cvUrls.map((url, idx) => (
-                                                <div key={idx} className="flex items-center">
-                                                    <a href={url} target="_blank" rel="noopener noreferrer"
-                                                        className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-l-lg text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 border-r-0">
-                                                        {cvUrls.length > 1 ? `CV ${idx + 1}` : 'Ver CV'}
-                                                    </a>
-                                                    <button
-                                                        onClick={() => handleCopy(url)}
-                                                        className="px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-r-lg border border-blue-200 dark:border-blue-800 transition-colors"
-                                                        title="Copiar URL"
-                                                    >
-                                                        {copiedUrl === url ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                                                    </button>
-                                                </div>
+                                                <CvLinkRow
+                                                    key={idx}
+                                                    url={url}
+                                                    idx={idx}
+                                                    total={cvUrls.length}
+                                                    copiedUrl={copiedUrl}
+                                                    onCopy={handleCopy}
+                                                />
                                             ))
                                         ) : (
                                             <span className="text-xs text-gray-400 italic">Nenhum CV anexado</span>
@@ -156,19 +193,14 @@ export default function OverviewTab({
                                     <div className="flex flex-wrap gap-2">
                                         {portfolioUrls.length > 0 ? (
                                             portfolioUrls.map((url, idx) => (
-                                                <div key={idx} className="flex items-center">
-                                                    <a href={url} target="_blank" rel="noopener noreferrer"
-                                                        className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-l-lg text-xs font-medium hover:bg-purple-100 transition-colors border border-purple-200 dark:border-purple-800 border-r-0">
-                                                        {portfolioUrls.length > 1 ? `Portfólio ${idx + 1}` : 'Ver Portfólio'}
-                                                    </a>
-                                                    <button
-                                                        onClick={() => handleCopy(url)}
-                                                        className="px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 rounded-r-lg border border-purple-200 dark:border-purple-800 transition-colors"
-                                                        title="Copiar URL"
-                                                    >
-                                                        {copiedUrl === url ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                                                    </button>
-                                                </div>
+                                                <PortfolioLinkRow
+                                                    key={idx}
+                                                    url={url}
+                                                    idx={idx}
+                                                    total={portfolioUrls.length}
+                                                    copiedUrl={copiedUrl}
+                                                    onCopy={handleCopy}
+                                                />
                                             ))
                                         ) : (
                                             <span className="text-xs text-gray-400 italic">Nenhum portfólio cadastrado</span>

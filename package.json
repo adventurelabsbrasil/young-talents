@@ -13,7 +13,10 @@
     "delete-candidates": "node scripts/delete-candidates-collection.js",
     "import-candidates": "node scripts/import-candidates-from-csv.js",
     "generate-candidates-sql": "node scripts/generate-candidates-sql.js",
-    "seed-candidates-db": "node scripts/seed-candidates-db.js"
+    "seed-candidates-db": "node scripts/seed-candidates-db.js",
+    "verify-csv-supabase": "node scripts/verify-csv-vs-supabase.js",
+    "delete-candidates-supabase": "node scripts/delete-candidates-supabase.js",
+    "sync-candidates-csv": "node scripts/delete-candidates-supabase.js --confirm && node scripts/import-candidates-from-csv.js"
   },
   "dependencies": {
     "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",

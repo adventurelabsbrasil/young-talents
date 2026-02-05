@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { normalizeCity } from '../src/utils/cityNormalizer.js';
 import { normalizeSource } from '../src/utils/sourceNormalizer.js';
@@ -19,6 +20,17 @@ import { normalizeChildrenForStorage } from '../src/utils/childrenNormalizer.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const CSV_PATH = path.join(PROJECT_ROOT, 'assets', 'candidates', 'candidates.csv');
+
+// Carrega variáveis de ambiente - .env.local primeiro, depois .env
+const envLocalPath = path.join(PROJECT_ROOT, '.env.local');
+const envPath = path.join(PROJECT_ROOT, '.env');
+if (fs.existsSync(envLocalPath)) {
+  dotenv.config({ path: envLocalPath });
+} else if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+} else {
+  dotenv.config();
+}
 
 const normalizers = { normalizeCity, normalizeSource, normalizeInterestAreasString, normalizeChildrenForStorage };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Phone, MapPin, Calendar, Heart, Users, Camera, Copy, Check, ExternalLink } from 'lucide-react';
+import { User, Phone, MapPin, Calendar, Heart, Users, Camera, Copy, Check, ExternalLink, AlertCircle } from 'lucide-react';
 import { CHILDREN_OPTIONS, formatChildrenForDisplay, normalizeChildrenForStorage } from '../../../utils/childrenNormalizer';
 import { copyToClipboard } from '../../../utils/urlUtils';
 
@@ -8,7 +8,8 @@ export default function PersonalTab({
     editData,
     isEditing,
     handleFieldChange,
-    formatDate
+    formatDate,
+    photoLoadError = false
 }) {
     const [copied, setCopied] = React.useState(false);
 
@@ -129,6 +130,14 @@ export default function PersonalTab({
                                 >
                                     Abrir Link <ExternalLink size={12} />
                                 </a>
+                                {photoLoadError && (
+                                    <span
+                                        className="inline-flex text-amber-600 dark:text-amber-500"
+                                        title="Link da foto indisponível ou bloqueado – solicite novo envio"
+                                    >
+                                        <AlertCircle size={14} />
+                                    </span>
+                                )}
                                 <button
                                     onClick={() => handleCopy(candidate.photoUrl)}
                                     className="p-1 text-gray-400 hover:text-blue-600 transition-colors"

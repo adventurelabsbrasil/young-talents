@@ -8,7 +8,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { mapCandidateFromSupabase } from '../utils/candidateFromSupabase';
+import { prepareCandidateForDisplay, formatCandidateDate, formatCandidateTimestamp } from '../utils/candidateDisplay';
 import { photoDisplayUrl, parseCandidateUrls } from '../utils/urlUtils';
+import { LinkStatusBadge, LinkWithStatus } from './ui/LinkStatusBadge';
 import { PIPELINE_STAGES, STATUS_COLORS, CLOSING_STATUSES, ALL_STATUSES } from '../constants';
 import { normalizeCity, getMainCitiesOptions } from '../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalizer';
@@ -71,7 +73,7 @@ export default function CandidateProfilePage({
         setLoading(false);
         return;
       }
-      const mapped = data ? mapCandidateFromSupabase(data) : null;
+      const mapped = data ? prepareCandidateForDisplay(mapCandidateFromSupabase(data)) : null;
       setCandidate(mapped);
       if (mapped) setEditData(mapped);
       setLoading(false);
@@ -174,36 +176,10 @@ export default function CandidateProfilePage({
     ];
   }, [candidate, applications, interviews, statusMovements]);
 
-  // Formatar timestamp
-  const formatTimestamp = (ts) => {
-    if (!ts) return 'N/A';
-    let date;
-    if (ts.seconds || ts._seconds) {
-      date = new Date((ts.seconds || ts._seconds) * 1000);
-    } else if (ts.toDate) {
-      date = ts.toDate();
-    } else {
-      date = new Date(ts);
-    }
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
-  };
-
-  // Formatar data apenas
-  const formatDate = (ts) => {
-    if (!ts) return 'N/A';
-    let date;
-    if (ts.seconds || ts._seconds) {
-      date = new Date((ts.seconds || ts._seconds) * 1000);
-    } else if (ts.toDate) {
-      date = ts.toDate();
-    } else {
-      date = new Date(ts);
-    }
-    return date.toLocaleDateString('pt-BR');
-  };
+  // Formatar data (usa utilitário que trata histórico + novos dados)
+  const formatDate = (ts) => formatCandidateDate(ts) ?? 'N/A';
+  const formatDateTime = (ts) => formatCandidateTimestamp(ts) ?? 'N/A';
+  const formatTimestamp = formatDateTime;
 
   // Registrar alteração no log - TODO: Migrar para Supabase
   const recordChange = async (field, oldValue, newValue, userId, userName) => {
@@ -338,6 +314,14 @@ export default function CandidateProfilePage({
                 ) : (
                   <User size={24} className="text-slate-400 dark:text-slate-500" />
                 )}
+                {candidate.photoUrl && photoLoadError && (
+                  <span
+                    className="absolute -bottom-0.5 -right-0.5 rounded-full bg-amber-100 dark:bg-amber-900/80 p-0.5"
+                    title="Link da foto indisponível ou bloqueado – solicite novo envio"
+                  >
+                    <AlertCircle size={12} className="text-amber-600 dark:text-amber-500" />
+                  </span>
+                )}
               </div>
               <div className="flex flex-col">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">
@@ -360,18 +344,26 @@ export default function CandidateProfilePage({
                 <div className="hidden md:flex items-center gap-2 mr-4 pr-4 border-r border-gray-200 dark:border-gray-700">
                   {/* CV(s) */}
                   {parseCandidateUrls(candidate.cvUrl).map((url, idx, arr) => (
-                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
-                      className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium">
+                    <LinkWithStatus
+                      key={idx}
+                      url={url}
+                      label="CV"
+                      className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                    >
                       <FileText size={18} /> {arr.length > 1 ? `CV ${idx + 1}` : 'CV'}
-                    </a>
+                    </LinkWithStatus>
                   ))}
 
                   {/* Portfolio(s) */}
                   {parseCandidateUrls(candidate.portfolioUrl).map((url, idx, arr) => (
-                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
-                      className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium">
+                    <LinkWithStatus
+                      key={idx}
+                      url={url}
+                      label="Portfólio"
+                      className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                    >
                       <ExternalLinkIcon size={18} /> {arr.length > 1 ? `Portfólio ${idx + 1}` : 'Portfólio'}
-                    </a>
+                    </LinkWithStatus>
                   ))}
                 </div>
               )}
@@ -486,6 +478,7 @@ export default function CandidateProfilePage({
             isEditing={isEditing}
             handleFieldChange={handleFieldChange}
             formatDate={formatDate}
+            photoLoadError={photoLoadError}
           />
         )}
 

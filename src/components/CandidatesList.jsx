@@ -3,6 +3,7 @@ import { UserPlus, Settings, X, Edit3, Trash2, ChevronLeft, ChevronRight, Extern
 import { CANDIDATE_FIELDS, STATUS_COLORS } from '../constants';
 import { getCandidateTimestamp } from '../utils/timestampUtils';
 import { formatChildrenForDisplay } from '../utils/childrenNormalizer';
+import { formatCandidateDate } from '../utils/candidateDisplay';
 
 const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
     const [localSearch, setLocalSearch] = useState('');
@@ -75,17 +76,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
             }
         };
 
-        const formatDateOnly = (value) => {
-            if (!value) return 'N/A';
-            try {
-                const date = new Date(value);
-                return !isNaN(date.getTime())
-                    ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                    : 'N/A';
-            } catch {
-                return 'N/A';
-            }
-        };
+        const formatDateOnly = (value) => formatCandidateDate(value) ?? 'N/A';
 
         const renderBoolField = (value, trueText = '✓ Sim', falseText = '✗ Não') => {
             if (value === 'Sim' || value === true) {
