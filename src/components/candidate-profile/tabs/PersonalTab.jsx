@@ -1,0 +1,137 @@
+import React from 'react';
+import { User, Phone, MapPin, Calendar, Heart, Users, Camera } from 'lucide-react';
+import { CHILDREN_OPTIONS, formatChildrenForDisplay, normalizeChildrenForStorage } from '../../../utils/childrenNormalizer';
+
+export default function PersonalTab({
+    candidate,
+    editData,
+    isEditing,
+    handleFieldChange,
+    formatDate
+}) {
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                <User size={20} />
+                Informações Pessoais
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <Calendar size={16} className="text-gray-400" />
+                        Data de Nascimento
+                    </label>
+                    {isEditing ? (
+                        <input
+                            type="date"
+                            value={editData.birthDate || ''}
+                            onChange={(e) => handleFieldChange('birthDate', e.target.value)}
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                    ) : (
+                        <p className="text-gray-900 dark:text-white">{candidate.birthDate ? formatDate(candidate.birthDate) : 'Não informado'}</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Idade
+                    </label>
+                    {isEditing ? (
+                        <input
+                            type="number"
+                            value={editData.age || ''}
+                            onChange={(e) => handleFieldChange('age', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                            min="0"
+                            max="120"
+                        />
+                    ) : (
+                        <p className="text-gray-900 dark:text-white">{candidate.age ? `${candidate.age} anos` : 'Não informado'}</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <Heart size={16} className="text-gray-400" />
+                        Estado Civil
+                    </label>
+                    {isEditing ? (
+                        <select
+                            value={editData.maritalStatus || ''}
+                            onChange={(e) => handleFieldChange('maritalStatus', e.target.value)}
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                            <option value="">Selecione</option>
+                            <option value="Solteiro(a)">Solteiro(a)</option>
+                            <option value="Casado(a)">Casado(a)</option>
+                            <option value="Divorciado(a)">Divorciado(a)</option>
+                            <option value="Viúvo(a)">Viúvo(a)</option>
+                            <option value="União Estável">União Estável</option>
+                            <option value="Namorando">Namorando</option>
+                        </select>
+                    ) : (
+                        <p className="text-gray-900 dark:text-white">{candidate.maritalStatus || 'Não informado'}</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <Users size={16} className="text-gray-400" />
+                        Número de Filhos
+                    </label>
+                    {isEditing ? (
+                        <select
+                            value={editData.childrenCount != null && editData.childrenCount !== '' ? normalizeChildrenForStorage(editData.childrenCount) : ''}
+                            onChange={(e) => handleFieldChange('childrenCount', e.target.value === '' ? '' : normalizeChildrenForStorage(e.target.value))}
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                            <option value="">Selecione</option>
+                            {CHILDREN_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                    ) : (
+                        <p className="text-gray-900 dark:text-white">{formatChildrenForDisplay(candidate.childrenCount) || 'Não informado'}</p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <Camera size={16} className="text-gray-400" />
+                        URL da Foto
+                    </label>
+                    {isEditing ? (
+                        <input
+                            type="url"
+                            value={editData.photoUrl || ''}
+                            onChange={(e) => handleFieldChange('photoUrl', e.target.value)}
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="https://..."
+                        />
+                    ) : (
+                        <p className="text-xs text-gray-400 truncate max-w-xs">{candidate.photoUrl || 'Não informado'}</p>
+                    )}
+                </div>
+
+                <div className="md:col-span-2 pt-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Informações Adicionais / Bio
+                    </label>
+                    {isEditing ? (
+                        <textarea
+                            value={editData.freeField || ''}
+                            onChange={(e) => handleFieldChange('freeField', e.target.value)}
+                            rows={4}
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="Conte mais sobre o candidato..."
+                        />
+                    ) : (
+                        <p className="text-gray-900 dark:text-white whitespace-pre-wrap text-sm leading-relaxed">
+                            {candidate.freeField || 'Não informado.'}
+                        </p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
