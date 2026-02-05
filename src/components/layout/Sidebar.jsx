@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     LayoutDashboard, Users, Briefcase, Settings, FileText,
-    Kanban, BarChart3, HelpCircle, AlertCircle, X, ChevronRight, ChevronLeft, Menu
+    Kanban, BarChart3, HelpCircle, Info, AlertCircle, X, ChevronRight, ChevronLeft, Menu
 } from 'lucide-react';
 
 const Sidebar = ({
@@ -86,6 +86,11 @@ const Sidebar = ({
                 {/* Diagnóstico — em desenvolvimento */}
                 <button onClick={() => { setActiveTab('diagnostic'); setIsSidebarOpen(false); }} title="Funcionalidade em desenvolvimento" className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors cursor-not-allowed opacity-70 ${activeTab === 'diagnostic' ? 'bg-gray-500 text-white dark:bg-gray-600' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                     <AlertCircle size={18} /> Diagnóstico <span className="text-xs ml-1">(em breve)</span>
+                </button>
+
+                {/* Sobre */}
+                <button onClick={() => { setActiveTab('sobre'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'sobre' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+                    <Info size={18} /> Sobre
                 </button>
 
                 {/* Ajuda */}
