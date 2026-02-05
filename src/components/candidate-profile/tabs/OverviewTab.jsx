@@ -1,7 +1,8 @@
 import React from 'react';
 import { Mail, Phone, MapPin, Briefcase, TrendingUp, Clock as ClockIcon } from 'lucide-react';
 import { STATUS_COLORS, PIPELINE_STAGES } from '../../../constants';
-import { photoDisplayUrl } from '../../../utils/urlUtils';
+import { photoDisplayUrl, parseCandidateUrls, copyToClipboard } from '../../../utils/urlUtils';
+import { Copy, Check } from 'lucide-react';
 
 export default function OverviewTab({
     candidate,
@@ -9,6 +10,18 @@ export default function OverviewTab({
     photoLoadError,
     setPhotoLoadError
 }) {
+    const [copiedUrl, setCopiedUrl] = React.useState(null);
+
+    const handleCopy = async (url) => {
+        const success = await copyToClipboard(url);
+        if (success) {
+            setCopiedUrl(url);
+            setTimeout(() => setCopiedUrl(null), 2000);
+        }
+    };
+
+    const cvUrls = parseCandidateUrls(candidate.cvUrl);
+    const portfolioUrls = parseCandidateUrls(candidate.portfolioUrl);
     return (
         <div className="space-y-6">
             {/* Scorecards */}
@@ -110,21 +123,58 @@ export default function OverviewTab({
 
                         <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                             <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">Links Rápidos</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {candidate.cvUrl ? (
-                                    <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800">
-                                        Ver Currículo (CV)
-                                    </a>
-                                ) : (
-                                    <span className="px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-400 rounded-lg text-sm border border-gray-200 dark:border-gray-700 cursor-not-allowed">
-                                        CV não anexado
-                                    </span>
-                                )}
-                                {candidate.portfolioUrl && (
-                                    <a href={candidate.portfolioUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors border border-purple-200 dark:border-purple-800">
-                                        Portfólio
-                                    </a>
-                                )}
+                            <div className="space-y-3">
+                                {/* CV Links */}
+                                <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Currículo (CV)</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {cvUrls.length > 0 ? (
+                                            cvUrls.map((url, idx) => (
+                                                <div key={idx} className="flex items-center">
+                                                    <a href={url} target="_blank" rel="noopener noreferrer"
+                                                        className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-l-lg text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 border-r-0">
+                                                        {cvUrls.length > 1 ? `CV ${idx + 1}` : 'Ver CV'}
+                                                    </a>
+                                                    <button
+                                                        onClick={() => handleCopy(url)}
+                                                        className="px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-r-lg border border-blue-200 dark:border-blue-800 transition-colors"
+                                                        title="Copiar URL"
+                                                    >
+                                                        {copiedUrl === url ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                                                    </button>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <span className="text-xs text-gray-400 italic">Nenhum CV anexado</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Portfolio Links */}
+                                <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Portfólio</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {portfolioUrls.length > 0 ? (
+                                            portfolioUrls.map((url, idx) => (
+                                                <div key={idx} className="flex items-center">
+                                                    <a href={url} target="_blank" rel="noopener noreferrer"
+                                                        className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-l-lg text-xs font-medium hover:bg-purple-100 transition-colors border border-purple-200 dark:border-purple-800 border-r-0">
+                                                        {portfolioUrls.length > 1 ? `Portfólio ${idx + 1}` : 'Ver Portfólio'}
+                                                    </a>
+                                                    <button
+                                                        onClick={() => handleCopy(url)}
+                                                        className="px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 rounded-r-lg border border-purple-200 dark:border-purple-800 transition-colors"
+                                                        title="Copiar URL"
+                                                    >
+                                                        {copiedUrl === url ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                                                    </button>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <span className="text-xs text-gray-400 italic">Nenhum portfólio cadastrado</span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

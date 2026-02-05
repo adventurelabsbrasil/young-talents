@@ -1,6 +1,7 @@
 import React from 'react';
-import { User, Phone, MapPin, Calendar, Heart, Users, Camera } from 'lucide-react';
+import { User, Phone, MapPin, Calendar, Heart, Users, Camera, Copy, Check, ExternalLink } from 'lucide-react';
 import { CHILDREN_OPTIONS, formatChildrenForDisplay, normalizeChildrenForStorage } from '../../../utils/childrenNormalizer';
+import { copyToClipboard } from '../../../utils/urlUtils';
 
 export default function PersonalTab({
     candidate,
@@ -9,6 +10,15 @@ export default function PersonalTab({
     handleFieldChange,
     formatDate
 }) {
+    const [copied, setCopied] = React.useState(false);
+
+    const handleCopy = async (text) => {
+        const success = await copyToClipboard(text);
+        if (success) {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -109,7 +119,27 @@ export default function PersonalTab({
                             placeholder="https://..."
                         />
                     ) : (
-                        <p className="text-xs text-gray-400 truncate max-w-xs">{candidate.photoUrl || 'Não informado'}</p>
+                        candidate.photoUrl ? (
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href={candidate.photoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate max-w-[200px] flex items-center gap-1"
+                                >
+                                    Abrir Link <ExternalLink size={12} />
+                                </a>
+                                <button
+                                    onClick={() => handleCopy(candidate.photoUrl)}
+                                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="Copiar URL"
+                                >
+                                    {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-400">Não informado</p>
+                        )
                     )}
                 </div>
 

@@ -24,3 +24,28 @@ export const photoDisplayUrl = (url) => {
 
     return cleanUrl;
 };
+
+/**
+ * Divide uma string que pode conter múltiplas URLs separadas por vírgula.
+ */
+export const parseCandidateUrls = (urlStr) => {
+    if (!urlStr || typeof urlStr !== 'string') return [];
+    return urlStr
+        .split(',')
+        .map(u => u.trim())
+        .filter(u => u.length > 0 && u.startsWith('http'));
+};
+
+/**
+ * Utilitário para copiar texto para o clipboard.
+ */
+export const copyToClipboard = async (text) => {
+    if (!text) return false;
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch (err) {
+        console.error('Falha ao copiar:', err);
+        return false;
+    }
+};

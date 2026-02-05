@@ -8,12 +8,12 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { mapCandidateFromSupabase } from '../utils/candidateFromSupabase';
+import { photoDisplayUrl, parseCandidateUrls } from '../utils/urlUtils';
 import { PIPELINE_STAGES, STATUS_COLORS, CLOSING_STATUSES, ALL_STATUSES } from '../constants';
 import { normalizeCity, getMainCitiesOptions } from '../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from '../utils/interestAreaNormalizer';
 import { formatChildrenForDisplay, CHILDREN_OPTIONS, normalizeChildrenForStorage } from '../utils/childrenNormalizer';
-import { photoDisplayUrl } from '../utils/urlUtils';
 
 // Novos componentes de aba
 import OverviewTab from './candidate-profile/tabs/OverviewTab';
@@ -358,18 +358,21 @@ export default function CandidateProfilePage({
               {/* Botões de Ação Rápida */}
               {!isEditing && (
                 <div className="hidden md:flex items-center gap-2 mr-4 pr-4 border-r border-gray-200 dark:border-gray-700">
-                  {candidate.cvUrl && (
-                    <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer"
+                  {/* CV(s) */}
+                  {parseCandidateUrls(candidate.cvUrl).map((url, idx, arr) => (
+                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
                       className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium">
-                      <FileText size={18} /> CV
+                      <FileText size={18} /> {arr.length > 1 ? `CV ${idx + 1}` : 'CV'}
                     </a>
-                  )}
-                  {candidate.portfolioUrl && (
-                    <a href={candidate.portfolioUrl} target="_blank" rel="noopener noreferrer"
+                  ))}
+
+                  {/* Portfolio(s) */}
+                  {parseCandidateUrls(candidate.portfolioUrl).map((url, idx, arr) => (
+                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer"
                       className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium">
-                      <ExternalLinkIcon size={18} /> Portfólio
+                      <ExternalLinkIcon size={18} /> {arr.length > 1 ? `Portfólio ${idx + 1}` : 'Portfólio'}
                     </a>
-                  )}
+                  ))}
                 </div>
               )}
 
