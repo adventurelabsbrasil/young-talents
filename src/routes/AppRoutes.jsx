@@ -15,7 +15,7 @@ import SubmissionsView from '../components/SubmissionsView';
 import JobsManagementPage from '../components/JobsManagementPage';
 import ApplicationsPage from '../components/ApplicationsPage';
 import ReportsPage from '../components/ReportsPage';
-import HelpPage from '../components/HelpPage';
+import DocumentationPage from '../components/DocumentationPage';
 import SobrePage from '../components/SobrePage';
 import DiagnosticPage from '../components/DiagnosticPage';
 import SettingsPage from '../components/SettingsPage';
@@ -238,7 +238,7 @@ const AppRoutes = ({
                     )}
                     {activeTab === 'applications' && <ApplicationsPage applications={applications} candidates={candidates} jobs={jobs} companies={companies} onUpdateApplicationStatus={updateApplicationStatus} onRemoveApplication={removeApplication} onAddApplicationNote={addApplicationNote} onEditCandidate={openCandidateProfile} onViewJob={openJobCandidatesModal} onCreateApplication={createApplication} />}
                     {activeTab === 'reports' && <ReportsPage candidates={candidates} jobs={jobs} applications={applications} statusMovements={statusMovements} />}
-                    {activeTab === 'help' && <HelpPage />}
+                    {activeTab === 'help' && <DocumentationPage />}
                     {activeTab === 'sobre' && <SobrePage />}
                     {activeTab === 'diagnostic' && <div className="p-6 overflow-y-auto h-full"><DiagnosticPage candidates={candidates} /></div>}
                     {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { const params = new URLSearchParams(location.search); params.set('settingsTab', tab); navigate(`${location.pathname}?${params.toString()}`); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} onCreateUserWithPassword={createUserWithPassword} currentUserEmail={effectiveUser?.email} currentUserName={effectiveUser?.displayName} currentUserPhoto={effectiveUser?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
