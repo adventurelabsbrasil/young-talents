@@ -14,31 +14,28 @@ Este guia explica como criar usuários administradores e desenvolvedores no Youn
 
 2. Certifique-se de que as migrations foram executadas (schema `young_talents` e tabela `user_roles` existem).
 
+### Configurar a lista de usuários
+
+Os usuários **não** vêm mais no código (por segurança). Use um arquivo local que não é versionado:
+
+1. Copie o exemplo:
+   ```bash
+   cp scripts/users-setup.example.json scripts/users-setup.local.json
+   ```
+2. Edite `scripts/users-setup.local.json` e preencha o array `users` com email, senha, role e name de cada usuário.
+3. O arquivo `users-setup.local.json` está no `.gitignore` — nunca commite credenciais.
+
 ### Executar o script
 
 ```bash
 node scripts/setup-supabase-users.js
 ```
 
-O script cria os usuários iniciais, incluindo o usuário de desenvolvimento (`dev@adventurelabs.com.br`).
+O script cria ou atualiza os usuários definidos em `users-setup.local.json` e suas roles em `young_talents.user_roles`.
 
-### Usuários criados
+### Login
 
-- Admin e equipe conforme configurado no script
-- **Desenvolvedor:** `dev@adventurelabs.com.br` (senha provisória: `temp123`)
-
-### Login de Desenvolvedor
-
-Os seguintes emails têm permissões de admin automaticamente (definidos na migration 018):
-
-- `dev@adventurelabs.com.br`
-- `developer@adventurelabs.com.br`
-
-Para fazer login como desenvolvedor:
-
-1. Execute o script para criar `dev@adventurelabs.com.br`, ou
-2. Crie o usuário manualmente no Supabase Dashboard (Opção 2)
-3. Acesse `/login` e entre com email e senha
+Após criar os usuários, acesse `/login` e use **Email e senha** ou **Entrar com Google** (se o usuário foi configurado com o mesmo email no Supabase/OAuth).
 
 ---
 

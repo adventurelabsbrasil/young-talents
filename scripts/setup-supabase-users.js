@@ -1,22 +1,21 @@
 /**
  * Script para criar usuários iniciais no Supabase Authentication
- * 
+ *
  * Execute: node scripts/setup-supabase-users.js
- * 
+ *
  * Requisitos:
- * - Ter as variáveis de ambiente do Supabase configuradas:
- *   - SUPABASE_URL
- *   - SUPABASE_SERVICE_ROLE_KEY (chave de service role, não anon key)
- * 
- * NOTA: A service role key tem acesso total ao Supabase. 
- * Mantenha-a segura e nunca a exponha no frontend.
+ * - Variáveis de ambiente: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * - Arquivo scripts/users-setup.local.json com a lista de usuários (não versionado)
+ *   Copie de: scripts/users-setup.example.json
+ *
+ * NOTA: A service role key e o arquivo .local não devem ser commitados.
  */
 
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 
 // Obter diretório atual (ES modules)
 const __filename = fileURLToPath(import.meta.url);
@@ -46,6 +45,34 @@ if (!supabaseUrl || !supabaseServiceKey) {
   process.exit(1);
 }
 
+// Arquivo local com usuários (não versionado - não commitar credenciais)
+const usersSetupPath = join(__dirname, 'users-setup.local.json');
+if (!existsSync(usersSetupPath)) {
+  console.error('❌ Arquivo de usuários não encontrado: scripts/users-setup.local.json');
+  console.error('');
+  console.error('Crie o arquivo a partir do exemplo:');
+  console.error('  cp scripts/users-setup.example.json scripts/users-setup.local.json');
+  console.error('');
+  console.error('Edite users-setup.local.json com os emails, senhas e roles desejados.');
+  console.error('O arquivo .local não é versionado (está no .gitignore).');
+  process.exit(1);
+}
+
+let users;
+try {
+  const raw = readFileSync(usersSetupPath, 'utf8');
+  const config = JSON.parse(raw);
+  users = Array.isArray(config.users) ? config.users : [];
+} catch (err) {
+  console.error('❌ Erro ao ler users-setup.local.json:', err.message);
+  process.exit(1);
+}
+
+if (users.length === 0) {
+  console.error('❌ Nenhum usuário definido em users-setup.local.json (array "users" vazio).');
+  process.exit(1);
+}
+
 // Criar cliente Supabase com service role (tem permissões de admin)
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
@@ -56,46 +83,6 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
     schema: 'young_talents' // Define o schema padrão
   }
 });
-
-// Usuários a serem criados
-const users = [
-  {
-    email: 'contato@adventurelabs.com.br',
-    password: 'admin123',
-    role: 'admin',
-    name: 'Admin Principal'
-  },
-  {
-    email: 'suelen@youngempreendimentos.com.br',
-    password: 'temp123', // Senha provisória
-    role: 'admin',
-    name: 'Suelen'
-  },
-  {
-    email: 'carla@youngempreendimentos.com.br',
-    password: 'temp123', // Senha provisória
-    role: 'editor',
-    name: 'Carla'
-  },
-  {
-    email: 'rodrigo@youngempreendimentos.com.br',
-    password: 'temp123', // Senha provisória
-    role: 'admin',
-    name: 'Rodrigo'
-  },
-  {
-    email: 'eduardo@youngempreendimentos.com.br',
-    password: 'temp123', // Senha provisória
-    role: 'admin',
-    name: 'Eduardo'
-  },
-  {
-    email: 'dev@adventurelabs.com.br',
-    password: 'temp123', // Senha provisória
-    role: 'admin',
-    name: 'Desenvolvedor'
-  }
-];
 
 async function createUser(userData) {
   try {
@@ -269,9 +256,7 @@ async function setupUsers() {
   }
 
   console.log('\n🎉 Setup concluído!');
-  console.log('\n⚠️  LEMBRE-SE:');
-  console.log('   - Usuários com senha provisória devem alterá-la no primeiro login');
-  console.log('   - Configure o fluxo de alteração de senha na aplicação');
+  console.log('\n⚠️  LEMBRE-SE: Oriente os usuários a alterar a senha no primeiro login e use fluxo de redefinição na aplicação.');
   
   process.exit(results.failed.length > 0 ? 1 : 0);
 }
